@@ -1,0 +1,95 @@
+.toast-region {
+  position: fixed;
+  top: calc(var(--topbar-height) + var(--space-3));
+  right: var(--space-4);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(22rem, calc(100vw - 2 * var(--space-4)));
+  pointer-events: none; /* let clicks pass; cards re-enable */
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  pointer-events: auto;
+  animation: toast-in var(--transition-base);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast__icon {
+  display: inline-flex;
+  margin-top: 1px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.toast__message {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  line-height: var(--leading-normal);
+}
+
+.toast__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toast__close:hover {
+  background-color: var(--color-action-ghost-hover);
+  color: var(--color-text);
+}
+
+/* Variant accents (semantic colors reserved for status). */
+.toast--success {
+  border-left-color: var(--color-success);
+}
+.toast--success .toast__icon {
+  color: var(--color-success);
+}
+
+.toast--warning {
+  border-left-color: var(--color-warning);
+}
+.toast--warning .toast__icon {
+  color: var(--color-warning);
+}
+
+.toast--error {
+  border-left-color: var(--color-error);
+}
+.toast--error .toast__icon {
+  color: var(--color-error);
+}
+
+.toast--info {
+  border-left-color: var(--color-border-strong);
+}

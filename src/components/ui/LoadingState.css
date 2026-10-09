@@ -1,0 +1,17 @@
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-10);
+  color: var(--color-text-secondary);
+}
+
+.loading-state--full {
+  flex: 1;
+  min-height: 50vh;
+}
+
+.loading-state__label {
+  font-size: var(--text-md);
+}

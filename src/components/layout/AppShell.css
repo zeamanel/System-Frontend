@@ -1,0 +1,35 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background-color: var(--color-app-bg);
+}
+
+.app-shell__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+.app-shell__main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-8) var(--space-10);
+}
+
+.app-shell__main:focus {
+  outline: none;
+}
+
+@media (max-width: 960px) {
+  .app-shell__body {
+    flex-direction: column;
+  }
+
+  .app-shell__main {
+    padding: var(--space-5) var(--space-4);
+  }
+}

@@ -1,0 +1,137 @@
+/* ============================================================
+   DocuA4 design tokens
+   ------------------------------------------------------------
+   Single source of truth for the visual language. Components
+   must consume SEMANTIC tokens (below), never raw primitives,
+   so the whole app can be restyled centrally.
+
+   Direction: restrained monochrome — white document canvas,
+   light-grey app surfaces, medium-grey borders/text, black
+   primary actions. Semantic colors are reserved for status.
+   ============================================================ */
+
+:root {
+  /* ---------- Grayscale primitives (do not use directly) ---------- */
+  --gray-0: #ffffff;
+  --gray-25: #fcfcfd;
+  --gray-50: #f7f7f8;
+  --gray-100: #f1f1f3;
+  --gray-150: #e9e9ec;
+  --gray-200: #e2e2e6;
+  --gray-300: #d3d3d9;
+  --gray-400: #a7a7b0;
+  --gray-500: #7d7d88;
+  --gray-600: #5c5c66;
+  --gray-700: #44444c;
+  --gray-800: #2b2b31;
+  --gray-900: #17171b;
+  --gray-950: #0d0d10;
+
+  /* ---------- Semantic: surfaces ---------- */
+  --color-app-bg: var(--gray-100);        /* application background */
+  --color-surface: var(--gray-0);         /* cards, panels, top bars */
+  --color-surface-muted: var(--gray-50);  /* quieter panel interiors */
+  --color-surface-raised: var(--gray-0);  /* floating layers */
+  --color-canvas: var(--gray-0);          /* the A4 document canvas   */
+  --color-overlay: rgb(13 13 16 / 0.4);
+
+  /* ---------- Semantic: borders ---------- */
+  --color-border: var(--gray-300);
+  --color-border-subtle: var(--gray-200);
+  --color-border-strong: var(--gray-400);
+
+  /* ---------- Semantic: text ---------- */
+  --color-text: var(--gray-900);
+  --color-text-secondary: var(--gray-600);
+  --color-text-tertiary: var(--gray-500);
+  --color-text-disabled: var(--gray-400);
+  --color-text-inverse: var(--gray-0);
+
+  /* ---------- Semantic: interactive ---------- */
+  --color-action-primary: var(--gray-950);        /* black buttons */
+  --color-action-primary-hover: var(--gray-800);
+  --color-action-primary-active: var(--gray-900);
+  --color-on-action-primary: var(--gray-0);
+  --color-action-secondary-bg: var(--gray-0);
+  --color-action-secondary-hover: var(--gray-50);
+  --color-action-ghost-hover: var(--gray-150);
+  --color-selected: var(--gray-950);
+  --color-on-selected: var(--gray-0);
+  --color-focus-ring: var(--gray-900);
+
+  /* ---------- Semantic: status (reserved, restrained) ---------- */
+  --color-success: #1f7a3d;
+  --color-success-bg: #eef6f0;
+  --color-warning: #96660a;
+  --color-warning-bg: #faf4e6;
+  --color-error: #c0332b;
+  --color-error-bg: #faedec;
+  --color-info: var(--gray-700);
+  --color-info-bg: var(--gray-100);
+
+  /* ---------- Typography ----------
+     System stack with Ethiopic fallbacks so Amharic renders
+     consistently without downloading webfonts (bandwidth-friendly). */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans Ethiopic', 'Nyala', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'Cascadia Mono', Menlo,
+    Consolas, monospace;
+
+  --text-xs: 0.75rem;      /* 12px */
+  --text-sm: 0.8125rem;    /* 13px */
+  --text-md: 0.875rem;     /* 14px */
+  --text-base: 0.9375rem;  /* 15px */
+  --text-lg: 1.0625rem;    /* 17px */
+  --text-xl: 1.25rem;      /* 20px */
+  --text-2xl: 1.5rem;      /* 24px */
+  --text-3xl: 1.875rem;    /* 30px */
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* ---------- Spacing (4px base) ---------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ---------- Radius ---------- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-round: 999px;
+
+  /* ---------- Elevation (minimal, restrained) ---------- */
+  --shadow-xs: 0 1px 2px rgb(13 13 16 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(13 13 16 / 0.07), 0 1px 2px rgb(13 13 16 / 0.05);
+  --shadow-md: 0 4px 12px rgb(13 13 16 / 0.08), 0 2px 4px rgb(13 13 16 / 0.05);
+  --shadow-doc: 0 1px 2px rgb(13 13 16 / 0.08), 0 8px 24px rgb(13 13 16 / 0.07);
+
+  /* ---------- Layout ---------- */
+  --topbar-height: 56px;
+  --sidebar-width: 232px;
+  --content-max-width: 1200px;
+  /* A4 document canvas (210 × 297 mm) for the editor */
+  --doc-page-width: 210mm;
+  --doc-page-min-height: 297mm;
+  --doc-page-padding: 20mm;
+
+  /* ---------- Motion ---------- */
+  --transition-fast: 120ms ease;
+  --transition-base: 180ms ease;
+
+  /* ---------- Z-index scale ---------- */
+  --z-dropdown: 100;
+  --z-toast: 200;
+  --z-dialog: 300;
+}
