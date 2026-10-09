@@ -38,3 +38,11 @@
 .empty-state__action {
   margin-top: var(--space-2);
 }
+
+/* Compact variant used inside panels. */
+.empty-state--compact {
+  padding: var(--space-8) var(--space-4);
+  border: none;
+  background-color: transparent;
+}
+

@@ -1,6 +1,8 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import { I18nProvider } from './i18n'
+import { PreferencesProvider } from './preferences'
+import { SessionProvider } from './session'
 import { ToastProvider } from './components/ui'
 import { createQueryClient } from './lib/query-client'
 import { AppRoutes } from './routes'
@@ -11,11 +13,15 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <ToastProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </ToastProvider>
+        <PreferencesProvider>
+          <SessionProvider>
+            <ToastProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </ToastProvider>
+          </SessionProvider>
+        </PreferencesProvider>
       </I18nProvider>
     </QueryClientProvider>
   )

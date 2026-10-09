@@ -8,6 +8,13 @@ export class ConfigError extends Error {
   }
 }
 
+/**
+ * Where feature data comes from:
+ * - `fixtures` — clearly-labeled development data served locally
+ * - `http` — the live DocuA4 backend (separate repository)
+ */
+export type DataSource = 'fixtures' | 'http'
+
 /** Fully validated, typed application configuration. */
 export interface AppConfig {
   /** Base URL of the backend API (absolute URL or root-relative path). */
@@ -16,17 +23,33 @@ export interface AppConfig {
   appName: string
   /** Locale applied before any user preference is detected. */
   defaultLocale: Locale
+  /** Active data layer for feature content. */
+  dataSource: DataSource
 }
 
 interface RawEnv {
   readonly VITE_API_BASE_URL?: string
   readonly VITE_APP_NAME?: string
   readonly VITE_DEFAULT_LOCALE?: string
+  readonly VITE_DATA_SOURCE?: string
 }
 
 export interface ParseEnvOptions {
   /** Enables developer-friendly fallbacks (local backend default). */
   isDev: boolean
+}
+
+const DATA_SOURCES: readonly DataSource[] = ['fixtures', 'http']
+
+function normalizeDataSource(raw: string | undefined, isDev: boolean): DataSource {
+  const value = raw?.trim()
+  if (!value) return isDev ? 'fixtures' : 'http'
+  if (!DATA_SOURCES.includes(value as DataSource)) {
+    throw new ConfigError(
+      `VITE_DATA_SOURCE must be one of "fixtures" or "http": received "${value}"`,
+    )
+  }
+  return value as DataSource
 }
 
 function normalizeBaseUrl(raw: string | undefined, isDev: boolean): string {
@@ -66,6 +89,7 @@ export function parseEnv(raw: RawEnv, options: ParseEnvOptions): AppConfig {
     apiBaseUrl: normalizeBaseUrl(raw.VITE_API_BASE_URL, options.isDev),
     appName: raw.VITE_APP_NAME?.trim() || 'DocuA4',
     defaultLocale,
+    dataSource: normalizeDataSource(raw.VITE_DATA_SOURCE, options.isDev),
   }
 }
 

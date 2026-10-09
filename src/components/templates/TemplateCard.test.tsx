@@ -1,0 +1,56 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, expect, it, vi } from 'vitest'
+import { TemplateCard } from './TemplateCard'
+import type { TemplateSummary } from '../../lib/repositories'
+
+const template: TemplateSummary = {
+  id: 'letter',
+  title: 'Letter',
+  description: 'Formal letters',
+  category: 'business',
+  iconKey: 'document',
+  questionCount: 3,
+}
+
+function renderCard(overrides: Partial<Parameters<typeof TemplateCard>[0]> = {}) {
+  const onToggleFavorite = vi.fn()
+  const utils = render(
+    <MemoryRouter>
+      <TemplateCard
+        template={template}
+        favorited={false}
+        onToggleFavorite={onToggleFavorite}
+        favoriteAddLabel="Add to favorites"
+        favoriteRemoveLabel="Remove from favorites"
+        categoryLabel="Business"
+        {...overrides}
+      />
+    </MemoryRouter>,
+  )
+  return { onToggleFavorite, ...utils }
+}
+
+describe('TemplateCard', () => {
+  it('renders the template and links to its detail page', () => {
+    renderCard()
+    const link = screen.getByRole('link', { name: /letter/i })
+    expect(link).toHaveAttribute('href', '/templates/letter')
+    expect(screen.getByText('Business')).toBeInTheDocument()
+  })
+
+  it('toggles favorites with an accessible pressed state', () => {
+    const { onToggleFavorite } = renderCard()
+    const star = screen.getByRole('button', { name: 'Add to favorites' })
+    expect(star).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(star)
+    expect(onToggleFavorite).toHaveBeenCalledWith('letter')
+  })
+
+  it('reflects the favorited state', () => {
+    renderCard({ favorited: true })
+    expect(
+      screen.getByRole('button', { name: 'Remove from favorites' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+  })
+})

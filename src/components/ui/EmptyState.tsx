@@ -1,8 +1,9 @@
 import './EmptyState.css'
 
-import type { ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 
-export interface EmptyStateProps {
+export interface EmptyStateProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   icon?: ReactNode
   title: ReactNode
   description?: ReactNode
@@ -10,9 +11,19 @@ export interface EmptyStateProps {
   action?: ReactNode
 }
 
-export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  className,
+  ...rest
+}: EmptyStateProps) {
   return (
-    <div className="empty-state">
+    <div
+      className={['empty-state', className].filter(Boolean).join(' ')}
+      {...rest}
+    >
       {icon ? <div className="empty-state__icon">{icon}</div> : null}
       <h2 className="empty-state__title">{title}</h2>
       {description ? (

@@ -155,6 +155,35 @@ export function SparkIcon({ size = 18, ...rest }: IconProps) {
   )
 }
 
+export function StarIcon({
+  size = 18,
+  filled = false,
+  ...rest
+}: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...svgProps(size)} fill={filled ? 'currentColor' : 'none'} {...rest}>
+      <path d="M12 3.8 14.3 9l5.7.7-4.2 3.9 1.1 5.6-4.9-2.8-4.9 2.8 1.1-5.6L4 9.7 9.7 9 12 3.8Z" />
+    </svg>
+  )
+}
+
+export function BellIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M18 8.5a6 6 0 1 0-12 0c0 6.5-2.5 7.5-2.5 7.5h17S18 15 18 8.5" />
+      <path d="M13.7 20a2 2 0 0 1-3.4 0" />
+    </svg>
+  )
+}
+
+export function MenuIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  )
+}
+
 export function UserIcon({ size = 18, ...rest }: IconProps) {
   return (
     <svg {...svgProps(size)} {...rest}>

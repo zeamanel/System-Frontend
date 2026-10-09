@@ -12,7 +12,10 @@ export interface User {
   id: string
   name: string
   email: string
+  /** Authorization role; absent roles are treated as regular users. */
+  role?: 'user' | 'admin'
 }
+
 
 export interface AuthSession {
   user: User

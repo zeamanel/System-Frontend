@@ -6,13 +6,18 @@ import { useI18n } from '../i18n'
 import { LOCALES } from '../i18n'
 import type { Locale } from '../i18n'
 import { env } from '../config/env'
+import { COUNTRIES, usePreferences } from '../preferences'
+import type { CountryCode } from '../preferences'
 import { getHealth } from '../lib/api/endpoints/health'
+import { isFixtureDataSource } from '../lib/repositories'
 import {
+  Badge,
   Button,
   Card,
   CardBody,
   CardRow,
   CardTitle,
+  PageHeader,
   Select,
   useToast,
 } from '../components/ui'
@@ -21,6 +26,7 @@ type HealthState = 'idle' | 'ok' | 'fail'
 
 export default function SettingsPage() {
   const { locale, setLocale, t } = useI18n()
+  const { country, setCountry } = usePreferences()
   const toast = useToast()
   const [health, setHealth] = useState<HealthState>('idle')
 
@@ -38,9 +44,7 @@ export default function SettingsPage() {
 
   return (
     <div className="page">
-      <header className="page__header">
-        <h1 className="page__title">{t('settings.title')}</h1>
-      </header>
+      <PageHeader title={t('settings.title')} />
 
       <div className="settings-grid">
         <Card className="settings-card">
@@ -57,6 +61,37 @@ export default function SettingsPage() {
                 label: t(`language.${code}` as `language.${Locale}`),
               }))}
             />
+            <Select
+              id="settings-country"
+              label={t('settings.country')}
+              hint={t('settings.countryHelp')}
+              value={country}
+              onChange={(event) =>
+                setCountry(event.target.value as CountryCode)
+              }
+              options={COUNTRIES.map((code) => ({
+                value: code,
+                label: t(`country.${code}` as `country.${CountryCode}`),
+              }))}
+            />
+          </CardBody>
+        </Card>
+
+        <Card className="settings-card">
+          <CardTitle>{t('settings.data')}</CardTitle>
+          <CardBody>
+            <CardRow label={t('settings.data')}>
+              {isFixtureDataSource() ? (
+                <Badge variant="warning">
+                  {t('settings.dataFixtures')} · {t('dev.badge')}
+                </Badge>
+              ) : (
+                <Badge variant="neutral">{t('settings.dataHttp')}</Badge>
+              )}
+            </CardRow>
+            <p className="panel-note">
+              VITE_DATA_SOURCE={env.dataSource}
+            </p>
           </CardBody>
         </Card>
 
@@ -91,3 +126,4 @@ export default function SettingsPage() {
     </div>
   )
 }
+

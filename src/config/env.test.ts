@@ -48,4 +48,24 @@ describe('parseEnv', () => {
     expect(config.defaultLocale).toBe('am')
     expect(config.appName).toBe('Custom')
   })
+
+  it('defaults the data source to fixtures in dev and http in prod', () => {
+    expect(parseEnv({}, { isDev: true }).dataSource).toBe('fixtures')
+    expect(parseEnv({}, { isDev: false }).dataSource).toBe('http')
+  })
+
+  it('accepts explicit data source values', () => {
+    expect(
+      parseEnv({ VITE_DATA_SOURCE: 'http' }, { isDev: true }).dataSource,
+    ).toBe('http')
+    expect(
+      parseEnv({ VITE_DATA_SOURCE: 'fixtures' }, { isDev: false }).dataSource,
+    ).toBe('fixtures')
+  })
+
+  it('rejects unknown data source values', () => {
+    expect(() =>
+      parseEnv({ VITE_DATA_SOURCE: 'magic' }, { isDev: false }),
+    ).toThrow()
+  })
 })

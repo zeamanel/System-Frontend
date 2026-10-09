@@ -1,0 +1,31 @@
+.skeleton {
+  display: block;
+  background-color: var(--gray-150);
+  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton--circle {
+  border-radius: var(--radius-round);
+}
+
+.skeleton--box {
+  border-radius: var(--radius-md);
+}
+
+.skeleton-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}

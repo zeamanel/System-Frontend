@@ -3,88 +3,73 @@ import './TopBar.css'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../../i18n'
-import type { Locale } from '../../i18n'
-import { LOCALES } from '../../i18n'
-import { PlusIcon, UserIcon } from '../icons'
-import { Button, Dialog, Dropdown } from '../ui'
+import { MenuIcon, PlusIcon } from '../icons'
+import { Button, SearchInput } from '../ui'
+import { CreateDocumentDialog } from '../create-document/CreateDocumentDialog'
 import { Logo } from './Logo'
+import { NotificationsMenu } from './NotificationsMenu'
+import { ProfileMenu } from './ProfileMenu'
+import { RegionMenu } from './RegionMenu'
 
-function LanguageSwitcher() {
-  const { locale, setLocale, t } = useI18n()
-  return (
-    <div className="lang-switch" role="group" aria-label={t('topbar.language')}>
-      {LOCALES.map((code: Locale) => (
-        <button
-          key={code}
-          type="button"
-          className={[
-            'lang-switch__option',
-            locale === code ? 'lang-switch__option--active' : null,
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={locale === code}
-          onClick={() => setLocale(code)}
-        >
-          {t(`language.${code}` as `language.${Locale}`)}
-        </button>
-      ))}
-    </div>
-  )
+export interface TopBarProps {
+  /** Opens the mobile navigation drawer. */
+  onOpenMenu: () => void
 }
 
-export function TopBar() {
+/** Global top bar: menu trigger, logo, search, region, notifications, profile. */
+export function TopBar({ onOpenMenu }: TopBarProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const [newDocOpen, setNewDocOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+
+  const goToSearch = () => {
+    const query = search.trim()
+    if (query) {
+      navigate(`/search?q=${encodeURIComponent(query)}`)
+    }
+  }
 
   return (
     <header className="topbar">
       <div className="topbar__inner">
+        <button
+          type="button"
+          className="topbar__menu-btn"
+          aria-label={t('topbar.menu')}
+          onClick={onOpenMenu}
+        >
+          <MenuIcon size={18} />
+        </button>
         <Logo />
+        <div className="topbar__search">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            onSubmit={goToSearch}
+            placeholder={t('topbar.searchPlaceholder')}
+            ariaLabel={t('topbar.search')}
+            clearLabel={t('search.clear')}
+          />
+        </div>
         <div className="topbar__actions">
-          <LanguageSwitcher />
           <Button
             variant="primary"
             size="sm"
+            className="topbar__create"
             icon={<PlusIcon size={15} />}
-            onClick={() => setNewDocOpen(true)}
+            onClick={() => setCreateOpen(true)}
           >
             {t('topbar.newDocument')}
           </Button>
-          <Dropdown
-            triggerAriaLabel={t('topbar.account')}
-            label={
-              <span className="topbar__account">
-                <UserIcon size={15} />
-                <span className="topbar__account-label">{t('topbar.account')}</span>
-              </span>
-            }
-            items={[
-              {
-                id: 'sign-in',
-                label: t('menu.signIn'),
-                icon: <UserIcon size={15} />,
-                onSelect: () => navigate('/login'),
-              },
-            ]}
-          />
+          <RegionMenu />
+          <NotificationsMenu />
+          <ProfileMenu />
         </div>
       </div>
 
-      <Dialog
-        open={newDocOpen}
-        onClose={() => setNewDocOpen(false)}
-        title={t('dialog.newDocumentTitle')}
-        closeLabel={t('dialog.close')}
-        footer={
-          <Button variant="secondary" onClick={() => setNewDocOpen(false)}>
-            {t('common.close')}
-          </Button>
-        }
-      >
-        {t('dialog.newDocumentBody')}
-      </Dialog>
+      <CreateDocumentDialog open={createOpen} onClose={() => setCreateOpen(false)} />
     </header>
   )
 }
+

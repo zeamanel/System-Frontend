@@ -25,27 +25,57 @@ purpose. Revisit only when client state genuinely outgrows context.
 ```
 src/
   main.tsx              # entry: global styles + <App />
-  App.tsx               # provider composition (Query → I18n → Toast → Router)
-  routes.tsx            # central route table, lazy pages
+  App.tsx               # provider composition (Query → I18n → Prefs → Session → Toast → Router)
+  routes.tsx            # central route table, lazy pages, session guard
   config/env.ts         # typed, validated VITE_* environment access
   styles/
     tokens.css          # ALL design tokens (semantic, monochrome)
     base.css            # reset + element defaults + a11y utilities
   i18n/                 # locales, typed resources, provider, hook
+  preferences/          # regional preferences (country), provider, hook
+  session/              # SessionProvider, RequireSession guard, useSession
   lib/
     api/                # API-client boundary (client, auth store, endpoints)
+    repositories/       # replaceable data layer: interfaces, fixtures, HTTP impls
     query-client.ts     # TanStack Query defaults
+    query-keys.ts       # centralised cache keys
+    datetime.ts         # localized date/relative-time helpers
+  hooks/                # feature hooks binding repositories to TanStack Query
   types/api.ts          # backend contract types (evolves with backend repo)
   components/
     icons/              # inline SVG icon set (currentColor, aria-hidden)
     ui/                 # design-system primitives (Button, Dialog, …)
-    layout/             # AppShell, TopBar, Sidebar, Logo
+    layout/             # AppShell, TopBar, Sidebar, region/notifications/profile menus
+    templates/          # TemplateCard + icon mapping
+    documents/          # DocumentListItem
+    create-document/    # CreateDocumentDialog (template picker)
   pages/                # route-level screens (+ pages.css)
   test/setup.ts         # Vitest setup (jest-dom, cleanup)
 docs/                   # architecture & deployment notes
 public/_headers         # Cloudflare Pages security/cache headers
 public/_redirects       # Cloudflare Pages SPA fallback
 ```
+
+## Data layer (Phase 2)
+
+Feature data flows through **repository interfaces**
+(`src/lib/repositories/types.ts`) so the UI never talks to `fetch` or fixtures
+directly:
+
+- `fixtures` (`VITE_DATA_SOURCE=fixtures`, dev default) — clearly-labeled
+  development data persisted to localStorage. A persistent "Dev data" badge
+  in the sidebar footer, notifications, Settings and the login page marks
+  every surface where fixture content appears. Usage data is **never**
+  fabricated — the fixture repository returns `null` and the UI shows an
+  "unavailable" state.
+- `http` (`VITE_DATA_SOURCE=http`, prod default) — implementations over the
+  centralised API client that also document the intended backend contract
+  (`/templates`, `/favorites/templates`, `/notifications`, `/organization`,
+  `/usage`, `/auth/session`) for the backend repository to implement.
+
+Feature hooks (`src/hooks/*`) bind repositories to TanStack Query with
+centralised keys; components consume only those hooks.
+
 
 ## Conventions
 
@@ -79,22 +109,29 @@ public/_redirects       # Cloudflare Pages SPA fallback
 | Variable | Meaning | Default |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | Backend base — absolute URL or root-relative path | `http://localhost:8787` (dev) / `/api` (prod) |
+| `VITE_DATA_SOURCE` | Feature data layer: `fixtures` or `http` | `fixtures` (dev) / `http` (prod) |
 | `VITE_APP_NAME` | Product name in the shell | `DocuA4` |
 | `VITE_DEFAULT_LOCALE` | Locale before user preference | `en` |
 
 ## Authentication
 
-Not implemented in Phase 1 (no backend yet). The boundary is prepared:
-`lib/api/auth-store.ts` (single place to swap localStorage for httpOnly
-cookies) and `lib/api/endpoints/auth.ts` (typed sign-in/out/session calls).
+Phase 2 introduces a session boundary: `SessionProvider` + `RequireSession`
+guard the app shell, and the session itself comes from the active repository
+(fixture development user, or `/auth/session` over HTTP). Sign-in/out flows
+through `useSession`; the API token store remains the single swap point for
+future httpOnly cookies.
 
 ## Phased roadmap (proposal)
 
-1. **Phase 1 — foundation** (this): shell, tokens, primitives, routing,
+1. **Phase 1 — foundation** (done): shell, tokens, primitives, routing,
    API boundary, i18n, tests, CI-ready scripts.
-2. **Phase 2**: document-type catalogue + guided question flow; generation
-   job submission/polling; document list with real data.
-3. **Phase 3**: A4 canvas editor (contenteditable blocks), autosave,
+2. **Phase 2 — dashboard & data layer** (done): repository boundary with
+   labeled fixtures, session + route guard, grouped navigation with admin
+   gating, dashboard, templates catalogue + detail, favorites, documents,
+   organization profile, notifications, global search.
+3. **Phase 3**: guided question flow; generation job submission/polling;
+   document creation from templates.
+4. **Phase 4**: A4 canvas editor (contenteditable blocks), autosave,
    versioning.
-4. **Phase 4**: print/export pipeline (PDF), auth + accounts.
-5. **Phase 5**: template library, sharing, offline/PWA considerations.
+5. **Phase 5**: print/export pipeline (PDF), real auth + accounts.
+6. **Phase 6**: template library, sharing, offline/PWA considerations.

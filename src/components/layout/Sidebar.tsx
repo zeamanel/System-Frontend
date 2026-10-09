@@ -3,14 +3,19 @@ import './Sidebar.css'
 import { NavLink } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n'
+import { isFixtureDataSource } from '../../lib/repositories'
+import { useSession } from '../../session'
 import {
   DocumentIcon,
   HomeIcon,
   SettingsIcon,
+  StarIcon,
   TemplateIcon,
+  UserIcon,
 } from '../icons'
 import type { IconProps } from '../icons'
 import type { ComponentType } from 'react'
+import { Badge } from '../ui'
 
 interface NavItem {
   to: string
@@ -19,39 +24,88 @@ interface NavItem {
   end?: boolean
 }
 
-const NAV_ITEMS: NavItem[] = [
+const WORKSPACE_ITEMS: NavItem[] = [
   { to: '/', labelKey: 'nav.home', icon: HomeIcon, end: true },
-  { to: '/documents', labelKey: 'nav.documents', icon: DocumentIcon },
   { to: '/templates', labelKey: 'nav.templates', icon: TemplateIcon },
+  { to: '/documents', labelKey: 'nav.documents', icon: DocumentIcon },
+  { to: '/favorites', labelKey: 'nav.favorites', icon: StarIcon },
+]
+
+const ACCOUNT_ITEMS: NavItem[] = [
+  { to: '/organization', labelKey: 'nav.organization', icon: UserIcon },
   { to: '/settings', labelKey: 'nav.settings', icon: SettingsIcon },
 ]
 
-export function Sidebar() {
+const ADMIN_ITEMS: NavItem[] = [
+  { to: '/admin', labelKey: 'nav.admin', icon: SettingsIcon },
+]
+
+export interface SidebarProps {
+  /** Drawer state — only meaningful below the desktop breakpoint. */
+  mobileOpen?: boolean
+  /** Called after any navigation so the mobile drawer closes. */
+  onNavigate?: () => void
+}
+
+/**
+ * Persistent primary navigation. The Administration group is exposed only
+ * to users whose session role is `admin`.
+ */
+export function Sidebar({ mobileOpen = false, onNavigate }: SidebarProps) {
   const { t } = useI18n()
+  const { isAdmin } = useSession()
+
+  const groups: { labelKey: MessageKey; items: NavItem[] }[] = [
+    { labelKey: 'nav.group.workspace', items: WORKSPACE_ITEMS },
+    { labelKey: 'nav.group.account', items: ACCOUNT_ITEMS },
+    ...(isAdmin
+      ? [{ labelKey: 'nav.group.admin' as MessageKey, items: ADMIN_ITEMS }]
+      : []),
+  ]
 
   return (
-    <nav className="sidebar" aria-label={t('nav.primary')}>
-      <ul className="sidebar__list">
-        {NAV_ITEMS.map(({ to, labelKey, icon: Icon, end }) => (
-          <li key={to}>
-            <NavLink
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                [
-                  'sidebar__link',
-                  isActive ? 'sidebar__link--active' : null,
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-              }
-            >
-              <Icon size={17} className="sidebar__icon" />
-              <span>{t(labelKey)}</span>
-            </NavLink>
-          </li>
-        ))}
-      </ul>
+    <nav
+      className={['sidebar', mobileOpen ? 'sidebar--open' : null]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label={t('nav.primary')}
+    >
+      {groups.map((group) => (
+        <div key={group.labelKey} className="sidebar__group">
+          <h2 className="sidebar__group-title">{t(group.labelKey)}</h2>
+          <ul className="sidebar__list">
+            {group.items.map(({ to, labelKey, icon: Icon, end }) => (
+              <li key={to}>
+                <NavLink
+                  to={to}
+                  end={end}
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    [
+                      'sidebar__link',
+                      isActive ? 'sidebar__link--active' : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+                  }
+                >
+                  <Icon size={17} className="sidebar__icon" />
+                  <span>{t(labelKey)}</span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {isFixtureDataSource() ? (
+        <div className="sidebar__footer">
+          <Badge variant="warning" title="VITE_DATA_SOURCE=fixtures">
+            {t('dev.badge')}
+          </Badge>
+        </div>
+      ) : null}
     </nav>
   )
 }
+

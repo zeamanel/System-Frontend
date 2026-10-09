@@ -1,0 +1,110 @@
+import './CreateDocumentDialog.css'
+
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useI18n } from '../../i18n'
+import { useTemplatesList } from '../../hooks/use-templates'
+import { ArrowRightIcon } from '../icons'
+import { templateIcon } from '../templates/template-icons'
+import { Button, Dialog, PanelError, SearchInput } from '../ui'
+
+export interface CreateDocumentDialogProps {
+  open: boolean
+  onClose: () => void
+}
+
+/**
+ * Primary "create document" entry point: pick a template, then continue on
+ * the template page. Replaces the Phase-1 informational dialog with real
+ * navigation.
+ */
+export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProps) {
+  const { t } = useI18n()
+  const navigate = useNavigate()
+  const [filter, setFilter] = useState('')
+
+  const templates = useTemplatesList()
+
+  useEffect(() => {
+    if (open) setFilter('')
+  }, [open])
+
+  const needle = filter.trim().toLowerCase()
+  const items = (templates.data ?? []).filter(
+    (template) =>
+      !needle ||
+      template.title.toLowerCase().includes(needle) ||
+      template.description.toLowerCase().includes(needle),
+  )
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={t('createDialog.title')}
+      closeLabel={t('common.close')}
+      width="md"
+      footer={
+        <Button
+          variant="ghost"
+          icon={<ArrowRightIcon size={15} />}
+          onClick={() => {
+            onClose()
+            navigate('/templates')
+          }}
+        >
+          {t('createDialog.browseAll')}
+        </Button>
+      }
+    >
+      <div className="create-dialog">
+        <SearchInput
+          value={filter}
+          onChange={setFilter}
+          placeholder={t('createDialog.searchPlaceholder')}
+          ariaLabel={t('createDialog.searchPlaceholder')}
+          clearLabel={t('search.clear')}
+          loading={templates.isPending}
+        />
+        {templates.isPending ? (
+          <p className="create-dialog__hint">{t('common.loading')}</p>
+        ) : templates.isError ? (
+          <PanelError onRetry={() => void templates.refetch()} />
+        ) : items.length === 0 ? (
+          <p className="create-dialog__hint">{t('createDialog.empty')}</p>
+        ) : (
+          <ul className="create-dialog__list">
+            {items.map((template) => {
+              const Icon = templateIcon(template.iconKey)
+              return (
+                <li key={template.id}>
+                  <button
+                    type="button"
+                    className="create-dialog__item"
+                    onClick={() => {
+                      onClose()
+                      navigate(`/templates/${encodeURIComponent(template.id)}`)
+                    }}
+                  >
+                    <span className="create-dialog__item-icon">
+                      <Icon size={17} />
+                    </span>
+                    <span className="create-dialog__item-text">
+                      <span className="create-dialog__item-title">
+                        {template.title}
+                      </span>
+                      <span className="create-dialog__item-description">
+                        {template.description}
+                      </span>
+                    </span>
+                    <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </Dialog>
+  )
+}

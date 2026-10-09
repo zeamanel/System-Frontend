@@ -3,41 +3,81 @@ import './pages.css'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
+import { useDebouncedValue } from '../hooks/use-debounced-value'
+import { useDocumentsList } from '../hooks/use-documents'
+import { DocumentListItem } from '../components/documents/DocumentListItem'
 import { DocumentIcon } from '../components/icons'
-import { Button, EmptyState, Input } from '../components/ui'
+import {
+  Button,
+  EmptyState,
+  PageHeader,
+  PanelError,
+  PanelLoading,
+  SearchInput,
+} from '../components/ui'
 
 export default function DocumentsPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search, 250)
+
+  const documents = useDocumentsList(debouncedSearch.trim() || undefined)
+  const items = documents.data ?? []
 
   return (
     <div className="page">
-      <header className="page__header">
-        <h1 className="page__title">{t('documents.title')}</h1>
-        <div className="documents-toolbar">
-          <Input
-            bare
-            id="documents-search"
-            type="search"
+      <PageHeader title={t('documents.title')} />
+
+      <div className="toolbar">
+        <div className="toolbar__search">
+          <SearchInput
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={setSearch}
             placeholder={t('documents.searchPlaceholder')}
-            aria-label={t('common.search')}
+            ariaLabel={t('common.search')}
+            clearLabel={t('search.clear')}
+            loading={documents.isFetching}
           />
         </div>
-      </header>
+      </div>
 
-      <EmptyState
-        icon={<DocumentIcon size={22} />}
-        title={t('empty.documents.title')}
-        description={t('empty.documents.body')}
-        action={
-          <Button variant="primary" onClick={() => navigate('/')}>
-            {t('empty.documents.action')}
-          </Button>
-        }
-      />
+      {documents.isPending ? (
+        <PanelLoading />
+      ) : documents.isError ? (
+        <PanelError onRetry={() => void documents.refetch()} />
+      ) : items.length === 0 ? (
+        search.trim() ? (
+          <EmptyState
+            title={t('search.empty.title', { query: debouncedSearch.trim() })}
+            description={t('search.empty.body')}
+            action={
+              <Button variant="secondary" size="sm" onClick={() => setSearch('')}>
+                {t('search.clear')}
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={<DocumentIcon size={22} />}
+            title={t('empty.documents.title')}
+            description={t('empty.documents.body')}
+            action={
+              <Button variant="primary" onClick={() => navigate('/')}>
+                {t('empty.documents.action')}
+              </Button>
+            }
+          />
+        )
+      ) : (
+        <ul className="document-list document-list--panel">
+          {items.map((document) => (
+            <li key={document.id}>
+              <DocumentListItem document={document} />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
