@@ -14,7 +14,7 @@ export interface DialogProps {
   footer?: ReactNode
   /** Accessible label for the corner close button. */
   closeLabel?: string
-  width?: 'sm' | 'md'
+  width?: 'sm' | 'md' | 'lg'
 }
 
 /**
@@ -37,9 +37,17 @@ export function Dialog({
     const dialog = dialogRef.current
     if (!dialog) return
     if (open && !dialog.open) {
-      dialog.showModal()
+      if (typeof dialog.showModal === 'function') {
+        dialog.showModal()
+      } else {
+        dialog.setAttribute('open', '')
+      }
     } else if (!open && dialog.open) {
-      dialog.close()
+      if (typeof dialog.close === 'function') {
+        dialog.close()
+      } else {
+        dialog.removeAttribute('open')
+      }
     }
   }, [open])
 

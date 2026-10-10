@@ -8,6 +8,7 @@ import { RequireSession } from './session'
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const TemplateDetailPage = lazy(() => import('./pages/TemplateDetailPage'))
+const CreateDocumentFlowPage = lazy(() => import('./pages/CreateDocumentFlowPage'))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'))
 const EditorPage = lazy(() => import('./pages/EditorPage'))
 const FavoritesPage = lazy(() => import('./pages/FavoritesPage'))
@@ -36,6 +37,7 @@ export function AppRoutes() {
           <Route index element={<DashboardPage />} />
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="templates/:templateId" element={<TemplateDetailPage />} />
+          <Route path="templates/:templateId/create" element={<CreateDocumentFlowPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="documents/:documentId" element={<EditorPage />} />
           <Route path="favorites" element={<FavoritesPage />} />

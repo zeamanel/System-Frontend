@@ -155,6 +155,15 @@ export function SparkIcon({ size = 18, ...rest }: IconProps) {
   )
 }
 
+export function EyeIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
 export function StarIcon({
   size = 18,
   filled = false,
@@ -209,6 +218,197 @@ export function InfoIcon({ size = 18, ...rest }: IconProps) {
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v5" />
       <path d="M12 7.8h.01" />
+    </svg>
+  )
+}
+
+export function BoldIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M7 4h6a4 4 0 0 1 0 8H7z" />
+      <path d="M7 12h7a4 4 0 0 1 0 8H7z" />
+    </svg>
+  )
+}
+
+export function ItalicIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M14 4h-4M14 20h-4M14.5 4 9.5 20" />
+    </svg>
+  )
+}
+
+export function UnderlineIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M7 4v6a5 5 0 0 0 10 0V4" />
+      <path d="M5 20h14" />
+    </svg>
+  )
+}
+
+export function AlignLeftIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M4 6h16M4 12h10M4 18h13" />
+    </svg>
+  )
+}
+
+export function AlignCenterIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M4 6h16M7 12h10M6 18h12" />
+    </svg>
+  )
+}
+
+export function AlignRightIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M4 6h16M10 12h10M7 18h13" />
+    </svg>
+  )
+}
+
+export function AlignJustifyIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  )
+}
+
+export function ListIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function ListOrderedIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="M3.5 4.8 4.7 4.3V8M3.4 10.7h2L3.4 12.6h2M3.4 16.4h2v.9h-2v1.6h2.3" />
+    </svg>
+  )
+}
+
+export function IndentIncreaseIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M4 6h16M9 12h11M9 18h11" />
+      <path d="m3 10 3 2-3 2z" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function IndentDecreaseIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M4 6h16M9 12h11M9 18h11" />
+      <path d="m6 10-3 2 3 2z" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function TableIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <rect x="3.5" y="5" width="17" height="14" rx="1.5" />
+      <path d="M3.5 10h17M9.5 10v9" />
+    </svg>
+  )
+}
+
+export function SignatureIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="m3 17 2.5-7c.8-2.2 3.4-1.6 3 .8-.4 2.1-1.2 4.6-1.5 6.2 2-4.5 3.6-9.4 5-9.4 1.2 0 .5 3-1 6.2 1.3-2.4 3-4.6 4-4.6 1.5 0 .5 3.3-1.5 6 1-.8 2-1.2 2.7-.7.8.6.2 2-.9 2.9" />
+      <path d="M3 21h18" />
+    </svg>
+  )
+}
+
+export function PageBreakIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M7 3h7l4 4v5H7z" />
+      <path d="M7 18v3M12 18v3M17 18v3" />
+      <path d="M3 15.5h18" strokeDasharray="2 2.5" />
+    </svg>
+  )
+}
+
+export function ImagePlusIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <rect x="3.5" y="5" width="14" height="12" rx="1.5" />
+      <circle cx="8" cy="9.5" r="1.3" />
+      <path d="m4.5 15 3.5-3.5 3 3 2.5-2.5 4 4" />
+      <path d="M19 8v6M16 11h6" />
+    </svg>
+  )
+}
+
+export function ArrowUpIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M12 20V5" />
+      <path d="m5.5 11.5 6.5-6.5 6.5 6.5" />
+    </svg>
+  )
+}
+
+export function ArrowDownIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M12 4v15" />
+      <path d="m5.5 12.5 6.5 6.5 6.5-6.5" />
+    </svg>
+  )
+}
+
+export function TrashIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="M6.5 7l.8 12a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9l.8-12" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  )
+}
+
+export function DownloadIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M12 4v11" />
+      <path d="m7 10.5 5 5 5-5" />
+      <path d="M4 19h16" />
+    </svg>
+  )
+}
+
+export function PanelLeftIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M9.5 4.5v15" />
+    </svg>
+  )
+}
+
+export function PanelRightIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M14.5 4.5v15" />
     </svg>
   )
 }

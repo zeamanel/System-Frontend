@@ -1,56 +1,82 @@
 import './pages.css'
 
+import { useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useI18n } from '../i18n'
-import { ArrowLeftIcon, PrinterIcon } from '../components/icons'
-import { Button, useToast } from '../components/ui'
+import { useDocument } from '../hooks/use-documents'
+import { useTemplateDetail } from '../hooks/use-templates'
+import { Button, EmptyState, LoadingState, PanelError } from '../components/ui'
+import { EditorWorkspace } from '../components/editor/EditorWorkspace'
 
+/**
+ * Document editor route: loads the document (and its template schema for the
+ * guided fields panel) and renders the A4 editing workspace.
+ */
 export default function EditorPage() {
   const { t } = useI18n()
-  const toast = useToast()
   const navigate = useNavigate()
   const { documentId } = useParams<'documentId'>()
 
-  return (
-    <div className="editor-page">
-      <div className="editor-toolbar">
-        <div className="editor-toolbar__group">
-          <Button
-            variant="ghost"
-            icon={<ArrowLeftIcon size={16} />}
-            onClick={() => navigate(-1)}
-          >
-            {t('editor.back')}
-          </Button>
-          <h1 className="editor-toolbar__title">{t('editor.untitled')}</h1>
-          {documentId ? (
-            <span className="editor-toolbar__id">
-              <code>{documentId}</code>
-            </span>
-          ) : null}
-        </div>
-        <div className="editor-toolbar__group">
-          <Button
-            variant="secondary"
-            onClick={() => toast.push(t('common.comingNextPhase'))}
-          >
-            {t('common.save')}
-          </Button>
-          <Button
-            variant="primary"
-            icon={<PrinterIcon size={16} />}
-            onClick={() => toast.push(t('common.comingNextPhase'))}
-          >
-            {t('common.print')}
-          </Button>
-        </div>
-      </div>
+  const docQuery = useDocument(documentId)
+  const doc = docQuery.data ?? null
+  const templateQuery = useTemplateDetail(doc?.templateId ?? '')
 
-      <div className="doc-canvas">
-        <article className="doc-page" aria-label={t('editor.untitled')}>
-          <p className="doc-page__placeholder">{t('editor.placeholder')}</p>
-        </article>
+  const refresh = useCallback(async () => {
+    const result = await docQuery.refetch()
+    return result.data ?? null
+  }, [docQuery])
+
+  if (docQuery.isPending) {
+    return <LoadingState full label={t('common.loading')} />
+  }
+
+  if (docQuery.isError) {
+    return (
+      <div className="page">
+        <PanelError onRetry={() => void docQuery.refetch()} />
       </div>
-    </div>
+    )
+  }
+
+  if (documentId && !doc) {
+    return (
+      <div className="page">
+        <EmptyState
+          title={t('editor.documentNotFound')}
+          description={t('editor.documentNotFoundDesc')}
+          action={
+            <Button variant="secondary" onClick={() => navigate('/documents')}>
+              {t('editor.back')}
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  if (!doc) {
+    return (
+      <div className="page">
+        <EmptyState
+          title={t('editor.untitled')}
+          description={t('editor.placeholder')}
+          action={
+            <Button variant="secondary" onClick={() => navigate('/documents')}>
+              {t('editor.back')}
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  return (
+    <EditorWorkspace
+      document={doc}
+      template={templateQuery.data ?? null}
+      onBack={() => navigate('/documents')}
+      refresh={refresh}
+    />
   )
 }
+

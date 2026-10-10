@@ -6,11 +6,24 @@ import type { TemplateSummary } from '../../lib/repositories'
 
 const template: TemplateSummary = {
   id: 'letter',
+  documentTypeId: 'letter',
   title: 'Letter',
   description: 'Formal letters',
-  category: 'business',
+  category: 'business_finance',
   iconKey: 'document',
   questionCount: 3,
+  country: 'ET',
+  language: 'en',
+  supportedLanguages: ['en', 'am'],
+  displayLanguage: 'en',
+  metadataLanguage: 'en',
+  generatedDocumentLanguage: 'en',
+  htmlTemplateVersion: 'html5-a4-v1.0',
+  version: '1.0',
+  status: 'available',
+  canUse: true,
+  preview: { summary: 'Formal letters' },
+  popularity: 80,
 }
 
 function renderCard(overrides: Partial<Parameters<typeof TemplateCard>[0]> = {}) {
@@ -53,4 +66,13 @@ describe('TemplateCard', () => {
       screen.getByRole('button', { name: 'Remove from favorites' }),
     ).toHaveAttribute('aria-pressed', 'true')
   })
+
+  it('triggers onPreview when the preview button is clicked', () => {
+    const onPreview = vi.fn()
+    renderCard({ onPreview })
+    const previewBtn = screen.getByRole('button', { name: 'Preview' })
+    fireEvent.click(previewBtn)
+    expect(onPreview).toHaveBeenCalledWith('letter')
+  })
+
 })

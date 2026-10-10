@@ -30,10 +30,10 @@ describe('fixture templates repository', () => {
 
   it('filters by category', async () => {
     const finance = await repositories.templates.list('en', {
-      category: 'finance',
+      category: 'business_finance',
     })
     expect(finance.length).toBeGreaterThan(0)
-    expect(finance.every((t) => t.category === 'finance')).toBe(true)
+    expect(finance.every((t) => t.category === 'business_finance')).toBe(true)
   })
 
   it('returns details with localized questions and null for unknown ids', async () => {
@@ -59,6 +59,136 @@ describe('fixture documents repository', () => {
     expect(rental.map((d) => d.id)).toContain('doc-fixture-1')
     const recent = await repositories.documents.recent(2)
     expect(recent.length).toBe(2)
+  })
+
+  it('gets documents with content and creates/deletes custom records', async () => {
+    const detail = await repositories.documents.get('doc-fixture-1')
+    expect(detail?.title).toContain('Rental agreement')
+    expect(detail?.content).toContain('RESIDENTIAL LEASE AGREEMENT')
+
+    const created = await repositories.documents.create({
+      templateId: 'letter',
+      title: 'Formal Notice',
+      language: 'en',
+      content: 'This is test content.',
+    })
+    expect(created.id).toBeTruthy()
+    const fetched = await repositories.documents.get(created.id)
+    expect(fetched?.title).toBe('Formal Notice')
+    expect(fetched?.content).toBe('This is test content.')
+
+    await repositories.documents.delete(created.id)
+    expect(await repositories.documents.get(created.id)).toBeNull()
+  })
+})
+
+describe('fixture generation repository', () => {
+  it('creates generation job and polls until completed with synthesized document', async () => {
+    const job = await repositories.generation.createRequest({
+      documentType: 'letter',
+      language: 'en',
+      answers: {
+        recipient: 'Ministry of Trade',
+        subject: 'License Inquiry',
+      },
+    })
+    expect(job.status).toBe('pending')
+
+    // Fast-forward or wait simulated latency
+    await new Promise((resolve) => setTimeout(resolve, 650))
+    const completed = await repositories.generation.getRequest(job.id)
+    expect(completed.status).toBe('completed')
+    expect(completed.documentId).toBeTruthy()
+
+    const createdDoc = await repositories.documents.get(completed.documentId!)
+    expect(createdDoc?.content).toContain('Ministry of Trade')
+    expect(createdDoc?.content).toContain('License Inquiry')
+  })
+
+  it('regenerates an existing document in place when documentId is provided', async () => {
+    const target = await repositories.documents.create({
+      templateId: 'letter',
+      title: 'In-place regen',
+      language: 'en',
+      content: 'old structured content',
+    })
+
+    const job = await repositories.generation.createRequest({
+      documentType: 'letter',
+      language: 'en',
+      answers: { recipient: 'New Ministry', subject: 'Updated Subject' },
+      documentId: target.id,
+    })
+    await new Promise((resolve) => setTimeout(resolve, 650))
+    const completed = await repositories.generation.getRequest(job.id)
+
+    // Same document, replaced structured content.
+    expect(completed.status).toBe('completed')
+    expect(completed.documentId).toBe(target.id)
+    const updated = await repositories.documents.get(target.id)
+    expect(updated?.content).toContain('New Ministry')
+    expect(updated?.content).toContain('schema":"docuA4.document"')
+    expect(updated?.content).not.toContain('old structured content')
+  })
+})
+
+describe('fixture documents repository update', () => {
+  it('persists edits with a new updatedAt and can be re-read', async () => {
+    const created = await repositories.documents.create({
+      templateId: 'letter',
+      title: 'Editable',
+      language: 'en',
+      content: 'x',
+    })
+
+    const updated = await repositories.documents.update(created.id, {
+      title: 'Edited title',
+      content: '{"schema":"docuA4.document","version":1,"blocks":[]}',
+      answers: { subject: 'S' },
+    })
+    expect(updated.title).toBe('Edited title')
+    expect(updated.updatedAt >= created.updatedAt).toBe(true)
+
+    const stored = await repositories.documents.get(created.id)
+    expect(stored?.answers).toEqual({ subject: 'S' })
+  })
+
+  it('rejects stale baseUpdatedAt with DocumentConflictError', async () => {
+    const created = await repositories.documents.create({
+      templateId: 'letter',
+      title: 'Concurrent',
+      language: 'en',
+    })
+    const first = await repositories.documents.update(created.id, { title: 'First write' })
+
+    await expect(
+      repositories.documents.update(created.id, {
+        title: 'Stale write',
+        baseUpdatedAt: created.updatedAt, // older than first.updatedAt
+      }),
+    ).rejects.toMatchObject({ name: 'DocumentConflictError' })
+
+    // Fresh base saves without conflict.
+    await expect(
+      repositories.documents.update(created.id, { title: 'Fresh write', baseUpdatedAt: first.updatedAt }),
+    ).resolves.toMatchObject({ title: 'Fresh write' })
+  })
+
+  it('materializes seeded fixture documents on first write (fork-on-write)', async () => {
+    await repositories.documents.update('doc-fixture-1', { title: 'Forked title' })
+    const stored = await repositories.documents.get('doc-fixture-1')
+    expect(stored?.title).toBe('Forked title')
+    // The seed itself stays pristine for other sessions (same id, private copy).
+    const all = await repositories.documents.list()
+    expect(all.filter((doc) => doc.id === 'doc-fixture-1')).toHaveLength(1)
+  })
+})
+
+describe('fixture exports repository', () => {
+  it('fails honestly instead of fabricating a download', async () => {
+    await expect(
+      repositories.exports.createRequest({ documentId: 'doc-fixture-1', format: 'pdf' }),
+    ).rejects.toMatchObject({ name: 'ExportUnavailableError' })
   })
 })
 

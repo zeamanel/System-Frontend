@@ -4,6 +4,7 @@ import { createHttpRepositories } from './http-repositories'
 import type { Repositories } from './types'
 
 export type * from './types'
+export { DocumentConflictError, ExportUnavailableError } from './errors'
 
 let cached: Repositories | null = null
 

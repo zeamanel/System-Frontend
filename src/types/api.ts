@@ -78,12 +78,39 @@ export interface GenerationRequestInput {
   /** Answers keyed by question id from the guided flow. */
   answers: Record<string, string>
   language: string
+  /**
+   * When set, the backend regenerates content for this existing document in
+   * place instead of creating a new one (in-editor regeneration).
+   */
+  documentId?: string
 }
 
 export interface GenerationRequest {
   id: string
   status: GenerationStatus
   documentId?: string
+  error?: string
+}
+
+// ---------- Exports ----------
+//
+// Server-side PDF/DOCX rendering is a backend dependency that has not landed
+// yet. The frontend implements the boundary (endpoint + repository + UI
+// states); until the backend ships, `exports.createRequest` fails with
+// ExportUnavailableError and the UI offers browser print-to-PDF instead.
+
+export type ExportFormat = 'pdf' | 'docx'
+
+export interface ExportRequestInput {
+  documentId: string
+  format: ExportFormat
+}
+
+export interface ExportRequest {
+  id: string
+  status: 'queued' | 'processing' | 'completed' | 'failed'
+  /** Download URL once status is 'completed'. */
+  url?: string
   error?: string
 }
 
@@ -94,3 +121,39 @@ export interface HealthResponse {
   version?: string
   time?: string
 }
+
+
+// ---------- Preferences ----------
+
+export type DateFormatPreference = 'gregorian' | 'ethiopian'
+export type NumberFormatPreference = 'latn' | 'ethi'
+
+export interface FormattingPreferences {
+  dateFormat: DateFormatPreference
+  numberFormat: NumberFormatPreference
+}
+
+/**
+ * User localization and regional preferences stored per-account.
+ * Uses stable identifiers rather than translated display labels.
+ */
+export interface UserPreferences {
+  countryCode: string
+  preferredLanguage: string
+  regionCode?: string | null
+  city?: string | null
+  defaultDocumentLanguage: string
+  organizationId?: string | null
+  formatting: FormattingPreferences
+}
+
+export type UpdateUserPreferencesInput = Partial<{
+  countryCode: string
+  preferredLanguage: string
+  regionCode: string | null
+  city: string | null
+  defaultDocumentLanguage: string
+  organizationId: string | null
+  formatting: Partial<FormattingPreferences>
+}>
+

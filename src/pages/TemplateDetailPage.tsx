@@ -1,6 +1,6 @@
 import './pages.css'
 
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
 import {
@@ -19,12 +19,11 @@ import {
   EmptyState,
   LoadingState,
   PanelError,
-  useToast,
 } from '../components/ui'
 
 export default function TemplateDetailPage() {
   const { t } = useI18n()
-  const toast = useToast()
+  const navigate = useNavigate()
   const { templateId = '' } = useParams<'templateId'>()
   const template = useTemplateDetail(templateId)
   const favoriteIds = useFavoriteTemplateIdSet()
@@ -80,8 +79,26 @@ export default function TemplateDetailPage() {
               {t(`category.${detail.category}` as MessageKey)}
             </Badge>
             <Badge variant="neutral">
+              {detail.documentTypeId.toUpperCase()}
+            </Badge>
+            <Badge variant="neutral">
+              {detail.language.toUpperCase()}
+            </Badge>
+            {detail.region ? (
+              <Badge variant="neutral">{detail.region}</Badge>
+            ) : null}
+            {detail.institution ? (
+              <Badge variant="neutral">{detail.institution}</Badge>
+            ) : null}
+            <Badge variant={detail.status === 'beta' ? 'warning' : 'neutral'}>
+              {detail.status === 'beta'
+                ? t('templates.statusBeta')
+                : t('templates.statusAvailable')}
+            </Badge>
+            <Badge variant="neutral">
               {t('template.questionCount', { count: detail.questionCount })}
             </Badge>
+            <Badge variant="neutral">v{detail.version}</Badge>
           </div>
         </div>
         <div className="template-detail__actions">
@@ -96,7 +113,11 @@ export default function TemplateDetailPage() {
           </Button>
           <Button
             variant="primary"
-            onClick={() => toast.push(t('common.comingNextPhase'))}
+            onClick={() =>
+              navigate(
+                `/templates/${encodeURIComponent(detail.id)}/create?lang=${encodeURIComponent(detail.language)}`,
+              )
+            }
           >
             {t('template.createDocument')}
           </Button>
@@ -106,8 +127,53 @@ export default function TemplateDetailPage() {
       <div className="template-detail__body">
         <Card>
           <CardTitle>{t('template.about')}</CardTitle>
-          <CardBody>{detail.description}</CardBody>
+          <CardBody>
+            <p style={{ margin: 0, lineHeight: 'var(--leading-relaxed)' }}>
+              {detail.description}
+            </p>
+            {detail.preview.summary ? (
+              <p
+                style={{
+                  marginTop: 'var(--space-2)',
+                  marginBottom: 0,
+                  fontSize: 'var(--text-sm)',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                {detail.preview.summary}
+              </p>
+            ) : null}
+          </CardBody>
         </Card>
+
+        {detail.preview.sampleSnippet ? (
+          <Card>
+            <CardTitle>
+              {t('templates.preview')}
+              {detail.preview.pageCount ? ` · ${detail.preview.pageCount} A4` : ''}
+            </CardTitle>
+            <CardBody>
+              <pre
+                style={{
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontSize: 'var(--text-xs)',
+                  lineHeight: 'var(--leading-relaxed)',
+                  color: 'var(--color-text-secondary)',
+                  backgroundColor: 'var(--color-surface-muted)',
+                  padding: 'var(--space-4)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border-subtle)',
+                  whiteSpace: 'pre-wrap',
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  margin: 0,
+                }}
+              >
+                {detail.preview.sampleSnippet}
+              </pre>
+            </CardBody>
+          </Card>
+        ) : null}
 
         <Card>
           <CardTitle>{t('template.questionsTitle')}</CardTitle>

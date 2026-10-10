@@ -139,6 +139,74 @@
   width: 200px;
 }
 
+/* ---------- Category Pills Bar ---------- */
+
+.category-pills {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.category-pill:hover {
+  background-color: var(--color-surface-muted);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.category-pill--active {
+  background-color: var(--color-text);
+  color: var(--color-surface);
+  border-color: var(--color-text);
+}
+
+.category-pill--active:hover {
+  background-color: var(--color-text);
+  color: var(--color-surface);
+}
+
+/* ---------- Pagination Bar ---------- */
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  margin-top: var(--space-6);
+}
+
+.pagination-bar__info {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.pagination-bar__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+
 /* ---------- Settings: section cards ---------- */
 
 .settings-grid {
@@ -174,60 +242,7 @@
   color: var(--color-error);
 }
 
-/* ---------- Editor: toolbar + A4 canvas ---------- */
-
-.editor-page {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100dvh - var(--topbar-height) - var(--space-16));
-}
-
-.editor-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-}
-
-.editor-toolbar__group {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.editor-toolbar__title {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
-}
-
-.editor-toolbar__id {
-  color: var(--color-text-tertiary);
-  font-size: var(--text-sm);
-}
-
-.doc-canvas {
-  display: flex;
-  justify-content: center;
-  padding: var(--space-4) var(--space-4) var(--space-16);
-}
-
-.doc-page {
-  width: 100%;
-  max-width: var(--doc-page-width);
-  min-height: var(--doc-page-min-height);
-  padding: var(--doc-page-padding);
-  background-color: var(--color-canvas);
-  box-shadow: var(--shadow-doc);
-  border: 1px solid var(--color-border-subtle);
-}
-
-.doc-page__placeholder {
-  color: var(--color-text-tertiary);
-  font-size: var(--text-md);
-  line-height: var(--leading-relaxed);
-  max-width: 45ch;
-}
+/* ---------- Editor styles now live in components/editor/editor.css ---------- */
 
 /* ---------- Login ---------- */
 

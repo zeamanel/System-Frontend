@@ -8,22 +8,49 @@ import {
   TEMPLATE_FIXTURES,
   documentTimestamps,
 } from './fixtures'
+import {
+  DEFAULT_FIXTURE_CONTENTS,
+} from './fixtures/draft-content'
+import { draftFromTemplate, serializeModel } from '../editor/model'
+import { DocumentConflictError, ExportUnavailableError } from './errors'
+import {
+  toSummary,
+  toDetail,
+  filterAndSortTemplates,
+} from './fixtures/template-filtering'
 import type {
   AppNotification,
+  CreateDocumentPayload,
+  DocumentDetailRecord,
   DocumentRecord,
+  DocumentsRepository,
+  ExportsRepository,
   FavoritesRepository,
+  GenerationRepository,
   NotificationsRepository,
   OrganizationProfile,
   OrganizationRepository,
+  PaginatedResult,
+  PreferencesRepository,
   Repositories,
   SessionRepository,
   SessionUser,
   TemplateDetail,
-  TemplateFixture,
   TemplateListOptions,
   TemplateSummary,
+  TemplatesRepository,
+  UpdateDocumentPayload,
   UsageRepository,
 } from './types'
+import type {
+  ExportRequest,
+  ExportRequestInput,
+  GenerationRequest,
+  GenerationRequestInput,
+  GenerationStatus,
+  UpdateUserPreferencesInput,
+  UserPreferences,
+} from '../../types/api'
 
 /**
  * Fixture-backed repositories. All mutations persist to localStorage so the
@@ -31,42 +58,10 @@ import type {
  * they serve is development data — the UI marks it with the "Dev data" badge.
  */
 
-function pickText(localized: { en: string; am: string }, locale: Locale): string {
-  return localized[locale] || localized.en
-}
-
-function toSummary(fixture: TemplateFixture, locale: Locale): TemplateSummary {
-  return {
-    id: fixture.id,
-    title: pickText(fixture.titles, locale),
-    description: pickText(fixture.descriptions, locale),
-    category: fixture.category,
-    iconKey: fixture.iconKey,
-    questionCount: fixture.questions.length,
-  }
-}
-
-function toDetail(fixture: TemplateFixture, locale: Locale): TemplateDetail {
-  return {
-    ...toSummary(fixture, locale),
-    questions: fixture.questions.map((question) => ({
-      id: question.id,
-      label: pickText(question.label, locale),
-      required: question.required,
-    })),
-  }
-}
-
-/** Match against the selected locale first, with English as a fallback. */
-function matchesQuery(fixture: TemplateFixture, search: string): boolean {
-  const needle = search.trim().toLowerCase()
-  if (!needle) return true
-  return [
-    fixture.titles.en,
-    fixture.titles.am,
-    fixture.descriptions.en,
-    fixture.descriptions.am,
-  ].some((value) => value.toLowerCase().includes(needle))
+function pickText(localized: { en: string; am: string; om?: string }, locale: Locale): string {
+  if (locale === 'om' && localized.om) return localized.om
+  if (locale === 'am' && localized.am) return localized.am
+  return localized.en
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -98,35 +93,108 @@ function readCurrentLocale(): Locale {
   return 'en'
 }
 
-class FixtureTemplatesRepository {
-  async list(locale: Locale, options?: TemplateListOptions) {
-    return TEMPLATE_FIXTURES.filter(
-      (fixture) =>
-        (!options?.category || fixture.category === options.category) &&
-        (!options?.search || matchesQuery(fixture, options.search)),
-    ).map((fixture) => toSummary(fixture, locale))
+class FixtureTemplatesRepository implements TemplatesRepository {
+  private getFavoriteIds(): string[] {
+    const value = readJson<string[] | null>(
+      'docuA4.fixture.favoriteTemplates',
+      null,
+    )
+    return Array.isArray(value) ? value : [...DEFAULT_FAVORITE_TEMPLATE_IDS]
   }
 
-  async recommended(locale: Locale) {
+  async list(locale: Locale, options?: TemplateListOptions): Promise<TemplateSummary[]> {
+    const favorites = this.getFavoriteIds()
+    const all = filterAndSortTemplates(TEMPLATE_FIXTURES, locale, favorites, options)
+    if (options?.page && options?.pageSize) {
+      const start = (options.page - 1) * options.pageSize
+      return all.slice(start, start + options.pageSize)
+    }
+    return all
+  }
+
+  async listPaginated(
+    locale: Locale,
+    options?: TemplateListOptions,
+  ): Promise<PaginatedResult<TemplateSummary>> {
+    const favorites = this.getFavoriteIds()
+    const all = filterAndSortTemplates(TEMPLATE_FIXTURES, locale, favorites, options)
+    const page = options?.page ?? 1
+    const pageSize = options?.pageSize ?? 8
+    const total = all.length
+    const totalPages = Math.ceil(total / pageSize) || 1
+    const start = (page - 1) * pageSize
+    const items = all.slice(start, start + pageSize)
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    }
+  }
+
+  async recommended(locale: Locale): Promise<TemplateSummary[]> {
     return TEMPLATE_FIXTURES.slice(0, 4).map((fixture) =>
       toSummary(fixture, locale),
     )
   }
 
-  async get(id: string, locale: Locale) {
+  async get(id: string, locale: Locale): Promise<TemplateDetail | null> {
     const fixture = TEMPLATE_FIXTURES.find((item) => item.id === id)
     return fixture ? toDetail(fixture, locale) : null
   }
 }
 
-class FixtureDocumentsRepository {
+interface CustomDocumentRecord {
+  id: string
+  title: string
+  templateId: string
+  status: 'draft' | 'generating' | 'ready' | 'error'
+  language: string
+  createdAt: string
+  updatedAt: string
+  content?: string | null
+  answers?: Record<string, string>
+}
+
+class FixtureDocumentsRepository implements DocumentsRepository {
+  private getCustomDocs(): CustomDocumentRecord[] {
+    return readJson<CustomDocumentRecord[]>('docuA4.fixture.customDocuments', [])
+  }
+
+  private saveCustomDocs(docs: CustomDocumentRecord[]): void {
+    writeJson('docuA4.fixture.customDocuments', docs)
+  }
+
+  private getDeletedIds(): string[] {
+    return readJson<string[]>('docuA4.fixture.deletedDocuments', [])
+  }
+
   private async all(locale: Locale): Promise<DocumentRecord[]> {
     const templates = new Map(
       TEMPLATE_FIXTURES.map(
         (fixture) => [fixture.id, pickText(fixture.titles, locale)] as const,
       ),
     )
-    return DOCUMENT_FIXTURES.map((fixture) => ({
+    const deleted = new Set(this.getDeletedIds())
+
+    const customDocs: DocumentRecord[] = this.getCustomDocs()
+      .filter((doc) => !deleted.has(doc.id))
+      .map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        templateId: doc.templateId,
+        templateTitle: templates.get(doc.templateId) ?? doc.templateId,
+        status: doc.status,
+        language: doc.language,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      }))
+
+    const defaultDocs: DocumentRecord[] = DOCUMENT_FIXTURES.filter(
+      (fixture) => !deleted.has(fixture.id) && !customDocs.some((doc) => doc.id === fixture.id),
+    ).map((fixture) => ({
       id: fixture.id,
       title: fixture.title,
       templateId: fixture.templateId,
@@ -134,7 +202,11 @@ class FixtureDocumentsRepository {
       status: fixture.status,
       language: fixture.language,
       ...documentTimestamps(fixture.ageHours),
-    })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    }))
+
+    return [...customDocs, ...defaultDocs].sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt),
+    )
   }
 
   async list(options?: { search?: string }): Promise<DocumentRecord[]> {
@@ -152,6 +224,171 @@ class FixtureDocumentsRepository {
   async recent(limit: number): Promise<DocumentRecord[]> {
     const all = await this.list()
     return all.slice(0, limit)
+  }
+
+  async get(id: string): Promise<DocumentDetailRecord | null> {
+    const deleted = new Set(this.getDeletedIds())
+    if (deleted.has(id)) return null
+
+    const custom = this.getCustomDocs().find((doc) => doc.id === id)
+    const locale = readCurrentLocale()
+    const templates = new Map(
+      TEMPLATE_FIXTURES.map(
+        (fixture) => [fixture.id, pickText(fixture.titles, locale)] as const,
+      ),
+    )
+
+    if (custom) {
+      return {
+        id: custom.id,
+        title: custom.title,
+        templateId: custom.templateId,
+        templateTitle: templates.get(custom.templateId) ?? custom.templateId,
+        status: custom.status,
+        language: custom.language,
+        createdAt: custom.createdAt,
+        updatedAt: custom.updatedAt,
+        content: custom.content ?? null,
+        answers: custom.answers,
+      }
+    }
+
+    const fixture = DOCUMENT_FIXTURES.find((doc) => doc.id === id)
+    if (fixture) {
+      return {
+        id: fixture.id,
+        title: fixture.title,
+        templateId: fixture.templateId,
+        templateTitle: templates.get(fixture.templateId) ?? fixture.templateId,
+        status: fixture.status,
+        language: fixture.language,
+        ...documentTimestamps(fixture.ageHours),
+        content: DEFAULT_FIXTURE_CONTENTS[fixture.id] ?? null,
+      }
+    }
+
+    return null
+  }
+
+  async create(payload: CreateDocumentPayload): Promise<DocumentRecord> {
+    const locale = readCurrentLocale()
+    const templates = new Map(
+      TEMPLATE_FIXTURES.map(
+        (fixture) => [fixture.id, pickText(fixture.titles, locale)] as const,
+      ),
+    )
+    const templateTitle = templates.get(payload.templateId) ?? payload.templateId
+    const nowIso = new Date().toISOString()
+    const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const title = payload.title?.trim() || templateTitle
+
+    const newDoc: CustomDocumentRecord = {
+      id,
+      title,
+      templateId: payload.templateId,
+      status: 'ready',
+      language: payload.language,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      content: payload.content ?? null,
+      answers: payload.answers,
+    }
+
+    const customDocs = this.getCustomDocs()
+    this.saveCustomDocs([newDoc, ...customDocs])
+
+    return {
+      id,
+      title,
+      templateId: payload.templateId,
+      templateTitle,
+      status: 'ready',
+      language: payload.language,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }
+  }
+
+  async delete(id: string): Promise<void> {
+    const deleted = new Set(this.getDeletedIds())
+    deleted.add(id)
+    writeJson('docuA4.fixture.deletedDocuments', Array.from(deleted))
+    const customDocs = this.getCustomDocs().filter((d) => d.id !== id)
+    this.saveCustomDocs(customDocs)
+  }
+
+  async update(
+    id: string,
+    payload: UpdateDocumentPayload,
+  ): Promise<DocumentDetailRecord> {
+    if (globalThis.sessionStorage?.getItem('docuA4.test.documentSaveFail') === 'true') {
+      throw new Error('Simulated network save failure.')
+    }
+
+    const customDocs = this.getCustomDocs()
+    let record = customDocs.find((doc) => doc.id === id)
+    if (!record) {
+      // First write to a seeded fixture document: materialize a private copy
+      // (fork-on-write) so the seed itself stays pristine for other sessions.
+      const detail = await this.get(id)
+      if (!detail) throw new Error(`Document ${id} not found.`)
+      record = {
+        id,
+        title: detail.title,
+        templateId: detail.templateId,
+        status: detail.status,
+        language: detail.language,
+        createdAt: detail.createdAt,
+        updatedAt: detail.updatedAt,
+        content: detail.content ?? null,
+        answers: detail.answers,
+      }
+    }
+
+    if (
+      payload.baseUpdatedAt &&
+      record.updatedAt > payload.baseUpdatedAt
+    ) {
+      throw new DocumentConflictError(undefined, record.updatedAt)
+    }
+
+    record = {
+      ...record,
+      title: payload.title?.trim() ? payload.title.trim() : record.title,
+      content: payload.content !== undefined ? payload.content : record.content,
+      language: payload.language ?? record.language,
+      answers: payload.answers ?? record.answers,
+      // Strictly increasing: same-millisecond writes must still count as
+      // "newer" so optimistic-concurrency checks behave deterministically.
+      updatedAt: new Date(
+        Math.max(Date.now(), Date.parse(record.updatedAt) + 1),
+      ).toISOString(),
+    }
+
+    this.saveCustomDocs(
+      customDocs.some((doc) => doc.id === id)
+        ? customDocs.map((doc) => (doc.id === id ? record! : doc))
+        : [record!, ...customDocs],
+    )
+
+    const locale = readCurrentLocale()
+    const templates = new Map(
+      TEMPLATE_FIXTURES.map(
+        (fixture) => [fixture.id, pickText(fixture.titles, locale)] as const,
+      ),
+    )
+    return {
+      id: record.id,
+      title: record.title,
+      templateId: record.templateId,
+      templateTitle: templates.get(record.templateId) ?? record.templateId,
+      status: record.status,
+      language: record.language,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      content: record.content,
+      answers: record.answers,
+    }
   }
 }
 
@@ -247,19 +484,217 @@ function writeFlag(key: string, value: string): void {
   }
 }
 
+interface FixtureGenerationJob {
+  id: string
+  documentType: string
+  answers: Record<string, string>
+  language: string
+  status: GenerationStatus
+  createdAt: number
+  documentId?: string
+  /** When set, the completed draft replaces this document's content in place. */
+  targetDocumentId?: string
+  error?: string
+}
+
+class FixtureGenerationRepository implements GenerationRepository {
+  constructor(private documents: FixtureDocumentsRepository) {}
+
+  private getJobs(): FixtureGenerationJob[] {
+    return readJson<FixtureGenerationJob[]>('docuA4.fixture.generationJobs', [])
+  }
+
+  private saveJobs(jobs: FixtureGenerationJob[]): void {
+    writeJson('docuA4.fixture.generationJobs', jobs)
+  }
+
+  async createRequest(input: GenerationRequestInput): Promise<GenerationRequest> {
+    const id = `gen-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    const job: FixtureGenerationJob = {
+      id,
+      documentType: input.documentType,
+      answers: input.answers,
+      language: input.language,
+      targetDocumentId: input.documentId,
+      status: 'pending',
+      createdAt: Date.now(),
+    }
+    const jobs = this.getJobs()
+    this.saveJobs([...jobs, job])
+    return { id, status: 'pending' }
+  }
+
+  async getRequest(id: string): Promise<GenerationRequest> {
+    const jobs = this.getJobs()
+    const job = jobs.find((j) => j.id === id)
+    if (!job) {
+      return { id, status: 'failed', error: 'Generation job not found.' }
+    }
+
+    if (job.status === 'completed' || job.status === 'failed') {
+      return {
+        id: job.id,
+        status: job.status,
+        documentId: job.documentId,
+        error: job.error,
+      }
+    }
+
+    const elapsed = Date.now() - job.createdAt
+    if (elapsed < 600) {
+      job.status = 'processing'
+      this.saveJobs(jobs)
+      return { id: job.id, status: 'processing' }
+    }
+
+    job.status = 'completed'
+    const template = TEMPLATE_FIXTURES.find((t) => t.id === job.documentType)
+    const locale: Locale = job.language === 'am' ? 'am' : 'en'
+    const defaultTemplateTitle = template ? pickText(template.titles, locale) : job.documentType
+    const title =
+      job.answers['title'] ||
+      job.answers['subject'] ||
+      `${defaultTemplateTitle} — ${new Date().toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US')}`
+
+    const content = serializeModel(
+      draftFromTemplate(
+        template
+          ? {
+              title: defaultTemplateTitle,
+              documentTypeId: template.documentTypeId,
+              questions: template.questions.map((question) => ({
+                id: question.id,
+                label: pickText(question.label, locale),
+              })),
+            }
+          : { title: defaultTemplateTitle, documentTypeId: job.documentType, questions: [] },
+        job.answers,
+        job.language,
+        title,
+      ),
+    )
+
+    let documentId: string
+    if (job.targetDocumentId) {
+      // In-editor regeneration: replace the existing document's content in
+      // place (backend contract: GenerationRequestInput.documentId).
+      await this.documents.update(job.targetDocumentId, {
+        content,
+        answers: job.answers,
+        language: job.language,
+      })
+      documentId = job.targetDocumentId
+    } else {
+      const doc = await this.documents.create({
+        title,
+        templateId: job.documentType,
+        language: job.language,
+        answers: job.answers,
+        content,
+      })
+      documentId = doc.id
+    }
+
+    job.documentId = documentId
+    this.saveJobs(jobs)
+
+    return { id: job.id, status: 'completed', documentId }
+  }
+}
+
+class FixturePreferencesRepository implements PreferencesRepository {
+  private getPrefs(): UserPreferences {
+    return readJson<UserPreferences>('docuA4.fixture.preferences', {
+      countryCode: 'ET',
+      preferredLanguage: 'en',
+      regionCode: null,
+      city: null,
+      defaultDocumentLanguage: 'en',
+      organizationId: null,
+      formatting: {
+        dateFormat: 'gregorian',
+        numberFormat: 'latn',
+      },
+    })
+  }
+
+  private savePrefs(prefs: UserPreferences): void {
+    writeJson('docuA4.fixture.preferences', prefs)
+  }
+
+  async get(): Promise<UserPreferences> {
+    return this.getPrefs()
+  }
+
+  async update(patch: UpdateUserPreferencesInput): Promise<UserPreferences> {
+    if (globalThis.sessionStorage?.getItem('docuA4.test.preferencesFail') === 'true') {
+      throw new Error('Simulated network save failure.')
+    }
+    const current = this.getPrefs()
+    const updated: UserPreferences = {
+      ...current,
+      ...patch,
+      formatting: {
+        ...current.formatting,
+        ...(patch.formatting ?? {}),
+      },
+    } as UserPreferences
+    this.savePrefs(updated)
+    return updated
+  }
+
+  async sync(local: UserPreferences): Promise<UserPreferences> {
+    if (globalThis.sessionStorage?.getItem('docuA4.test.preferencesFail') === 'true') {
+      throw new Error('Simulated network save failure.')
+    }
+    const current = this.getPrefs()
+    const merged: UserPreferences = {
+      countryCode: current.countryCode || local.countryCode,
+      preferredLanguage: current.preferredLanguage || local.preferredLanguage,
+      regionCode: current.regionCode ?? local.regionCode ?? null,
+      city: current.city ?? local.city ?? null,
+      defaultDocumentLanguage: current.defaultDocumentLanguage || local.defaultDocumentLanguage,
+      organizationId: current.organizationId ?? local.organizationId ?? null,
+      formatting: {
+        ...local.formatting,
+        ...current.formatting,
+      },
+    }
+    this.savePrefs(merged)
+    return merged
+  }
+}
+
+/**
+ * Fixture export repository. There is no local PDF renderer; pretending
+ * otherwise would fabricate a download. It reports the missing backend
+ * service honestly so the UI can offer browser print-to-PDF instead.
+ */
+class FixtureExportsRepository implements ExportsRepository {
+  async createRequest(input: ExportRequestInput): Promise<ExportRequest> {
+    throw new ExportUnavailableError(
+      `Server-side ${input.format.toUpperCase()} export requires the DocuA4 backend service, which is not connected.`,
+    )
+  }
+}
+
 /** Fixture-backed repository bundle. */
 export function createFixtureRepositories(): Repositories {
   const templates = new FixtureTemplatesRepository()
   const documents = new FixtureDocumentsRepository()
+  const generation = new FixtureGenerationRepository(documents)
 
   return {
     templates,
     documents,
+    generation,
+    exports: new FixtureExportsRepository(),
     favorites: new FixtureFavoritesRepository(),
     notifications: new FixtureNotificationsRepository(),
     organization: new FixtureOrganizationRepository(),
     usage: new FixtureUsageRepository(),
     session: new FixtureSessionRepository(),
+    preferences: new FixturePreferencesRepository(),
     async search(query, locale) {
       const [matchedTemplates, matchedDocuments] = await Promise.all([
         templates.list(locale, { search: query }),

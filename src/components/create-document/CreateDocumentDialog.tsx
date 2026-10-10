@@ -83,7 +83,7 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
                     className="create-dialog__item"
                     onClick={() => {
                       onClose()
-                      navigate(`/templates/${encodeURIComponent(template.id)}`)
+                      navigate(`/templates/${encodeURIComponent(template.id)}/create`)
                     }}
                   >
                     <span className="create-dialog__item-icon">

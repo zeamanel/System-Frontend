@@ -1,0 +1,186 @@
+.guided-flow {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.guided-flow__stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.guided-flow__step-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.guided-flow__step-item--active {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.guided-flow__step-item--done {
+  color: var(--color-text);
+}
+
+.guided-flow__step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+}
+
+.guided-flow__step-item--active .guided-flow__step-number {
+  background-color: var(--color-text);
+  color: var(--color-surface);
+  border-color: var(--color-text);
+}
+
+.guided-flow__step-item--done .guided-flow__step-number {
+  background-color: var(--color-surface);
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+.guided-flow__step-divider {
+  flex: 1;
+  height: 1px;
+  background-color: var(--color-border);
+  margin: 0 var(--space-3);
+}
+
+.guided-flow__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.guided-flow__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.guided-flow__actions--end {
+  justify-content: flex-end;
+}
+
+.guided-flow__actions-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.guided-flow__question-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.guided-flow__question-counter {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.guided-flow__review-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.guided-flow__review-item {
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-surface-hover);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.guided-flow__review-label {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.guided-flow__review-value {
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.guided-flow__generating {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.guided-flow__generating-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 440px;
+  text-align: left;
+}
+
+.guided-flow__gen-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.guided-flow__gen-step--active {
+  border-color: var(--color-text);
+  color: var(--color-text);
+  font-weight: 500;
+  background-color: var(--color-surface-hover);
+}
+
+.guided-flow__gen-step--done {
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.guided-flow__gen-step-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

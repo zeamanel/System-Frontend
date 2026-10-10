@@ -5,8 +5,10 @@
 export const queryKeys = {
   templates: {
     all: ['templates'] as const,
-    list: (locale: string, search?: string, category?: string) =>
-      ['templates', 'list', locale, search ?? null, category ?? null] as const,
+    list: (locale: string, options?: unknown) =>
+      ['templates', 'list', locale, options ?? null] as const,
+    paginated: (locale: string, options?: unknown) =>
+      ['templates', 'paginated', locale, options ?? null] as const,
     recommended: (locale: string) => ['templates', 'recommended', locale] as const,
     detail: (id: string, locale: string) =>
       ['templates', 'detail', id, locale] as const,
@@ -15,6 +17,11 @@ export const queryKeys = {
     all: ['documents'] as const,
     list: (search?: string) => ['documents', 'list', search ?? null] as const,
     recent: (limit: number) => ['documents', 'recent', limit] as const,
+    detail: (id: string) => ['documents', 'detail', id] as const,
+  },
+  generation: {
+    all: ['generation'] as const,
+    request: (id: string) => ['generation', 'request', id] as const,
   },
   favorites: {
     all: ['favorites'] as const,

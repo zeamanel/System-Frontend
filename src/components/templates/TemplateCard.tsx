@@ -1,9 +1,9 @@
 import './TemplateCard.css'
 
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { TemplateSummary } from '../../lib/repositories'
-import { ArrowRightIcon, StarIcon } from '../icons'
-import { Badge } from '../ui'
+import { ArrowRightIcon, EyeIcon, StarIcon } from '../icons'
+import { Badge, Button } from '../ui'
 import { templateIcon } from './template-icons'
 
 export interface TemplateCardProps {
@@ -14,6 +14,9 @@ export interface TemplateCardProps {
   favoriteAddLabel: string
   favoriteRemoveLabel: string
   categoryLabel: string
+  onPreview?: (templateId: string) => void
+  previewLabel?: string
+  useTemplateLabel?: string
 }
 
 /** Browseable template card: navigates to the template detail page. */
@@ -24,8 +27,12 @@ export function TemplateCard({
   favoriteAddLabel,
   favoriteRemoveLabel,
   categoryLabel,
+  onPreview,
+  previewLabel = 'Preview',
+  useTemplateLabel = 'Use Template',
 }: TemplateCardProps) {
   const Icon = templateIcon(template.iconKey)
+  const navigate = useNavigate()
 
   return (
     <article className="template-card">
@@ -42,11 +49,50 @@ export function TemplateCard({
             {template.description}
           </span>
           <span className="template-card__meta">
-            <Badge variant="neutral">{categoryLabel}</Badge>
+            <span className="template-card__tags">
+              <Badge variant="neutral">{categoryLabel}</Badge>
+              <Badge variant="neutral">{template.documentTypeId.toUpperCase()}</Badge>
+              <Badge variant="neutral">{template.language.toUpperCase()}</Badge>
+              {template.region ? (
+                <Badge variant="neutral">{template.region}</Badge>
+              ) : null}
+            </span>
             <ArrowRightIcon size={14} className="template-card__arrow" />
           </span>
         </span>
       </Link>
+
+      <div className="template-card__footer">
+        <span className="template-card__footer-info">
+          {template.questionCount} fields · v{template.version}
+        </span>
+        <div className="template-card__actions">
+          {onPreview ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<EyeIcon size={14} />}
+              onClick={(e) => {
+                e.preventDefault()
+                onPreview(template.id)
+              }}
+            >
+              {previewLabel}
+            </Button>
+          ) : null}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={(e) => {
+              e.preventDefault()
+              navigate(`/templates/${encodeURIComponent(template.id)}/create?lang=${encodeURIComponent(template.language)}`)
+            }}
+          >
+            {useTemplateLabel} &rarr;
+          </Button>
+        </div>
+      </div>
+
       {onToggleFavorite ? (
         <button
           type="button"
@@ -67,3 +113,4 @@ export function TemplateCard({
     </article>
   )
 }
+

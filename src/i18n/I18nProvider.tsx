@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { env } from '../config/env'
+import { LANGUAGES, type LanguageCode } from '../lib/languages'
 import { I18nContext } from './context'
 import am from './am.json'
 import en from './en.json'
@@ -9,10 +10,11 @@ import type { MessageKey, MessageVars } from './types'
 
 const STORAGE_KEY = 'docuA4.locale'
 
-/** Locales must cover every English key (compile-time enforced). */
-const dictionaries: Record<Locale, Record<MessageKey, string>> = {
+/** Locales map to their dictionary; untranslated keys fall back cleanly to English. */
+const dictionaries: Record<Locale, Partial<Record<MessageKey, string>>> = {
   en,
   am,
+  om: {},
 }
 
 function interpolate(template: string, vars?: MessageVars): string {
@@ -24,6 +26,11 @@ function interpolate(template: string, vars?: MessageVars): string {
 
 function detectInitialLocale(): Locale {
   try {
+    const storedPrefs = globalThis.localStorage?.getItem('docuA4.preferences')
+    if (storedPrefs) {
+      const parsed = JSON.parse(storedPrefs)
+      if (isLocale(parsed?.preferredLanguage)) return parsed.preferredLanguage
+    }
     const stored = globalThis.localStorage?.getItem(STORAGE_KEY)
     if (isLocale(stored)) return stored
   } catch {
@@ -38,15 +45,23 @@ function detectInitialLocale(): Locale {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(detectInitialLocale)
 
-  // Keep the document language in sync for assistive technology.
+  // Keep the document language and direction in sync for assistive tech and layout.
   useEffect(() => {
     document.documentElement.lang = locale
+    const info = LANGUAGES[locale as LanguageCode]
+    document.documentElement.dir = info?.direction ?? 'ltr'
   }, [locale])
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next)
     try {
       globalThis.localStorage?.setItem(STORAGE_KEY, next)
+      const raw = globalThis.localStorage?.getItem('docuA4.preferences')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        parsed.preferredLanguage = next
+        globalThis.localStorage?.setItem('docuA4.preferences', JSON.stringify(parsed))
+      }
     } catch {
       // Non-fatal — preference just won't persist
     }
@@ -68,4 +83,5 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }
+
 

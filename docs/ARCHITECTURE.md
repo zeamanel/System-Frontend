@@ -36,6 +36,7 @@ src/
   session/              # SessionProvider, RequireSession guard, useSession
   lib/
     api/                # API-client boundary (client, auth store, endpoints)
+    editor/             # structured document model, sanitizer, paginator, font strategy
     repositories/       # replaceable data layer: interfaces, fixtures, HTTP impls
     query-client.ts     # TanStack Query defaults
     query-keys.ts       # centralised cache keys
@@ -49,6 +50,7 @@ src/
     templates/          # TemplateCard + icon mapping
     documents/          # DocumentListItem
     create-document/    # CreateDocumentDialog (template picker)
+    guided-flow/        # Guided creation flow stepper, questions, review, polling
   pages/                # route-level screens (+ pages.css)
   test/setup.ts         # Vitest setup (jest-dom, cleanup)
 docs/                   # architecture & deployment notes
@@ -129,9 +131,14 @@ future httpOnly cookies.
    labeled fixtures, session + route guard, grouped navigation with admin
    gating, dashboard, templates catalogue + detail, favorites, documents,
    organization profile, notifications, global search.
-3. **Phase 3**: guided question flow; generation job submission/polling;
-   document creation from templates.
-4. **Phase 4**: A4 canvas editor (contenteditable blocks), autosave,
-   versioning.
-5. **Phase 5**: print/export pipeline (PDF), real auth + accounts.
+3. **Phase 3 — guided question flow & generation** (done): guided
+   question flow wizard; regional and multilingual context (English, Amharic,
+   Afaan Oromoo); generation job submission, progressive polling and draft
+   synthesis; document creation from templates and editor preview.
+4. **Phase 4 — A4 document editor workspace** (done): structured JSON document
+   model, contenteditable blocks, allowlist HTML & URL sanitization,
+   deterministic A4 pagination & margins, Ethiopic Unicode font fallback and
+   probing strategy, debounced autosave with localStorage recovery buffer,
+   conflict handling (HTTP 409), print styling and honest export pipeline boundary.
+5. **Phase 5**: server-side PDF/DOCX rendering backend service, real auth + accounts.
 6. **Phase 6**: template library, sharing, offline/PWA considerations.

@@ -12,17 +12,17 @@ const queryClient = createQueryClient()
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider>
+      <SessionProvider>
         <PreferencesProvider>
-          <SessionProvider>
+          <I18nProvider>
             <ToastProvider>
               <BrowserRouter>
                 <AppRoutes />
               </BrowserRouter>
             </ToastProvider>
-          </SessionProvider>
+          </I18nProvider>
         </PreferencesProvider>
-      </I18nProvider>
+      </SessionProvider>
     </QueryClientProvider>
   )
 }
