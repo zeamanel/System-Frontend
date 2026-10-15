@@ -21,9 +21,11 @@ interface BlockBase {
   id: string
 }
 
+export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6
+
 export interface HeadingBlock extends BlockBase {
   type: 'heading'
-  level: 1 | 2 | 3
+  level: HeadingLevel
   html: InlineHtml
   align: TextAlign
 }

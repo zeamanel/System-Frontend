@@ -5,6 +5,7 @@ import type {
   Block,
   DocumentModel,
   FontKey,
+  HeadingLevel,
   ImageBlock,
   ParagraphSpacing,
   TextAlign,
@@ -40,7 +41,7 @@ export interface FormatPanelCallbacks {
   onInlineCommand(command: InlineCommand): void
   onSetAlign(align: TextAlign): void
   onSetSpacing(spacing: ParagraphSpacing): void
-  onSetHeadingLevel(level: 1 | 2 | 3 | null): void
+  onSetHeadingLevel(level: HeadingLevel | null): void
   onToggleList(ordered: boolean): void
   onIndent(delta: 1 | -1): void
   onMoveBlock(delta: -1 | 1): void

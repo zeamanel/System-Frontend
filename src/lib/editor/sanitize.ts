@@ -16,6 +16,7 @@
 import type {
   Block,
   HeadingBlock,
+  HeadingLevel,
   InlineHtml,
   ListBlock,
   ParagraphBlock,
@@ -164,7 +165,7 @@ function makeParagraph(html: InlineHtml): ParagraphBlock {
   }
 }
 
-function makeHeading(level: 1 | 2 | 3, html: InlineHtml): HeadingBlock {
+function makeHeading(level: HeadingLevel, html: InlineHtml): HeadingBlock {
   return { id: newId('blk'), type: 'heading', level, html, align: 'left' }
 }
 
@@ -284,10 +285,16 @@ export function htmlToBlocks(html: string): Block[] {
           blocks.push(makeHeading(2, sanitizeChildrenInline(element)))
           break
         case 'h3':
-        case 'h4':
-        case 'h5':
-        case 'h6':
           blocks.push(makeHeading(3, sanitizeChildrenInline(element)))
+          break
+        case 'h4':
+          blocks.push(makeHeading(4, sanitizeChildrenInline(element)))
+          break
+        case 'h5':
+          blocks.push(makeHeading(5, sanitizeChildrenInline(element)))
+          break
+        case 'h6':
+          blocks.push(makeHeading(6, sanitizeChildrenInline(element)))
           break
         case 'p':
           blocks.push(makeParagraph(sanitizeChildrenInline(element)))

@@ -8,11 +8,15 @@ import {
   documentOutline,
   draftFromTemplate,
   insertBlocksAfter,
+  mapBackendBlock,
+  mapBackendBlocks,
+  mapBackendPayload,
   mergeWithPrevious,
   moveBlock,
   parseDocumentContent,
   plainTextToBlocks,
   removeBlock,
+  sanitizeModel,
   serializeModel,
   setMargins,
   splitTextBlock,
@@ -210,5 +214,168 @@ describe('draft synthesis from template schemas', () => {
     expect(JSON.stringify(model.blocks)).toContain('ቀን')
   })
 })
+
+describe('backend block mapper and relaxed schema regression', () => {
+  it('maps relaxed backend payload (heading level 4, list without ordered, signature with party) and keeps fields after sanitizeModel', () => {
+    // Real backend payload shape produced by AI generation endpoint (relaxed Zod schema)
+    const backendPayload = {
+      blocks: [
+        {
+          type: 'heading',
+          text: 'Specific Terms and Conditions',
+          level: 4,
+        },
+        {
+          type: 'paragraph',
+          text: 'Both parties agree to the following provisions.',
+        },
+        {
+          type: 'list',
+          items: ['First provision item', 'Second provision item'],
+          // ordered is omitted by backend
+        },
+        {
+          type: 'signature',
+          label: 'Tenant Signature',
+          party: 'Dawit Haile',
+        },
+      ],
+    }
+
+    const backendHeading = backendPayload.blocks[0]
+    const backendSignature = backendPayload.blocks[3]
+
+    // Feed through mapper + sanitizeModel
+    const mappedBlocks = mapBackendBlocks(backendPayload.blocks)
+    const sanitized = sanitizeModel({ ...createEmptyDocument(), blocks: mappedBlocks })
+
+    // 1. Headings keep level 4 (not clamped to 2)
+    const heading = sanitized.blocks.find((b) => b.type === 'heading')
+    expect(heading).toBeDefined()
+    expect(heading?.type).toBe('heading')
+    if (heading?.type === 'heading') {
+      expect(heading.level).toBe(4)
+      expect(heading.html).toBe(backendHeading.text)
+    }
+
+    // 2. list.ordered === false
+    const list = sanitized.blocks.find((b) => b.type === 'list')
+    expect(list).toBeDefined()
+    expect(list?.type).toBe('list')
+    if (list?.type === 'list') {
+      expect(list.ordered).toBe(false)
+      expect(list.items).toHaveLength(2)
+      expect(list.items[0].html).toBe('First provision item')
+    }
+
+    // 3. signature.parties[0].label === backend.label
+    // 4. signature.parties[0].name === backend.party
+    const signature = sanitized.blocks.find((b) => b.type === 'signature')
+    expect(signature).toBeDefined()
+    expect(signature?.type).toBe('signature')
+    if (signature?.type === 'signature') {
+      expect(signature.parties).toHaveLength(1)
+      expect(signature.parties[0].label).toBe(backendSignature.label)
+      expect(signature.parties[0].name).toBe(backendSignature.party)
+      expect(signature.parties[0].date).toBe('')
+    }
+  })
+
+  it('supports heading levels 1 through 6 and falls back to 1 when invalid', () => {
+    const rawHeadings = [
+      { type: 'heading', text: 'H1', level: 1 },
+      { type: 'heading', text: 'H4', level: 4 },
+      { type: 'heading', text: 'H5', level: 5 },
+      { type: 'heading', text: 'H6', level: 6 },
+      { type: 'heading', text: 'Invalid high', level: 7 },
+      { type: 'heading', text: 'Invalid zero', level: 0 },
+      { type: 'heading', text: 'Invalid string', level: 'unknown' },
+    ]
+    const mapped = mapBackendBlocks(rawHeadings)
+    const sanitized = sanitizeModel({ ...createEmptyDocument(), blocks: mapped })
+    const levels = sanitized.blocks.map((b) => (b.type === 'heading' ? b.level : null))
+    expect(levels).toEqual([1, 4, 5, 6, 1, 1, 1])
+  })
+
+  it('parses backend JSON string end-to-end via parseDocumentContent', () => {
+    const backendPayload = {
+      blocks: [
+        { type: 'heading', text: 'Annex 1', level: 4 },
+        { type: 'list', items: ['Unordered item'] },
+        { type: 'signature', label: 'Landlord', party: 'Abebe Kebede' },
+      ],
+    }
+
+    const model = parseDocumentContent(JSON.stringify(backendPayload))
+    expect(model).not.toBeNull()
+    expect(model!.blocks).toHaveLength(3)
+
+    const heading = model!.blocks[0]
+    expect(heading.type).toBe('heading')
+    if (heading.type === 'heading') {
+      expect(heading.level).toBe(4)
+      expect(heading.html).toBe('Annex 1')
+    }
+
+    const list = model!.blocks[1]
+    expect(list.type).toBe('list')
+    if (list.type === 'list') {
+      expect(list.ordered).toBe(false)
+    }
+
+    const signature = model!.blocks[2]
+    expect(signature.type).toBe('signature')
+    if (signature.type === 'signature') {
+      expect(signature.parties[0].label).toBe('Landlord')
+      expect(signature.parties[0].name).toBe('Abebe Kebede')
+    }
+  })
+
+  it('translates individual block shapes with mapBackendBlock', () => {
+    const heading = mapBackendBlock({ type: 'heading', text: 'H5 Title', level: 5 })
+    expect(heading).toMatchObject({ type: 'heading', html: 'H5 Title', level: 5, align: 'left' })
+
+    const paragraph = mapBackendBlock({ type: 'paragraph', text: 'Body paragraph' })
+    expect(paragraph).toMatchObject({
+      type: 'paragraph',
+      html: 'Body paragraph',
+      align: 'left',
+      indent: 0,
+      spacing: 'normal',
+    })
+
+    const list = mapBackendBlock({ type: 'list', items: ['Bullet point'] })
+    expect(list).toMatchObject({
+      type: 'list',
+      ordered: false,
+      indent: 0,
+      items: [{ html: 'Bullet point' }],
+    })
+
+    const signature = mapBackendBlock({
+      type: 'signature',
+      label: 'Tenant',
+      party: 'Dawit',
+    })
+    expect(signature).toMatchObject({
+      type: 'signature',
+      parties: [{ label: 'Tenant', name: 'Dawit', date: '' }],
+    })
+
+    expect(mapBackendBlock({ type: 'unknown' })).toBeNull()
+  })
+
+  it('maps payloads directly using mapBackendPayload', () => {
+    const model = mapBackendPayload({
+      blocks: [
+        { type: 'heading', text: 'Top Level', level: 4 },
+        { type: 'paragraph', text: 'Some text' },
+      ],
+    })
+    expect(model.blocks).toHaveLength(2)
+    expect(model.blocks[0]).toMatchObject({ type: 'heading', level: 4 })
+  })
+})
+
 
 

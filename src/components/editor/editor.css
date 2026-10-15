@@ -649,6 +649,27 @@
   margin: 0.5em 0 0.2em;
 }
 
+.doc-heading--4 {
+  font-size: 1.0em;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+  margin: 0.5em 0 0.2em;
+}
+
+.doc-heading--5 {
+  font-size: 0.9em;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+  margin: 0.4em 0 0.15em;
+}
+
+.doc-heading--6 {
+  font-size: 0.8em;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+  margin: 0.4em 0 0.15em;
+}
+
 .doc-paragraph {
   margin: 0 0 0.55em;
 }

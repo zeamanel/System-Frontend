@@ -11,6 +11,7 @@ import type {
   DocumentModel,
   FontKey,
   HeadingBlock,
+  HeadingLevel,
   ImageBlock,
   IndentLevel,
   InlineHtml,
@@ -79,7 +80,7 @@ export function createParagraph(html: InlineHtml = '', init: Partial<ParagraphBl
   }
 }
 
-export function createHeading(html: InlineHtml = '', level: 1 | 2 | 3 = 1, init: Partial<HeadingBlock> = {}): HeadingBlock {
+export function createHeading(html: InlineHtml = '', level: HeadingLevel = 1, init: Partial<HeadingBlock> = {}): HeadingBlock {
   return { id: newId('blk'), type: 'heading', level, html, align: 'left', ...init }
 }
 
@@ -246,7 +247,7 @@ export function setIndent(model: DocumentModel, id: string, indent: IndentLevel)
   )
 }
 
-export function setHeadingLevel(model: DocumentModel, id: string, level: 1 | 2 | 3): DocumentModel {
+export function setHeadingLevel(model: DocumentModel, id: string, level: HeadingLevel): DocumentModel {
   return updateBlock(model, id, (block) =>
     block.type === 'heading' ? { ...block, level } : block,
   )
@@ -632,17 +633,21 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
       continue
     }
     switch (raw.type) {
-      case 'heading':
+      case 'heading': {
+        const rawLevel = typeof raw.level === 'number' ? raw.level : Number(raw.level)
+        const level: HeadingLevel =
+          Number.isInteger(rawLevel) && rawLevel >= 1 && rawLevel <= 6
+            ? (rawLevel as HeadingLevel)
+            : 1
         blocks.push({
           id: raw.id,
           type: 'heading',
-          level: ([1, 2, 3] as const).includes(raw.level as 1 | 2 | 3)
-            ? (raw.level as 1 | 2 | 3)
-            : 2,
+          level,
           html: sanitizeInlineHtml(String(raw.html ?? '')),
           align: asTextAlign(raw.align),
         })
         break
+      }
       case 'paragraph':
         blocks.push({
           id: raw.id,
@@ -761,11 +766,236 @@ export function serializeModel(model: DocumentModel): string {
   return JSON.stringify(sanitizeModel(model))
 }
 
+// ---------- Backend generation payload → editor block mapper ----------
+
+export interface BackendHeadingBlock {
+  type: 'heading'
+  text?: string
+  html?: string
+  level?: number
+  align?: TextAlign
+}
+
+export interface BackendParagraphBlock {
+  type: 'paragraph'
+  text?: string
+  html?: string
+  align?: TextAlign
+  indent?: number
+  spacing?: ParagraphSpacing
+}
+
+export interface BackendListBlock {
+  type: 'list'
+  ordered?: boolean
+  indent?: number
+  items?: (string | { id?: string; html?: string; text?: string })[]
+}
+
+export interface BackendSignatureBlock {
+  type: 'signature'
+  label?: string
+  party?: string
+  name?: string
+  date?: string
+  parties?: SignatureParty[]
+}
+
+export type BackendBlock =
+  | BackendHeadingBlock
+  | BackendParagraphBlock
+  | BackendListBlock
+  | BackendSignatureBlock
+  | Record<string, unknown>
+
+/**
+ * Maps a single backend block shape into the editor's Block model:
+ * - backend {type:'heading', text, level}     → {id, type:'heading', html:text, level, align:'left'}
+ * - backend {type:'paragraph', text}          → {id, type:'paragraph', html:text, align:'left', indent:0, spacing:'normal'}
+ * - backend {type:'list', items:string[]}     → {id, type:'list', ordered:(x.ordered ?? false), indent:0, items:[{id, html}]}
+ * - backend {type:'signature', label, party?} → {id, type:'signature', parties:[{id, label, name: party ?? '', date:''}]}
+ */
+export function mapBackendBlock(raw: unknown): Block | null {
+  if (!isRecord(raw) || typeof raw.type !== 'string') return null
+
+  switch (raw.type) {
+    case 'heading': {
+      const rawLevel = typeof raw.level === 'number' ? raw.level : Number(raw.level)
+      const level: HeadingLevel =
+        Number.isInteger(rawLevel) && rawLevel >= 1 && rawLevel <= 6
+          ? (rawLevel as HeadingLevel)
+          : 1
+      const text = typeof raw.text === 'string' ? raw.text : typeof raw.html === 'string' ? raw.html : ''
+      return {
+        id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
+        type: 'heading',
+        level,
+        html: text,
+        align: asTextAlign(raw.align),
+      }
+    }
+    case 'paragraph': {
+      const text = typeof raw.text === 'string' ? raw.text : typeof raw.html === 'string' ? raw.html : ''
+      return {
+        id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
+        type: 'paragraph',
+        html: text,
+        align: asTextAlign(raw.align),
+        indent: clampIndent(Number(raw.indent ?? 0)),
+        spacing: SPACINGS.includes(raw.spacing as ParagraphSpacing)
+          ? (raw.spacing as ParagraphSpacing)
+          : 'normal',
+      }
+    }
+    case 'list': {
+      const rawItems = Array.isArray(raw.items) ? raw.items : []
+      const items = rawItems.map((item) => {
+        if (typeof item === 'string') {
+          return { id: newId('item'), html: item }
+        }
+        if (isRecord(item)) {
+          return {
+            id: typeof item.id === 'string' && item.id ? item.id : newId('item'),
+            html: typeof item.html === 'string' ? item.html : typeof item.text === 'string' ? item.text : '',
+          }
+        }
+        return { id: newId('item'), html: String(item ?? '') }
+      })
+      return {
+        id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
+        type: 'list',
+        ordered: Boolean(raw.ordered ?? false),
+        indent: clampIndent(Number(raw.indent ?? 0)),
+        items,
+      }
+    }
+    case 'signature': {
+      const parties: SignatureParty[] = Array.isArray(raw.parties)
+        ? raw.parties.filter(isRecord).map((party) => ({
+            id: typeof party.id === 'string' && party.id ? party.id : newId('party'),
+            label: typeof party.label === 'string' ? party.label : '',
+            name: typeof party.name === 'string' ? party.name : typeof party.party === 'string' ? party.party : '',
+            date: typeof party.date === 'string' ? party.date : '',
+          }))
+        : [
+            {
+              id: newId('party'),
+              label: typeof raw.label === 'string' ? raw.label : '',
+              name: typeof raw.party === 'string' ? raw.party : typeof raw.name === 'string' ? raw.name : '',
+              date: typeof raw.date === 'string' ? raw.date : '',
+            },
+          ]
+      return {
+        id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
+        type: 'signature',
+        parties,
+      }
+    }
+    case 'table': {
+      if (Array.isArray(raw.rows)) {
+        const rows = raw.rows.filter(isRecord).map((row) => ({
+          id: typeof row.id === 'string' && row.id ? row.id : newId('row'),
+          cells: Array.isArray(row.cells)
+            ? row.cells.filter(isRecord).map((cell) => ({
+                id: typeof cell.id === 'string' && cell.id ? cell.id : newId('cell'),
+                html: typeof cell.html === 'string' ? cell.html : String(cell.text ?? ''),
+              }))
+            : [],
+        }))
+        return {
+          id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
+          type: 'table',
+          headerRow: Boolean(raw.headerRow),
+          columnCount: Math.min(20, Math.max(1, Number(raw.columnCount ?? 1) || 1)),
+          rows,
+        }
+      }
+      const headers = Array.isArray(raw.headers) ? raw.headers : []
+      const dataRows = Array.isArray(raw.rows) ? raw.rows : []
+      const rows: TableBlock['rows'] = []
+      if (headers.length > 0) {
+        rows.push({
+          id: newId('row'),
+          cells: headers.map((h) => ({ id: newId('cell'), html: String(h) })),
+        })
+      }
+      for (const row of dataRows) {
+        if (Array.isArray(row)) {
+          rows.push({
+            id: newId('row'),
+            cells: row.map((c) => ({ id: newId('cell'), html: String(c) })),
+          })
+        }
+      }
+      return {
+        id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
+        type: 'table',
+        headerRow: headers.length > 0,
+        columnCount: Math.min(20, Math.max(headers.length, ...dataRows.map((r) => (Array.isArray(r) ? r.length : 0)), 1)),
+        rows,
+      }
+    }
+    case 'page-break':
+    case 'pageBreak':
+      return {
+        id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
+        type: 'page-break',
+      }
+    default:
+      return null
+  }
+}
+
+/**
+ * Maps an array of backend blocks into editor blocks.
+ */
+export function mapBackendBlocks(rawBlocks: unknown[]): Block[] {
+  if (!Array.isArray(rawBlocks)) return []
+  const blocks: Block[] = []
+  for (const raw of rawBlocks) {
+    const mapped = mapBackendBlock(raw)
+    if (mapped) blocks.push(mapped)
+  }
+  return blocks
+}
+
+/** Alias for mapBackendBlocks */
+export const backendBlocksToEditorBlocks = mapBackendBlocks
+
+/**
+ * Maps a backend payload (object or JSON string with `{ blocks: [...] }` or `[...]`)
+ * into a complete DocumentModel and passes it through sanitizeModel().
+ */
+export function mapBackendPayload(payload: unknown, language = 'en'): DocumentModel {
+  let parsed = payload
+  if (typeof payload === 'string') {
+    try {
+      parsed = JSON.parse(payload)
+    } catch {
+      // Not JSON
+    }
+  }
+
+  const rawBlocks =
+    isRecord(parsed) && Array.isArray(parsed.blocks)
+      ? parsed.blocks
+      : Array.isArray(parsed)
+        ? parsed
+        : []
+
+  const blocks = mapBackendBlocks(rawBlocks)
+  return sanitizeModel({
+    ...createEmptyDocument(language),
+    blocks,
+  })
+}
+
 /**
  * Parse a stored/generated payload into a model. Accepts:
  * 1. Serialized `docuA4.document` JSON (preferred)
- * 2. Untrusted HTML (AI/backend output) — sanitized via `htmlToBlocks`
- * 3. Legacy plain text (phase-3 drafts) — converted heuristically
+ * 2. Backend generation payload JSON ({ blocks: [...] } or [...])
+ * 3. Untrusted HTML (AI/backend output) — sanitized via `htmlToBlocks`
+ * 4. Legacy plain text (phase-3 drafts) — converted heuristically
  * Returns null for empty content.
  */
 export function parseDocumentContent(
@@ -775,7 +1005,7 @@ export function parseDocumentContent(
   if (typeof content !== 'string' || content.trim() === '') return null
 
   const trimmed = content.trim()
-  if (trimmed.startsWith('{')) {
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
       const parsed: unknown = JSON.parse(trimmed)
       if (
@@ -796,6 +1026,21 @@ export function parseDocumentContent(
           blocks: parsed.blocks as Block[],
         }
         return sanitizeModel(model)
+      }
+
+      // Backend generation payload: { blocks: [...] } or array of blocks [...]
+      const rawBlocks =
+        isRecord(parsed) && Array.isArray(parsed.blocks)
+          ? parsed.blocks
+          : Array.isArray(parsed)
+            ? parsed
+            : null
+
+      if (rawBlocks) {
+        const blocks = mapBackendBlocks(rawBlocks)
+        if (blocks.length > 0) {
+          return sanitizeModel({ ...createEmptyDocument(language), blocks })
+        }
       }
     } catch {
       // Fall through to text/html handling.
