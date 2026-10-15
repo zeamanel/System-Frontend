@@ -13,6 +13,9 @@ function Harness() {
       <button type="button" onClick={() => setLocale('am')}>
         switch
       </button>
+      <button type="button" onClick={() => setLocale('om')}>
+        switch-om
+      </button>
     </div>
   )
 }
@@ -44,5 +47,20 @@ describe('I18nProvider', () => {
 
     expect(screen.getByText('መነሻ')).toBeInTheDocument()
     expect(screen.getByText(/Sara/)).toBeInTheDocument()
+  })
+
+  it('serves English placeholder strings without crashing when om is active', async () => {
+    const user = userEvent.setup()
+    render(
+      <I18nProvider>
+        <Harness />
+      </I18nProvider>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'switch-om' }))
+
+    expect(screen.getByText('om')).toBeInTheDocument()
+    expect(screen.getByText('Home')).toBeInTheDocument()
+    expect(screen.getByText('Welcome, Sara')).toBeInTheDocument()
   })
 })

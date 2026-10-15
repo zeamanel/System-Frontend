@@ -42,8 +42,9 @@ export const LANGUAGES: Record<LanguageCode, LanguageInfo> = {
     code: 'om',
     nativeName: 'Afaan Oromoo',
     englishName: 'Afaan Oromoo',
-    // Selectable and persisted, but interface strings fall back to English
-    // until an Afaan Oromoo UI resource file exists.
+    // Selectable and persisted. A placeholder resource file with English
+    // values exists (src/i18n/om.json); interface strings stay English and
+    // the language selector says so until a real translation lands.
     uiTranslated: false,
     direction: 'ltr',
   },

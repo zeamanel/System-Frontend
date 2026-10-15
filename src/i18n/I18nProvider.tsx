@@ -5,16 +5,21 @@ import { LANGUAGES, type LanguageCode } from '../lib/languages'
 import { I18nContext } from './context'
 import am from './am.json'
 import en from './en.json'
+import om from './om.json'
 import { isLocale, type Locale } from './locales'
 import type { MessageKey, MessageVars } from './types'
 
 const STORAGE_KEY = 'docuA4.locale'
 
-/** Locales map to their dictionary; untranslated keys fall back cleanly to English. */
-const dictionaries: Record<Locale, Partial<Record<MessageKey, string>>> = {
+/**
+ * Locales map to their dictionary. Every locale must define every key —
+ * a missing key fails the type-check, and full key parity (including
+ * extra keys) is enforced by `npm run check:i18n` as part of `npm run build`.
+ */
+const dictionaries: Record<Locale, Record<MessageKey, string>> = {
   en,
   am,
-  om: {},
+  om,
 }
 
 function interpolate(template: string, vars?: MessageVars): string {
@@ -70,6 +75,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = useCallback(
     (key: MessageKey, vars?: MessageVars): string => {
       const dictionary = dictionaries[locale] ?? dictionaries.en
+      // Parity is enforced at build time; this guards against a stale or
+      // hand-edited dictionary at runtime, warning developers instead of
+      // failing silently to an English fallback.
+      if (import.meta.env.DEV && !(key in dictionary)) {
+        console.warn(
+          `[i18n] key "${key}" is missing from the "${locale}" dictionary — falling back to English`,
+        )
+      }
       const template = dictionary[key] ?? dictionaries.en[key] ?? key
       return interpolate(template, vars)
     },

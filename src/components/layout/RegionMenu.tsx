@@ -77,7 +77,9 @@ export function RegionMenu() {
                             fontWeight: 'normal',
                           }}
                         >
-                          {t('language.fallbackHint')}
+                          {locale === code
+                            ? t('language.partialNotice', { language: label })
+                            : t('language.fallbackHint')}
                         </span>
                       ) : null}
                     </span>

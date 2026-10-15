@@ -10,9 +10,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "prebuild": "npm run check:i18n",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -b",
-    "lint": "eslint .",
+    "lint": "eslint . && npm run check:i18n",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -380,5 +380,6 @@
   "settings.numberFormat": "የቁጥሮች ቅርጸት",
   "settings.numberFormat.latn": "የላቲን ቁጥሮች (1, 2, 3)",
   "settings.numberFormat.ethi": "የግዕዝ ቁጥሮች (፩, ፪, ፫)",
-  "language.fallbackHint": "የመተግበሪያ ጽሑፎች ወደ እንግሊዝኛ ይመለሳሉ"
+  "language.fallbackHint": "የመተግበሪያ ጽሑፎች ወደ እንግሊዝኛ ይመለሳሉ",
+  "language.partialNotice": "የ{language} በይነገጽ በቅርቡ ይመጣል — በ{language} ያሉ ናሙናዎችና ሰነዶች ይገኛሉ።"
 }

@@ -26,10 +26,11 @@ npm run dev                  # http://localhost:5173
 | Script | Purpose |
 | --- | --- |
 | `npm run dev` | Vite dev server with HMR |
-| `npm run build` | Type-check (`tsc -b`) + production build to `dist/` |
+| `npm run build` | i18n parity check + type-check (`tsc -b`) + production build to `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm run typecheck` | TypeScript project check (strict) |
-| `npm run lint` / `lint:fix` | ESLint (flat config) |
+| `npm run check:i18n` | i18n key-parity check across locale files |
+| `npm run lint` / `lint:fix` | ESLint (flat config); `lint` also runs `check:i18n` |
 | `npm run test` / `test:watch` | Vitest unit/component tests |
 
 ## Documentation
@@ -40,6 +41,9 @@ npm run dev                  # http://localhost:5173
 
 ## Localization
 
-English (`en`) and Amharic (`am`) ship together. Keys live in
-`src/i18n/en.json` (source of truth) and `src/i18n/am.json`. Missing keys
-fail the type-check. Switch language from the top bar or Settings.
+English (`en`) and Amharic (`am`) ship together; Afaan Oromoo (`om`) is
+selectable with English interface strings and a visible notice in the
+language menu. Keys live in `src/i18n/en.json` (source of truth),
+`src/i18n/am.json`, and `src/i18n/om.json` (English placeholder). Key
+parity across locales is enforced by `npm run check:i18n`, which runs as
+part of `npm run build`. Switch language from the top bar or Settings.

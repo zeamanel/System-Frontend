@@ -14,7 +14,7 @@ features land.
 | Server state | TanStack Query v5 | Caching, retries, loading/error states without ad-hoc effects. |
 | Styling | Plain CSS + semantic design tokens | Zero styling deps; entire theme restylable from `tokens.css`. |
 | API access | Native `fetch` behind a typed client | No axios; single boundary for headers, errors, base URL. |
-| i18n | Dependency-free typed provider (en/am) | Keys derived from `en.json`; Amharic completeness compile-checked. |
+| i18n | Dependency-free typed provider (en/am + om placeholder) | Keys derived from `en.json`; parity enforced by `npm run check:i18n`. |
 | Tests | Vitest + Testing Library (jsdom) | Matches Vite; user-centric component testing. |
 
 No state-management library beyond TanStack Query + React context — on
@@ -96,9 +96,11 @@ centralised keys; components consume only those hooks.
   provider/database credentials stay in the backend repo.
 - **Types**: `import type` everywhere types are type-only
   (`verbatimModuleSyntax` is on). Strict mode; no `any` by policy.
-- **i18n**: all user-visible strings go through `t('key')`; adding a key to
-  `en.json` forces adding it to `am.json` (type error otherwise). Amharic
-  copy is a native-speaker-review TODO.
+- **i18n**: all user-visible strings go through `t('key')`; key parity
+  between `en.json`, `am.json`, and the `om.json` English placeholder is
+  enforced by `npm run check:i18n`, which runs as part of `npm run build`
+  (a missing key in a locale file is also a type error). Amharic copy is
+  a native-speaker-review TODO.
 - **A11y**: keyboard-operable primitives (focus-visible rings, skip link,
   native `<dialog>`, roving-focus dropdown, `aria-live` toasts). Icon-only
   controls need `aria-label`.

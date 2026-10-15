@@ -380,5 +380,6 @@
   "settings.numberFormat": "Number format",
   "settings.numberFormat.latn": "Western digits (1, 2, 3)",
   "settings.numberFormat.ethi": "Ge'ez numerals (፩, ፪, ፫)",
-  "language.fallbackHint": "UI strings fall back to English"
+  "language.fallbackHint": "UI strings fall back to English",
+  "language.partialNotice": "{language} interface coming soon — templates and documents in {language} are available."
 }
