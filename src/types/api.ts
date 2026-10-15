@@ -83,13 +83,32 @@ export interface GenerationRequestInput {
    * place instead of creating a new one (in-editor regeneration).
    */
   documentId?: string
+  /**
+   * Idempotency key for POST /ai/generate. One key per user action, reused
+   * across retries; ignored by fixture repositories.
+   */
+  idempotencyKey?: string
 }
 
 export interface GenerationRequest {
   id: string
   status: GenerationStatus
   documentId?: string
+  /**
+   * Serialized generated content (JSON blocks string) once the job completes.
+   * The guided flow's repository layer uses it to create the document.
+   */
+  content?: string
   error?: string
+}
+
+/** Generation usage and quotas (GET /api/v1/ai/usage). */
+export interface GenerationUsage {
+  generationsToday: number
+  generationsThisMonth: number
+  creditsUsedThisMonth: number
+  dailyQuotaLimit: number
+  monthlyCreditLimit: number | null
 }
 
 // ---------- Exports ----------

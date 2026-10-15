@@ -5,6 +5,7 @@ import type {
   ExportRequestInput,
   GenerationRequest,
   GenerationRequestInput,
+  GenerationUsage,
   UpdateUserPreferencesInput,
   UserPreferences,
 } from '../../types/api'
@@ -79,10 +80,17 @@ export interface TemplateDetail extends TemplateSummary {
 export interface DocumentRecord {
   id: string
   title: string
-  templateId: string
-  templateTitle: string
+  /** Null for blank documents created without a template. */
+  templateId: string | null
+  templateTitle: string | null
   status: DocumentStatus
   language: string
+  /**
+   * Optimistic-concurrency version from the backend (If-Match guard).
+   * Optional so fixture/editor test literals without it keep compiling;
+   * API-backed repositories always populate it.
+   */
+  version?: number
   createdAt: string
   updatedAt: string
 }
@@ -92,12 +100,24 @@ export interface DocumentDetailRecord extends DocumentRecord {
   answers?: Record<string, string>
 }
 
+/** Snapshot in a document's version history (descending order). */
+export interface DocumentVersionSnapshot {
+  version: number
+  title: string
+  createdAt: string
+}
+
 export interface CreateDocumentPayload {
   title?: string
   templateId: string
   language: string
   answers?: Record<string, string>
   content?: string
+  /**
+   * Idempotency key for POST /documents. Generated when the user commits the
+   * create action and reused across retries; ignored by fixture repositories.
+   */
+  idempotencyKey?: string
 }
 
 /**
@@ -115,6 +135,12 @@ export interface UpdateDocumentPayload {
    * document is newer (HTTP 409).
    */
   baseUpdatedAt?: string
+  /**
+   * Backend version guard: sent as `If-Match` by the HTTP implementation
+   * (the backend rejects unversioned PATCHes with 428). Fixture repositories
+   * keep using `baseUpdatedAt`.
+   */
+  baseVersion?: number
 }
 
 export interface AppNotification {
@@ -235,12 +261,24 @@ export interface DocumentsRepository {
    * stored document's updatedAt.
    */
   update(id: string, payload: UpdateDocumentPayload): Promise<DocumentDetailRecord>
+  /** Rename via the dedicated title endpoint (version-guarded). */
+  rename(id: string, title: string, ifMatch?: number): Promise<DocumentDetailRecord>
+  /** Clone the document ("<title> (copy)"). */
+  duplicate(id: string): Promise<DocumentDetailRecord>
+  /** Undo a soft delete. */
+  restore(id: string): Promise<DocumentDetailRecord>
+  /** Version snapshots, newest first. */
+  versions(id: string): Promise<DocumentVersionSnapshot[]>
+  /** Restore title/content/answers from a snapshot (bumps the version). */
+  restoreVersion(id: string, version: number): Promise<DocumentDetailRecord>
   delete(id: string): Promise<void>
 }
 
 export interface GenerationRepository {
   createRequest(input: GenerationRequestInput): Promise<GenerationRequest>
   getRequest(id: string): Promise<GenerationRequest>
+  /** AI generation usage + quotas; null when the backend does not report it. */
+  usage(): Promise<GenerationUsage | null>
 }
 
 /**
@@ -275,6 +313,12 @@ export interface SessionRepository {
   getCurrent(): Promise<SessionUser | null>
   signIn(email: string, password: string): Promise<SessionUser>
   signOut(): Promise<void>
+  /**
+   * Optional reactive channel (Firebase auth state in API mode). When
+   * present, the session provider keeps its state in sync with sign-ins,
+   * sign-outs and session-expiry events from anywhere in the app.
+   */
+  subscribe?(listener: (user: SessionUser | null) => void): () => void
 }
 
 export interface PreferencesRepository {

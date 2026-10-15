@@ -1,25 +1,65 @@
 import { apiClient } from '../client'
-import type {
-  GenerationRequest,
-  GenerationRequestInput,
-} from '../../../types/api'
+import type { GenerationStatus } from '../../../types/api'
 
 /**
- * Start an AI generation job from guided-flow answers. The returned request
- * is polled with `getGenerationRequest` until it completes.
+ * AI generation endpoints of the live backend (docs/API.md §5).
+ *
+ * POST /ai/generate returns 202 immediately with a pending job; the client
+ * polls GET /ai/generate/:id until `completed` (content string) or `failed`.
+ * POST requires an `Idempotency-Key` header and is quota/rate limited.
  */
+
+export interface CreateGenerationApiInput {
+  /** Backend field name for the guided-flow `documentType`. */
+  templateId: string
+  language: string
+  answers: Record<string, string>
+  /** Set for in-place regeneration of an existing document. */
+  documentId?: string
+  options?: { model?: string; tone?: string; maxTokens?: number }
+}
+
+export interface GenerationJobApiRecord {
+  id: string
+  status: GenerationStatus
+  /** Serialized generated content (JSON blocks string) once completed. */
+  content?: string
+  error?: { code?: string; message?: string }
+  createdAt?: string
+  updatedAt?: string
+}
+
 export function createGenerationRequest(
-  input: GenerationRequestInput,
-): Promise<GenerationRequest> {
-  return apiClient.post<GenerationRequest>('/generation/requests', input)
+  input: CreateGenerationApiInput,
+  idempotencyKey: string,
+): Promise<GenerationJobApiRecord> {
+  return apiClient.post<GenerationJobApiRecord>('/ai/generate', input, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+    auth: 'required',
+  })
 }
 
 export function getGenerationRequest(
   id: string,
   signal?: AbortSignal,
-): Promise<GenerationRequest> {
-  return apiClient.get<GenerationRequest>(
-    `/generation/requests/${encodeURIComponent(id)}`,
-    { signal },
+): Promise<GenerationJobApiRecord> {
+  return apiClient.get<GenerationJobApiRecord>(
+    `/ai/generate/${encodeURIComponent(id)}`,
+    { signal, auth: 'required' },
   )
 }
+
+export interface GenerationUsageApiRecord {
+  generationsToday: number
+  generationsThisMonth: number
+  creditsUsedThisMonth: number
+  dailyQuotaLimit: number
+  monthlyCreditLimit: number | null
+}
+
+export function getGenerationUsage(
+  signal?: AbortSignal,
+): Promise<GenerationUsageApiRecord> {
+  return apiClient.get<GenerationUsageApiRecord>('/ai/usage', { signal, auth: 'required' })
+}
+

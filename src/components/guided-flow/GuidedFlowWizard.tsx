@@ -1,10 +1,11 @@
 import './GuidedFlowWizard.css'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import { usePreferences } from '../../preferences'
 import { isDocumentLanguage, LANGUAGES, type DocumentLanguage } from '../../lib/languages'
+import { generateKey } from '../../lib/api/idempotency'
 import type { TemplateDetail } from '../../lib/repositories'
 import {
   useCreateGenerationRequest,
@@ -49,6 +50,9 @@ export function GuidedFlowWizard({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [fieldError, setFieldError] = useState('')
   const [requestId, setRequestId] = useState<string | null>(null)
+  // One idempotency key per generate action — reused across retries so the
+  // backend can never create duplicate jobs for one click.
+  const idempotencyKeyRef = useRef(generateKey())
 
   const createJob = useCreateGenerationRequest()
   const job = useGenerationJob(requestId)
@@ -114,6 +118,7 @@ export function GuidedFlowWizard({
         documentType: template.id,
         answers: combinedAnswers,
         language,
+        idempotencyKey: idempotencyKeyRef.current,
       })
       setRequestId(response.id)
       setStep('generating')

@@ -15,6 +15,43 @@ export class ConfigError extends Error {
  */
 export type DataSource = 'fixtures' | 'http'
 
+/**
+ * Firebase Web SDK configuration (public client identifiers — these are NOT
+ * secrets; Firebase web API keys identify the project, access is governed by
+ * ID-token verification on the backend). Required when VITE_DATA_SOURCE=http;
+ * ignored in fixture mode. Returns null when any value is missing so
+ * `parseEnv` stays permissive; `getFirebaseAuth()` enforces completeness with
+ * a clear error when the app actually runs in API mode.
+ */
+export interface FirebaseEnvConfig {
+  apiKey: string
+  authDomain: string
+  projectId: string
+  storageBucket: string
+  messagingSenderId: string
+  appId: string
+}
+
+export function parseFirebaseConfig(raw: RawEnv): FirebaseEnvConfig | null {
+  const apiKey = raw.VITE_FIREBASE_API_KEY?.trim()
+  const authDomain = raw.VITE_FIREBASE_AUTH_DOMAIN?.trim()
+  const projectId = raw.VITE_FIREBASE_PROJECT_ID?.trim()
+  const storageBucket = raw.VITE_FIREBASE_STORAGE_BUCKET?.trim()
+  const messagingSenderId = raw.VITE_FIREBASE_MESSAGING_SENDER_ID?.trim()
+  const appId = raw.VITE_FIREBASE_APP_ID?.trim()
+  if (
+    !apiKey ||
+    !authDomain ||
+    !projectId ||
+    !storageBucket ||
+    !messagingSenderId ||
+    !appId
+  ) {
+    return null
+  }
+  return { apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId }
+}
+
 /** Fully validated, typed application configuration. */
 export interface AppConfig {
   /** Base URL of the backend API (absolute URL or root-relative path). */
@@ -25,6 +62,8 @@ export interface AppConfig {
   defaultLocale: Locale
   /** Active data layer for feature content. */
   dataSource: DataSource
+  /** Firebase Web config; null unless every VITE_FIREBASE_* value is present. */
+  firebase: FirebaseEnvConfig | null
 }
 
 interface RawEnv {
@@ -32,6 +71,12 @@ interface RawEnv {
   readonly VITE_APP_NAME?: string
   readonly VITE_DEFAULT_LOCALE?: string
   readonly VITE_DATA_SOURCE?: string
+  readonly VITE_FIREBASE_API_KEY?: string
+  readonly VITE_FIREBASE_AUTH_DOMAIN?: string
+  readonly VITE_FIREBASE_PROJECT_ID?: string
+  readonly VITE_FIREBASE_STORAGE_BUCKET?: string
+  readonly VITE_FIREBASE_MESSAGING_SENDER_ID?: string
+  readonly VITE_FIREBASE_APP_ID?: string
 }
 
 export interface ParseEnvOptions {
@@ -90,10 +135,25 @@ export function parseEnv(raw: RawEnv, options: ParseEnvOptions): AppConfig {
     appName: raw.VITE_APP_NAME?.trim() || 'DocuA4',
     defaultLocale,
     dataSource: normalizeDataSource(raw.VITE_DATA_SOURCE, options.isDev),
+    firebase: parseFirebaseConfig(raw),
   }
 }
 
+/**
+ * Resolves runtime configuration with strictness rules that apply to the real
+ * application (unit tests target `parseEnv` directly): a production build
+ * must declare its data source explicitly instead of silently defaulting to
+ * the live backend.
+ */
+export function resolveEnv(raw: RawEnv, isDev: boolean): AppConfig {
+  const config = parseEnv(raw, { isDev })
+  if (!isDev && !raw.VITE_DATA_SOURCE?.trim()) {
+    throw new ConfigError(
+      'VITE_DATA_SOURCE must be set explicitly in production builds ("fixtures" or "http") — refusing to guess.',
+    )
+  }
+  return config
+}
+
 /** Application configuration resolved from import.meta.env. */
-export const env: AppConfig = parseEnv(import.meta.env, {
-  isDev: import.meta.env.DEV,
-})
+export const env: AppConfig = resolveEnv(import.meta.env, import.meta.env.DEV)

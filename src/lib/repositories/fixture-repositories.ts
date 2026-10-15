@@ -23,6 +23,7 @@ import type {
   CreateDocumentPayload,
   DocumentDetailRecord,
   DocumentRecord,
+  DocumentVersionSnapshot,
   DocumentsRepository,
   ExportsRepository,
   FavoritesRepository,
@@ -154,6 +155,8 @@ interface CustomDocumentRecord {
   language: string
   createdAt: string
   updatedAt: string
+  /** Mirrors the backend's If-Match version for shape parity. */
+  version?: number
   content?: string | null
   answers?: Record<string, string>
 }
@@ -188,6 +191,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         templateTitle: templates.get(doc.templateId) ?? doc.templateId,
         status: doc.status,
         language: doc.language,
+        version: doc.version ?? 1,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
       }))
@@ -201,6 +205,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       templateTitle: templates.get(fixture.templateId) ?? fixture.templateId,
       status: fixture.status,
       language: fixture.language,
+      version: 1,
       ...documentTimestamps(fixture.ageHours),
     }))
 
@@ -217,7 +222,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
     return all.filter(
       (doc) =>
         doc.title.toLowerCase().includes(needle) ||
-        doc.templateTitle.toLowerCase().includes(needle),
+        (doc.templateTitle ?? '').toLowerCase().includes(needle),
     )
   }
 
@@ -246,6 +251,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         templateTitle: templates.get(custom.templateId) ?? custom.templateId,
         status: custom.status,
         language: custom.language,
+        version: custom.version ?? 1,
         createdAt: custom.createdAt,
         updatedAt: custom.updatedAt,
         content: custom.content ?? null,
@@ -262,6 +268,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         templateTitle: templates.get(fixture.templateId) ?? fixture.templateId,
         status: fixture.status,
         language: fixture.language,
+        version: 1,
         ...documentTimestamps(fixture.ageHours),
         content: DEFAULT_FIXTURE_CONTENTS[fixture.id] ?? null,
       }
@@ -288,6 +295,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       templateId: payload.templateId,
       status: 'ready',
       language: payload.language,
+      version: 1,
       createdAt: nowIso,
       updatedAt: nowIso,
       content: payload.content ?? null,
@@ -304,6 +312,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       templateTitle,
       status: 'ready',
       language: payload.language,
+      version: 1,
       createdAt: nowIso,
       updatedAt: nowIso,
     }
@@ -335,9 +344,10 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       record = {
         id,
         title: detail.title,
-        templateId: detail.templateId,
+        templateId: detail.templateId ?? '',
         status: detail.status,
         language: detail.language,
+        version: detail.version ?? 1,
         createdAt: detail.createdAt,
         updatedAt: detail.updatedAt,
         content: detail.content ?? null,
@@ -358,6 +368,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       content: payload.content !== undefined ? payload.content : record.content,
       language: payload.language ?? record.language,
       answers: payload.answers ?? record.answers,
+      version: (record.version ?? 1) + 1,
       // Strictly increasing: same-millisecond writes must still count as
       // "newer" so optimistic-concurrency checks behave deterministically.
       updatedAt: new Date(
@@ -384,11 +395,66 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       templateTitle: templates.get(record.templateId) ?? record.templateId,
       status: record.status,
       language: record.language,
+      version: record.version ?? 1,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       content: record.content,
       answers: record.answers,
     }
+  }
+
+  async rename(id: string, title: string): Promise<DocumentDetailRecord> {
+    return this.update(id, { title: title.trim() || 'Untitled' })
+  }
+
+  async duplicate(id: string): Promise<DocumentDetailRecord> {
+    const source = await this.get(id)
+    if (!source) throw new Error(`Document ${id} not found.`)
+    const nowIso = new Date().toISOString()
+    const copy: CustomDocumentRecord = {
+      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      title: `${source.title} (copy)`,
+      templateId: source.templateId ?? '',
+      status: source.status,
+      language: source.language,
+      version: 1,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      content: source.content ?? null,
+      answers: source.answers,
+    }
+    this.saveCustomDocs([copy, ...this.getCustomDocs()])
+    return { ...source, id: copy.id, title: copy.title, version: 1, createdAt: nowIso, updatedAt: nowIso }
+  }
+
+  async restore(id: string): Promise<DocumentDetailRecord> {
+    const deleted = new Set(this.getDeletedIds())
+    if (deleted.has(id)) {
+      writeJson(
+        'docuA4.fixture.deletedDocuments',
+        Array.from(deleted).filter((item) => item !== id),
+      )
+    }
+    const restored = await this.get(id)
+    if (!restored) throw new Error(`Document ${id} not found.`)
+    return restored
+  }
+
+  async versions(id: string): Promise<DocumentVersionSnapshot[]> {
+    // Fixtures keep a single implicit snapshot (the current state) — labeled
+    // development data, never a fabricated history.
+    const detail = await this.get(id)
+    if (!detail) return []
+    return [
+      { version: detail.version ?? 1, title: detail.title, createdAt: detail.updatedAt },
+    ]
+  }
+
+  async restoreVersion(id: string, _version: number): Promise<DocumentDetailRecord> {
+    // No historical snapshots exist in fixtures — restoring returns current.
+    const detail = await this.get(id)
+    if (!detail) throw new Error(`Document ${id} not found.`)
+    return detail
   }
 }
 
@@ -499,6 +565,11 @@ interface FixtureGenerationJob {
 
 class FixtureGenerationRepository implements GenerationRepository {
   constructor(private documents: FixtureDocumentsRepository) {}
+
+  async usage(): Promise<null> {
+    // Usage must come from the backend — never fabricated in fixture mode.
+    return null
+  }
 
   private getJobs(): FixtureGenerationJob[] {
     return readJson<FixtureGenerationJob[]>('docuA4.fixture.generationJobs', [])

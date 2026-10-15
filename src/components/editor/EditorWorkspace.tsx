@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useI18n } from '../../i18n'
 import { useCreateExportRequest } from '../../hooks/use-documents'
 import { useCreateGenerationRequest, useGenerationJob } from '../../hooks/use-generation'
+import { generateKey } from '../../lib/api/idempotency'
 import type { DocumentDetailRecord, TemplateDetail } from '../../lib/repositories'
 import { ExportUnavailableError } from '../../lib/repositories'
 import {
@@ -94,6 +95,9 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
   // ---- generation (initial + in-place regeneration) ----
   const createJob = useCreateGenerationRequest()
   const [genRequestId, setGenRequestId] = useState<string | null>(null)
+  // One idempotency key per confirmed regeneration action; minted fresh for
+  // the next action once this one is submitted.
+  const regenKeyRef = useRef<string | null>(null)
   const job = useGenerationJob(genRequestId)
   const jobData = job.data ?? null
   const generationPending =
@@ -375,11 +379,13 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
     async (answers: Record<string, string>): Promise<void> => {
       try {
         const response = await createJob.mutateAsync({
-          documentType: template?.id ?? doc.templateId,
+          documentType: template?.id ?? doc.templateId ?? '',
           answers: { ...answers, title: editor.title },
           language: editor.language,
           documentId: doc.id,
+          idempotencyKey: (regenKeyRef.current ??= generateKey()),
         })
+        regenKeyRef.current = null
         setGenRequestId(response.id)
       } catch {
         // Submission failures surface through the job status UI.

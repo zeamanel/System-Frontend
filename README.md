@@ -21,6 +21,33 @@ cp .env.example .env.local   # adjust VITE_API_BASE_URL if needed
 npm run dev                  # http://localhost:5173
 ```
 
+The default data source is `fixtures` — clearly-labeled development data
+served from the browser, fully offline, no Firebase, no network calls.
+
+## Live backend setup (Phase 7)
+
+To run against the deployed Cloud Run backend, set the following in
+`.env.local` (or in Cloudflare Pages environment variables):
+
+```sh
+VITE_DATA_SOURCE=http
+VITE_API_BASE_URL=https://systembackendservice-506195874849.us-central1.run.app/api/v1
+
+# Firebase Web config — Firebase console → project system-backend-511115 →
+# Project settings → Your apps. The API key and app ID are public client
+# identifiers, not secrets; access is enforced by backend ID-token checks.
+VITE_FIREBASE_API_KEY=<web API key>
+VITE_FIREBASE_AUTH_DOMAIN=system-backend-511115.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=system-backend-511115
+VITE_FIREBASE_STORAGE_BUCKET=system-backend-511115.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=506195874849
+VITE_FIREBASE_APP_ID=<web app ID>
+```
+
+Authentication is Firebase email/password; tokens are stored and refreshed by
+the Firebase SDK only. See [`docs/BACKEND-INTEGRATION.md`](docs/BACKEND-INTEGRATION.md)
+for the auth flow, error handling and the current backend-gap list.
+
 ## Scripts
 
 | Script | Purpose |

@@ -31,7 +31,7 @@ function renderWorkspace(doc: DocumentDetailRecord, template: TemplateDetail | n
 async function loadDocument(id: string): Promise<{ doc: DocumentDetailRecord; template: TemplateDetail | null }> {
   const doc = await repos.documents.get(id)
   if (!doc) throw new Error(`document ${id} missing`)
-  const template = await repos.templates.get(doc.templateId, 'en')
+  const template = doc.templateId ? await repos.templates.get(doc.templateId, 'en') : null
   return { doc, template }
 }
 

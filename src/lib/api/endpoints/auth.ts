@@ -1,29 +1,47 @@
 import { apiClient } from '../client'
-import { setAccessToken } from '../auth-store'
-import type { AuthSession, User } from '../../../types/api'
 
-export interface SignInInput {
+/**
+ * Auth endpoints of the live backend (docs/API.md §2).
+ *
+ * Authentication itself is Firebase Authentication (email/password) handled
+ * by `lib/api/auth-store.ts`; these endpoints cover the app-side handshake
+ * and the stateless logout acknowledgement.
+ */
+
+export interface SyncedUserRecord {
+  id: string
   email: string
-  password: string
+  displayName?: string | null
+  avatarUrl?: string | null
+  role?: string | null
+  createdAt?: string
+  updatedAt?: string
 }
 
-/** Create a session. The access token is stored by the auth store. */
-export async function signIn(input: SignInInput): Promise<User> {
-  const session = await apiClient.post<AuthSession>('/auth/session', input)
-  setAccessToken(session.accessToken)
-  return session.user
+export interface SyncUserResponse {
+  user: SyncedUserRecord
 }
 
-/** Destroy the current session and clear the local token. */
-export async function signOut(): Promise<void> {
-  try {
-    await apiClient.delete('/auth/session')
-  } finally {
-    setAccessToken(null)
-  }
+/**
+ * Create or update the PostgreSQL user record tied to the Firebase identity
+ * and return the client-safe profile. Runs once per session after login —
+ * see `lib/api/sync-user.ts`.
+ *
+ * `authRecovery: false` prevents the client's 401 recovery loop from
+ * re-entering the handshake that is itself reporting the 401.
+ */
+export function syncUser(displayName: string): Promise<SyncUserResponse> {
+  return apiClient.post<SyncUserResponse>('/auth/sync-user', { displayName }, {
+    auth: 'required',
+    authRecovery: false,
+  })
 }
 
-/** Fetch the currently authenticated user, if any. */
-export function getCurrentUser(): Promise<User> {
-  return apiClient.get<User>('/auth/session')
+/** Stateless logout acknowledgement (204). Firebase owns the session. */
+export async function logout(): Promise<void> {
+  await apiClient.post('/auth/logout', undefined, {
+    auth: 'optional',
+    authRecovery: false,
+  })
 }
+

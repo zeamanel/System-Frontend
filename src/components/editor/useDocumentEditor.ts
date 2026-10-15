@@ -17,6 +17,8 @@ interface EditorSnapshot {
   language: string
   answers: Record<string, string>
   baseUpdatedAt: string
+  /** Backend version guard mirrored into the recovery buffer. */
+  baseVersion?: number
 }
 
 function bufferKey(documentId: string): string {
@@ -35,6 +37,7 @@ function readBuffer(documentId: string): EditorSnapshot | null {
       language: parsed.language ?? 'en',
       answers: parsed.answers ?? {},
       baseUpdatedAt: parsed.baseUpdatedAt ?? '',
+      baseVersion: parsed.baseVersion,
     }
   } catch {
     return null
@@ -82,6 +85,8 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
   const [language, setLanguageState] = useState(doc.language)
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [savedAt, setSavedAt] = useState(doc.updatedAt)
+  // Backend version guard (If-Match); undefined until an API document has one.
+  const [savedVersion, setSavedVersion] = useState<number | undefined>(doc.version)
   const [recovered, setRecovered] = useState(false)
 
   const dirtyRef = useRef(false)
@@ -140,6 +145,7 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
     setAnswersState(snapshot.answers ?? {})
     setLanguageState(snapshot.language)
     setSavedAt(snapshot.updatedAt)
+    setSavedVersion(snapshot.version)
     setStatus('idle')
     clearBuffer(snapshot.id)
   }, [])
@@ -161,10 +167,12 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
             language,
             answers,
             baseUpdatedAt: force ? undefined : savedAt,
+            baseVersion: force ? undefined : savedVersion,
           },
         })
         dirtyRef.current = false
         setSavedAt(result.updatedAt)
+        setSavedVersion(result.version)
         setStatus('saved')
         clearBuffer(doc.id)
         queryClient.setQueryData<DocumentDetailRecord | null>(
@@ -186,7 +194,7 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
         }
       }
     },
-    [answers, doc.id, language, markDirty, model, queryClient, savedAt, title, updateMutation],
+    [answers, doc.id, language, markDirty, model, queryClient, savedAt, savedVersion, title, updateMutation],
   )
 
   saveRef.current = save
@@ -214,8 +222,8 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
   // Mirror unsaved work into the recovery buffer.
   useEffect(() => {
     if (!dirtyRef.current) return
-    writeBuffer(doc.id, { model, title, language, answers, baseUpdatedAt: savedAt })
-  }, [model, title, language, answers, doc.id, savedAt])
+    writeBuffer(doc.id, { model, title, language, answers, baseUpdatedAt: savedAt, baseVersion: savedVersion })
+  }, [model, title, language, answers, doc.id, savedAt, savedVersion])
 
   // Debounced autosave.
   useEffect(() => {

@@ -1,13 +1,37 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { env } from '../../config/env'
-import { setAccessToken } from './auth-store'
-import { ApiError, apiClient } from './client'
+import { apiClient, ApiError, UnauthenticatedError, VersionConflictError, RateLimitError } from './client'
+import { ensureSyncedUser } from './sync-user'
+import { handleSessionExpired } from './auth-store'
+
+/**
+ * The auth store is mocked so tests control the Firebase ID token without
+ * touching the real SDK; the sync-user handshake is mocked for 401 recovery.
+ */
+const authState = {
+  token: null as string | null,
+  refreshedToken: null as string | null,
+}
+
+vi.mock('./auth-store', () => ({
+  getCurrentIdToken: vi.fn(async (forceRefresh = false) =>
+    forceRefresh ? authState.refreshedToken : authState.token,
+  ),
+  handleSessionExpired: vi.fn(async () => {}),
+}))
+
+vi.mock('./sync-user', () => ({
+  ensureSyncedUser: vi.fn(async () => null),
+  clearSyncedUserCache: vi.fn(),
+}))
 
 const fetchMock = vi.fn()
 
 afterEach(() => {
   fetchMock.mockReset()
-  setAccessToken(null)
+  authState.token = null
+  authState.refreshedToken = null
+  vi.clearAllMocks()
   vi.unstubAllGlobals()
 })
 
@@ -23,7 +47,7 @@ describe('apiClient', () => {
   it('sends JSON bodies with auth and content-type headers', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ ok: true }))
     vi.stubGlobal('fetch', fetchMock)
-    setAccessToken('token-123')
+    authState.token = 'token-123'
 
     const result = await apiClient.post<{ ok: boolean }>('/echo', {
       hello: 'world',
@@ -92,5 +116,108 @@ describe('apiClient', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(apiClient.delete('/documents/1')).resolves.toBeUndefined()
+  })
+
+  it('throws UnauthenticatedError before fetching when auth is required and no token exists', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+
+    const error = await apiClient.get('/documents', { auth: 'required' }).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(UnauthenticatedError)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('recovers from a 401 by force-refreshing the token and retrying once', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ error: { code: 'UNAUTHENTICATED', message: 'expired' } }, { status: 401 }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ ok: true }))
+    vi.stubGlobal('fetch', fetchMock)
+    authState.token = 'stale-token'
+    authState.refreshedToken = 'fresh-token'
+
+    const result = await apiClient.get('/documents', { auth: 'required' })
+
+    expect(result).toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const [, retryInit] = fetchMock.mock.calls[1] as [string, RequestInit]
+    const retryHeaders = retryInit.headers as Record<string, string>
+    expect(retryHeaders.Authorization).toBe('Bearer fresh-token')
+    expect(handleSessionExpired).not.toHaveBeenCalled()
+  })
+
+  it('signs the user out when the 401 persists after the refresh retry', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: { code: 'UNAUTHENTICATED', message: 'expired' } }, { status: 401 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    authState.token = 'stale-token'
+    authState.refreshedToken = 'still-bad'
+
+    const error = await apiClient.get('/documents', { auth: 'required' }).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(UnauthenticatedError)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(handleSessionExpired).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs the sync-user handshake and retries when the backend reports USER_NOT_SYNCED', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(
+          { error: { code: 'USER_NOT_SYNCED', message: 'no record' } },
+          { status: 401 },
+        ),
+      )
+      .mockResolvedValueOnce(jsonResponse({ ok: true }))
+    vi.stubGlobal('fetch', fetchMock)
+    authState.token = 'token-1'
+    authState.refreshedToken = 'token-2'
+
+    const result = await apiClient.get('/documents', { auth: 'required' })
+
+    expect(result).toEqual({ ok: true })
+    expect(ensureSyncedUser).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws VersionConflictError with currentVersion from the nested error envelope', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          error: {
+            code: 'VERSION_CONFLICT',
+            message: 'Document was modified',
+            currentVersion: 3,
+          },
+        },
+        { status: 409 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    authState.token = 'token-1'
+
+    const error = await apiClient.patch('/documents/1', { title: 'x' }).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(VersionConflictError)
+    const conflict = error as VersionConflictError
+    expect(conflict.currentVersion).toBe(3)
+    expect(conflict.message).toBe('Document was modified')
+  })
+
+  it('throws RateLimitError with retryAfterSeconds from the Retry-After header', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: { code: 'TOO_MANY_REQUESTS', message: 'slow down' } }),
+        { status: 429, headers: { 'content-type': 'application/json', 'retry-after': '30' } },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    authState.token = 'token-1'
+
+    const error = await apiClient.post('/ai/generate', {}).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(RateLimitError)
+    expect((error as RateLimitError).retryAfterSeconds).toBe(30)
   })
 })

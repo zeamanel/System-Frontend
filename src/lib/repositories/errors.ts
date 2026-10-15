@@ -10,11 +10,22 @@
  */
 export class DocumentConflictError extends Error {
   readonly remoteUpdatedAt: string | undefined
+  /**
+   * The backend's authoritative version number when the conflict response
+   * carried one (HTTP 409 VERSION_CONFLICT) — the editor offers to reload
+   * this version.
+   */
+  readonly currentVersion: number | undefined
 
-  constructor(message = 'Document was modified by another session.', remoteUpdatedAt?: string) {
+  constructor(
+    message = 'Document was modified by another session.',
+    remoteUpdatedAt?: string,
+    currentVersion?: number,
+  ) {
     super(message)
     this.name = 'DocumentConflictError'
     this.remoteUpdatedAt = remoteUpdatedAt
+    this.currentVersion = currentVersion
   }
 }
 

@@ -113,17 +113,50 @@ centralised keys; components consume only those hooks.
 | Variable | Meaning | Default |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | Backend base — absolute URL or root-relative path | `http://localhost:8787` (dev) / `/api` (prod) |
-| `VITE_DATA_SOURCE` | Feature data layer: `fixtures` or `http` | `fixtures` (dev) / `http` (prod) |
+| `VITE_DATA_SOURCE` | Feature data layer: `fixtures` or `http` | `fixtures` (dev) / must be set explicitly in production |
 | `VITE_APP_NAME` | Product name in the shell | `DocuA4` |
 | `VITE_DEFAULT_LOCALE` | Locale before user preference | `en` |
+| `VITE_FIREBASE_*` | Firebase Web config (6 values) — required when `VITE_DATA_SOURCE=http`, ignored in fixture mode | none |
+
+## Authentication & API data flow (Phase 7)
+
+- **Data source toggle**: `getRepositories()` chooses fixture or API-backed
+  repositories once from `VITE_DATA_SOURCE`; components and hooks depend only
+  on the repository interfaces and never know which mode is active.
+- **Identity**: Firebase Authentication (email/password). The SDK owns token
+  storage and refresh — the frontend persists nothing beyond Firebase's own
+  storage. After sign-in (and before the first authenticated call) the
+  once-per-session `POST /auth/sync-user` handshake maps the Firebase identity
+  to the backend's PostgreSQL user (`lib/api/sync-user.ts`).
+- **Interceptor** (`lib/api/client.ts`): every request declares
+  `auth: 'required' | 'optional'`; required calls fail fast with
+  `UnauthenticatedError` when no token exists. On 401 the client runs the
+  handshake when the backend reports `USER_NOT_SYNCED`, force-refreshes the
+  token and retries exactly once; a second 401 signs out everywhere and
+  surfaces "session expired" (toast + redirect via the session context).
+  409 `VERSION_CONFLICT` → `VersionConflictError{currentVersion}`; 429 →
+  `RateLimitError{retryAfterSeconds}`; the backend's nested error envelope
+  `{ error: { code, message } }` is parsed for all responses.
+- **Write safety**: `POST /documents` and `POST /ai/generate` carry an
+  `Idempotency-Key` generated per user action (`lib/api/idempotency.ts`);
+  document PATCHes carry `If-Match: <version>` from the editor's last-seen
+  version.
+- Fixture mode (`VITE_DATA_SOURCE=fixtures`) never initializes Firebase and
+  never issues a network request.
+
+See `docs/BACKEND-INTEGRATION.md` for the full flow, error-code table and the
+honest list of backend gaps.
 
 ## Authentication
 
-Phase 2 introduces a session boundary: `SessionProvider` + `RequireSession`
-guard the app shell, and the session itself comes from the active repository
-(fixture development user, or `/auth/session` over HTTP). Sign-in/out flows
-through `useSession`; the API token store remains the single swap point for
-future httpOnly cookies.
+Since Phase 7, identity is Firebase Authentication (email/password). The
+`SessionProvider` loads the session from the active repository — fixture
+development user, or (API mode) Firebase auth state plus the once-per-session
+`/auth/sync-user` handshake — and mirrors external auth changes via an
+optional repository `subscribe()` channel. `RequireSession` guards the shell;
+unrecoverable 401s sign the user out with a "session expired" toast
+(`SessionExpiredNotifier`). Role checks in the client are display-only — the
+backend re-verifies every ID token.
 
 ## Phased roadmap (proposal)
 
