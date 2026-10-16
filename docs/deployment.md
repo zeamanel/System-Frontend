@@ -28,7 +28,8 @@ CLI alternative:
 
 ```sh
 npm ci && npm run build
-npx wrangler pages deploy dist --project-name=docua4-frontend
+npm run deploy
+# or: npx wrangler pages deploy dist --project-name=system-frontend
 ```
 
 ## Same-origin API option

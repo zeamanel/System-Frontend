@@ -13,6 +13,7 @@
     "prebuild": "npm run check:i18n",
     "check:i18n": "node scripts/check-i18n.mjs",
     "preview": "vite preview --port 4173",
+    "deploy": "wrangler pages deploy dist --project-name=system-frontend",
     "typecheck": "tsc -b",
     "lint": "eslint . && npm run check:i18n",
     "lint:fix": "eslint . --fix",
@@ -44,6 +45,7 @@
     "typescript": "~5.6.3",
     "typescript-eslint": "^8.18.2",
     "vite": "^5.4.11",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wrangler": "^4.151.1"
   }
 }

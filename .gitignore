@@ -5,10 +5,11 @@ node_modules/
 dist/
 coverage/
 
-# Local environment files — only the example is committed
+# Local environment files — only the example and production config are committed
 .env
 .env.*
 !.env.example
+!.env.production
 
 # Logs
 *.log
