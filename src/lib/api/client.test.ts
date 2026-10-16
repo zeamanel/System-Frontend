@@ -86,6 +86,16 @@ describe('apiClient', () => {
     expect(url).toBe(`${env.apiBaseUrl}/documents?page=2&search=letter`)
   })
 
+  it('honours a per-request baseUrl override (endpoints outside the API prefix)', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: 'ok' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await apiClient.get('/health', { baseUrl: 'http://localhost:9999/' })
+
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('http://localhost:9999/health')
+  })
+
   it('raises ApiError with the server error envelope', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({ message: 'Not found', code: 'not_found' }, { status: 404 }),

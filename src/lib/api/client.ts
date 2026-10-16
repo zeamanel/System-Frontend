@@ -67,6 +67,12 @@ export interface RequestOptions {
   headers?: Record<string, string>
   signal?: AbortSignal
   /**
+   * Per-request override for `env.apiBaseUrl` — used by endpoints that live
+   * outside the API path prefix (e.g. /health is served at the backend root,
+   * not under /api/v1).
+   */
+  baseUrl?: string
+  /**
    * `'required'` — a Firebase ID token must exist or the call fails with
    * UnauthenticatedError before hitting the network. `'optional'` (default) —
    * attach the Authorization header only when a token is available.
@@ -79,8 +85,8 @@ export interface RequestOptions {
   authRecovery?: boolean
 }
 
-function buildUrl(path: string, query?: QueryParams): string {
-  const base = env.apiBaseUrl.replace(/\/+$/, '')
+function buildUrl(path: string, query?: QueryParams, baseUrl?: string): string {
+  const base = (baseUrl ?? env.apiBaseUrl).replace(/\/+$/, '')
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   const url = `${base}${normalizedPath}`
 
@@ -183,6 +189,7 @@ async function readErrorCode(response: Response): Promise<string | undefined> {
 
 async function executeFetch(
   path: string,
+  baseUrl: string | undefined,
   method: NonNullable<RequestOptions['method']>,
   body: unknown,
   query: QueryParams | undefined,
@@ -206,7 +213,7 @@ async function executeFetch(
   }
 
   try {
-    return await fetch(buildUrl(path, query), {
+    return await fetch(buildUrl(path, query, baseUrl), {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -227,12 +234,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     query,
     headers: extraHeaders,
     signal,
+    baseUrl,
     auth = 'optional',
     authRecovery = true,
   } = options
 
   let response = await executeFetch(
     path,
+    baseUrl,
     method,
     body,
     query,
@@ -256,6 +265,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     }
     const refreshed = await executeFetch(
       path,
+      baseUrl,
       method,
       body,
       query,
