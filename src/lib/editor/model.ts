@@ -880,7 +880,14 @@ export function mapBackendBlock(raw: unknown): Block | null {
         : [
             {
               id: newId('party'),
-              label: typeof raw.label === 'string' ? raw.label : '',
+              // Mirror the backend zod normalization (src/lib/ai/types.ts):
+              // label || party || 'Authorized Signature' — never empty.
+              label:
+                typeof raw.label === 'string' && raw.label
+                  ? raw.label
+                  : typeof raw.party === 'string' && raw.party
+                    ? raw.party
+                    : 'Authorized Signature',
               name: typeof raw.party === 'string' ? raw.party : typeof raw.name === 'string' ? raw.name : '',
               date: typeof raw.date === 'string' ? raw.date : '',
             },
@@ -892,7 +899,10 @@ export function mapBackendBlock(raw: unknown): Block | null {
       }
     }
     case 'table': {
-      if (Array.isArray(raw.rows)) {
+      // Editor-serialized tables use rows of { id, cells: [...] } records.
+      // Backend payloads use { headers, rows: string[][] } — those must fall
+      // through to the headers branch below or every row is silently dropped.
+      if (Array.isArray(raw.rows) && raw.rows.length > 0 && raw.rows.every(isRecord)) {
         const rows = raw.rows.filter(isRecord).map((row) => ({
           id: typeof row.id === 'string' && row.id ? row.id : newId('row'),
           cells: Array.isArray(row.cells)
