@@ -246,5 +246,150 @@ describe('EditorWorkspace', () => {
     expect(await screen.findByText(/recovered unsaved changes/i)).toBeInTheDocument()
     expect((await screen.findAllByText('Edited by test')).length).toBeGreaterThan(0)
   })
+
+  it('renders in-paper labels in the document language while the chrome stays in the UI locale', async () => {
+    const created = await repos.documents.create({
+      title: 'Amharic letter',
+      templateId: 'letter',
+      language: 'am',
+      content: '',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    // The page footer inside the A4 paper follows the document language
+    // (am.json: "ገጽ {current} ከ {total}") even though the UI locale is en…
+    expect(screen.getByText('ገጽ 1 ከ 1')).toBeInTheDocument()
+    // …while the canvas chrome (page aria label, zoom toolbar) stays in the
+    // workspace UI locale.
+    expect(screen.getByLabelText('Page 1')).toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: 'Zoom' })).toBeInTheDocument()
+  })
+
+  it('syncs an edited guided-field answer onto the A4 canvas immediately', async () => {
+    const created = await repos.documents.create({
+      title: 'Party fix',
+      templateId: 'rental-agreement',
+      language: 'en',
+      answers: { property: 'Bole Tower apartment 4B' },
+      content:
+        'The landlord rents the premises known as Bole Tower apartment 4B to the tenant for 12 months.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    expect(screen.getAllByText(/Bole Tower apartment 4B/).length).toBeGreaterThan(0)
+
+    fireEvent.change(screen.getByLabelText(/which property is rented/i), {
+      target: { value: 'Bole Tower flat 5C' },
+    })
+
+    // Same-tick canvas update — no "Regenerate content" click involved.
+    expect(screen.getAllByText(/Bole Tower flat 5C/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Bole Tower apartment 4B/)).not.toBeInTheDocument()
+  })
+
+  it('offers and applies a legal Ethiopian date suggestion chip', async () => {
+    const created = await repos.documents.create({
+      title: 'Leave dates',
+      templateId: 'leave-request',
+      language: 'en',
+      content: 'Annual leave request from the employee.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    const dateField = await screen.findByLabelText(/from which date to which date/i)
+
+    fireEvent.change(dateField, { target: { value: '16/10/26' } })
+
+    const chip = screen.getByRole('button', { name: /16 October 2026/i })
+    expect(chip).toHaveAttribute('title', '16 October 2026 (ጥቅምት 6 ቀን 2019 ዓ.ም.)')
+
+    fireEvent.click(chip)
+
+    expect((dateField as HTMLInputElement).value).toBe('16 October 2026')
+    // The chip disappears once its suggestion has been applied.
+    expect(screen.queryByRole('button', { name: /16 October 2026/i })).not.toBeInTheDocument()
+  })
+
+  it('applies density presets and the letterhead margin toggle from the format panel', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    const fontSize = screen.getByTestId('font-size-value')
+    const topMargin = screen.getByLabelText('Top') as HTMLInputElement
+    expect(fontSize).toHaveTextContent('11pt')
+    expect(topMargin.value).toBe('20')
+
+    fireEvent.click(screen.getByRole('button', { name: /compact/i }))
+    expect(fontSize).toHaveTextContent('10pt')
+    expect(topMargin.value).toBe('15')
+
+    const letterhead = screen.getByRole('button', { name: /letterhead/i })
+    expect(letterhead).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(letterhead)
+    expect(topMargin.value).toBe('38')
+    expect(letterhead).toHaveAttribute('aria-pressed', 'true')
+    // Toggling again returns to the standard 20mm top margin.
+    fireEvent.click(letterhead)
+    expect(topMargin.value).toBe('20')
+    expect(letterhead).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('refines one block surgically with a preview, apply, and discard', async () => {
+    const created = await repos.documents.create({
+      title: 'Refine target',
+      templateId: 'rental-agreement',
+      language: 'en',
+      content:
+        'LEASE TERMS\n\nThe tenant will pay 35,000 birr every month.\n\nThe landlord keeps the deposit safe.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    // Deterministic blocks: all-caps heading + two paragraphs.
+    const blockEls = () => Array.from(document.querySelectorAll('.doc-block[data-block-id]'))
+    expect(blockEls().length).toBe(3)
+    const before = blockEls().map((el) => el.textContent)
+
+    // Focus the middle paragraph on the A4 canvas.
+    const middle = blockEls()[1]
+    const surface =
+      middle.querySelector<HTMLElement>('[data-block-id]') ?? (middle as HTMLElement)
+    fireEvent.focus(surface)
+
+    // Non-destructive preview: the proposal appears, the canvas is untouched.
+    fireEvent.click(screen.getByRole('button', { name: /formalize/i }))
+    const preview = await screen.findByTestId('editor-refine-preview')
+    expect(preview.innerHTML).toContain('shall pay')
+    expect(blockEls()[1].textContent).toContain('will pay')
+
+    // Apply: only the focused block changes; siblings stay byte-identical.
+    fireEvent.click(screen.getByRole('button', { name: /apply to block/i }))
+    await waitFor(() => expect(blockEls()[1].textContent).toContain('shall pay'))
+    expect(blockEls()[1].textContent).toContain('35,000')
+    expect(blockEls()[1].textContent).not.toContain('will pay')
+    const after = blockEls().map((el) => el.textContent)
+    expect(after[0]).toBe(before[0])
+    expect(after[2]).toBe(before[2])
+
+    // Discard: a second proposal is dismissed without touching the block.
+    fireEvent.change(screen.getByPlaceholderText(/add a 5-day notice/i), {
+      target: { value: 'add 10% late fee' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^refine block$/i }))
+    const secondPreview = await screen.findByTestId('editor-refine-preview')
+    expect(secondPreview.innerHTML).toContain('late fee')
+    fireEvent.click(screen.getByRole('button', { name: /discard/i }))
+    await waitFor(() =>
+      expect(screen.queryByTestId('editor-refine-preview')).not.toBeInTheDocument(),
+    )
+    expect(blockEls()[1].textContent).not.toContain('late fee')
+    expect(blockEls()[1].textContent).toContain('shall pay')
+  })
 })
 

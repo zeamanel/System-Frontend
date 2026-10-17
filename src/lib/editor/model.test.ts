@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyDocumentPreset,
   createEmptyDocument,
   createHeading,
   createList,
   createParagraph,
+  createSignature,
   createTable,
   documentOutline,
   draftFromTemplate,
@@ -16,6 +18,7 @@ import {
   parseDocumentContent,
   plainTextToBlocks,
   removeBlock,
+  replaceTextInModel,
   sanitizeModel,
   serializeModel,
   setMargins,
@@ -374,6 +377,103 @@ describe('backend block mapper and relaxed schema regression', () => {
     })
     expect(model.blocks).toHaveLength(2)
     expect(model.blocks[0]).toMatchObject({ type: 'heading', level: 4 })
+  })
+})
+
+describe('replaceTextInModel', () => {
+  it('replaces answer text in paragraphs, list items and table cells', () => {
+    const model = modelWith(
+      createParagraph('Rent paid by daniel mersha every month'),
+      createList(['daniel mersha is the tenant']),
+      createTable(1, 1),
+    )
+    const table = model.blocks[2]
+    if (table.type !== 'table') throw new Error('expected table')
+    table.rows[0].cells[0].html = 'Tenant: daniel mersha'
+
+    const result = replaceTextInModel(model, 'daniel mersha', 'Daniel Mersha Tesema')
+    expect(result.replaced).toBe(true)
+    expect(result.model.blocks[0]).toMatchObject({ html: 'Rent paid by Daniel Mersha Tesema every month' })
+    if (result.model.blocks[1].type === 'list') {
+      expect(result.model.blocks[1].items[0].html).toBe('Daniel Mersha Tesema is the tenant')
+    }
+    if (result.model.blocks[2].type === 'table') {
+      expect(result.model.blocks[2].rows[0].cells[0].html).toBe('Tenant: Daniel Mersha Tesema')
+    }
+  })
+
+  it('HTML-escapes the replacement so markup is never corrupted', () => {
+    const model = modelWith(createParagraph('Fee: 100 &amp; deposit'))
+    const result = replaceTextInModel(model, '100 &', '500 <paid> &')
+    expect(result.replaced).toBe(true)
+    expect(result.model.blocks[0]).toMatchObject({ html: 'Fee: 500 &lt;paid&gt; &amp; deposit' })
+  })
+
+  it('leaves the model reference untouched when nothing matches', () => {
+    const model = modelWith(createParagraph('Nothing to see here'))
+    expect(replaceTextInModel(model, 'daniel mersha', 'someone else')).toEqual({
+      model,
+      replaced: false,
+    })
+    // Guard clauses: too-short and identical text are no-ops.
+    expect(replaceTextInModel(model, 'a', 'b').replaced).toBe(false)
+    expect(replaceTextInModel(model, 'Nothing', 'Nothing').replaced).toBe(false)
+  })
+
+  it('updates signature party fields', () => {
+    const model = modelWith(createSignature(['daniel mersha']))
+    const result = replaceTextInModel(model, 'daniel mersha', 'Daniel Mersha')
+    expect(result.replaced).toBe(true)
+    if (result.model.blocks[0].type === 'signature') {
+      expect(result.model.blocks[0].parties[0].label).toBe('Daniel Mersha')
+    }
+  })
+})
+
+describe('applyDocumentPreset', () => {
+  it("applies 'compact': 10pt, tight margins, compact paragraph spacing", () => {
+    const model = modelWith(
+      createParagraph('Body text', { spacing: 'loose' }),
+      createHeading('Title', 1),
+    )
+    const result = applyDocumentPreset(model, 'compact')
+    expect(result.fontSize).toBe(10)
+    expect(result.page.margins).toEqual({ top: 15, right: 16, bottom: 15, left: 16 })
+    expect(result.blocks[0]).toMatchObject({ type: 'paragraph', spacing: 'compact' })
+    // Headings carry no per-block spacing and stay untouched.
+    expect(result.blocks[1]).toBe(model.blocks[1])
+  })
+
+  it("applies 'standard' and 'spacious' densities", () => {
+    const model = modelWith(createParagraph('Body text', { spacing: 'compact' }))
+    const standard = applyDocumentPreset(model, 'standard')
+    expect(standard.fontSize).toBe(11)
+    expect(standard.page.margins).toEqual({
+      top: 20,
+      right: 20,
+      bottom: 20,
+      left: 20,
+    })
+    expect(applyDocumentPreset(model, 'standard').blocks[0]).toMatchObject({
+      spacing: 'normal',
+    })
+    const spacious = applyDocumentPreset(model, 'spacious')
+    expect(spacious.fontSize).toBe(12)
+    expect(spacious.page.margins).toEqual({ top: 25, right: 22, bottom: 25, left: 22 })
+    expect(spacious.blocks[0]).toMatchObject({ spacing: 'relaxed' })
+  })
+
+  it("toggles 'letterhead' top margin 38 ↔ 20 while preserving everything else", () => {
+    const model = modelWith(createParagraph('Body text', { spacing: 'loose' }))
+    const withLetterhead = applyDocumentPreset(model, 'letterhead')
+    expect(withLetterhead.page.margins.top).toBe(38)
+    expect(withLetterhead.fontSize).toBe(model.fontSize)
+    expect(withLetterhead.blocks[0]).toMatchObject({ spacing: 'loose' })
+
+    const toggledBack = applyDocumentPreset(withLetterhead, 'letterhead')
+    expect(toggledBack.page.margins.top).toBe(20)
+    expect(toggledBack.page.margins).toEqual({ ...withLetterhead.page.margins, top: 20 })
+    expect(toggledBack.fontSize).toBe(model.fontSize)
   })
 })
 

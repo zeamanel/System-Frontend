@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n'
 import { PreferencesProvider } from '../../preferences'
+import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { GuidedFlowWizard } from './GuidedFlowWizard'
 import type { TemplateDetail } from '../../lib/repositories'
 
@@ -120,5 +121,77 @@ describe('GuidedFlowWizard', () => {
     await waitFor(() => {
       expect(screen.getByText(/ai document generator/i)).toBeInTheDocument()
     })
+  })
+
+  it('offers Ethiopian legal smart-input suggestions while answering questions', () => {
+    const smartTemplate: TemplateDetail = {
+      ...mockTemplate,
+      id: 'leave-request',
+      questionCount: 2,
+      questions: [
+        { id: 'dates', label: 'From which date to which date?', required: true },
+        { id: 'rent', label: 'Monthly rent amount?', required: false },
+      ],
+    }
+    renderWizard(smartTemplate)
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+
+    // Date: 16/10/26 → legal Gregorian wording with the ዓ.ም. hint on hover.
+    const dateField = screen.getByLabelText('From which date to which date?')
+    fireEvent.change(dateField, { target: { value: '16/10/26' } })
+    const dateChip = screen.getByRole('button', { name: /16 October 2026/i })
+    expect(dateChip).toHaveAttribute('title', '16 October 2026 (ጥቅምት 6 ቀን 2019 ዓ.ም.)')
+    fireEvent.click(dateChip)
+    expect((dateField as HTMLInputElement).value).toBe('16 October 2026')
+
+    // Currency: 150000 → tamper-proof Birr words in parentheses.
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    const rentField = screen.getByLabelText('Monthly rent amount?')
+    fireEvent.change(rentField, { target: { value: '150000' } })
+    fireEvent.click(screen.getByRole('button', { name: /ETB 150,000/i }))
+    expect((rentField as HTMLInputElement).value).toBe(
+      'ETB 150,000 (One Hundred Fifty Thousand Birr)',
+    )
+  })
+
+  it('quick-fill mode shows every question on one screen and generates directly', async () => {
+    renderWizard()
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // setup → questions
+
+    fireEvent.click(screen.getByRole('button', { name: /all questions \(2\)/i }))
+
+    // All template questions render on a single screen.
+    expect(screen.getByLabelText(/who is this for\?/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/what is the subject\?/i)).toBeInTheDocument()
+
+    // Required validation fires for every missing required field at once.
+    fireEvent.click(screen.getByRole('button', { name: /generate document draft/i }))
+    expect(screen.getAllByText('Required').length).toBeGreaterThanOrEqual(2)
+
+    // Fill the required field and generate — straight to the generating
+    // step with zero per-question Next clicks.
+    fireEvent.change(screen.getByLabelText(/who is this for\?/i), {
+      target: { value: 'Ministry of Trade' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /generate document draft/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/ai document generator/i)).toBeInTheDocument()
+    })
+  })
+
+  it('surfaces previously saved party details as one-click quick-fill chips', () => {
+    saveReusableAnswers({ 'employer-name': 'Sunshine PLC' })
+    const partyTemplate: TemplateDetail = {
+      ...mockTemplate,
+      id: 'employment-contract',
+      questionCount: 1,
+      questions: [{ id: 'employer-name', label: 'Employer name?', required: true }],
+    }
+    renderWizard(partyTemplate)
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+
+    const field = screen.getByLabelText('Employer name?')
+    fireEvent.click(screen.getByRole('button', { name: /recent: sunshine plc/i }))
+    expect((field as HTMLInputElement).value).toBe('Sunshine PLC')
   })
 })

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { I18nProvider, useI18n } from './index'
+import { I18nProvider, tForLocale, useI18n } from './index'
 
 function Harness() {
   const { locale, setLocale, t } = useI18n()
@@ -62,5 +62,16 @@ describe('I18nProvider', () => {
     expect(screen.getByText('om')).toBeInTheDocument()
     expect(screen.getByText('Home')).toBeInTheDocument()
     expect(screen.getByText('Welcome, Sara')).toBeInTheDocument()
+  })
+})
+
+describe('tForLocale', () => {
+  it('translates against an explicit locale with interpolation', () => {
+    expect(tForLocale('am', 'editor.pageOf', { current: '1', total: '2' })).toBe('ገጽ 1 ከ 2')
+    expect(tForLocale('en', 'editor.pageOf', { current: '1', total: '2' })).toBe('Page 1 of 2')
+  })
+
+  it('falls back to English for unknown locale codes', () => {
+    expect(tForLocale('fr', 'editor.signatureCaption')).toBe('Signatory')
   })
 })

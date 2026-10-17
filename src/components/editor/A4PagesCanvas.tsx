@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { DocumentModel } from '../../lib/editor/types'
 import { contentHeightMm } from '../../lib/editor/model'
 import { paginateBlockIds } from '../../lib/editor/paginate'
-import { fitZoom } from '../../lib/editor/a4'
+import { fitWidthZoom } from '../../lib/editor/a4'
 import { fontStack } from '../../lib/editor/fonts'
 import { findEditable, focusEditable, type EditableRef } from './caret'
 import { BlockView, type BlockLabels } from './blocks/BlockView'
@@ -112,11 +112,12 @@ export function A4PagesCanvas({
     void fonts?.ready?.then(() => measureAndPaginate())
   }, [measureAndPaginate])
 
-  // Fit-to-viewport zoom.
+  // Fit-to-width zoom. The page height never constrains the fit — the
+  // canvas scrolls vertically like Google Docs / Word.
   useEffect(() => {
     const scroll = scrollRef.current
     if (!scroll) return
-    const update = (): void => setFit(fitZoom(scroll.clientWidth, scroll.clientHeight))
+    const update = (): void => setFit(fitWidthZoom(scroll.clientWidth))
     update()
     if (typeof ResizeObserver === 'undefined') {
       window.addEventListener('resize', update)

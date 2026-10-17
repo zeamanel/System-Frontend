@@ -45,13 +45,18 @@ export interface SidebarProps {
   mobileOpen?: boolean
   /** Called after any navigation so the mobile drawer closes. */
   onNavigate?: () => void
+  /** Collapse to a narrow icon rail (desktop editor routes). */
+  rail?: boolean
 }
 
 /**
  * Persistent primary navigation. The Administration group is exposed only
- * to users whose session role is `admin`.
+ * to users whose session role is `admin`. On document-editor routes the
+ * sidebar collapses into an icon rail (`rail`) so the A4 canvas reclaims
+ * horizontal space; text labels become hover tooltips and each link keeps
+ * an `aria-label` so its accessible name is unchanged.
  */
-export function Sidebar({ mobileOpen = false, onNavigate }: SidebarProps) {
+export function Sidebar({ mobileOpen = false, onNavigate, rail = false }: SidebarProps) {
   const { t } = useI18n()
   const { isAdmin } = useSession()
 
@@ -65,7 +70,11 @@ export function Sidebar({ mobileOpen = false, onNavigate }: SidebarProps) {
 
   return (
     <nav
-      className={['sidebar', mobileOpen ? 'sidebar--open' : null]
+      className={[
+        'sidebar',
+        rail ? 'sidebar--rail' : null,
+        mobileOpen ? 'sidebar--open' : null,
+      ]
         .filter(Boolean)
         .join(' ')}
       aria-label={t('nav.primary')}
@@ -80,6 +89,8 @@ export function Sidebar({ mobileOpen = false, onNavigate }: SidebarProps) {
                   to={to}
                   end={end}
                   onClick={onNavigate}
+                  aria-label={t(labelKey)}
+                  data-label={t(labelKey)}
                   className={({ isActive }) =>
                     [
                       'sidebar__link',

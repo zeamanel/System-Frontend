@@ -86,6 +86,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync once per auth transition; every later change flows through executeUpdate
   }, [isAuthenticated])
 
   const executeUpdate = useCallback(

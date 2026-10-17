@@ -20,13 +20,15 @@ export function clampZoom(zoom: number): number {
 
 /**
  * Zoom level that fits one A4 page width into the given viewport width.
- * Returns 1 when the viewport cannot be measured (tests, SSR).
+ * Only the horizontal axis constrains the fit — the canvas scrolls
+ * vertically (like Google Docs / Word), so the full 297mm page height
+ * never shrinks the document to an unreadable scale. Returns 1 when the
+ * viewport cannot be measured (tests, SSR).
  */
-export function fitZoom(viewportWidthPx: number, viewportHeightPx: number): number {
-  if (viewportWidthPx <= 0 || viewportHeightPx <= 0) return 1
+export function fitWidthZoom(viewportWidthPx: number): number {
+  if (viewportWidthPx <= 0) return 1
   const byWidth = (viewportWidthPx - 48) / A4_WIDTH_PX
-  const byHeight = (viewportHeightPx - 48) / A4_HEIGHT_PX
-  return clampZoom(Math.min(1, byWidth, byHeight))
+  return clampZoom(Math.min(1, byWidth))
 }
 
 /**

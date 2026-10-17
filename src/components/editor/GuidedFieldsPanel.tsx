@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useI18n } from '../../i18n'
 import { DOCUMENT_LANGUAGES, LANGUAGES } from '../../lib/languages'
+import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
+import { getSavedSuggestionsForField } from '../../lib/saved-answers/party-memory'
+import { SmartSuggestionChip } from '../smart-fields'
+import { RecentAnswerChips } from '../saved-answers'
 import type { TemplateDetail } from '../../lib/repositories'
 import type { OutlineEntry } from '../../lib/editor/model'
 import { Badge, Button, Input, Select, Spinner, Textarea } from '../ui'
@@ -90,6 +94,7 @@ export function GuidedFieldsPanel({
       )}
 
       {questions.map((question) => {
+        const currentValue = answers[question.id] ?? ''
         const shared = {
           id: `field-${question.id}`,
           label: (
@@ -102,12 +107,20 @@ export function GuidedFieldsPanel({
           ),
           hint: isMultilineQuestion(question) ? t('editor.fieldMultilineHint') : undefined,
           error: invalid[question.id] ? t('editor.fieldRequired') : undefined,
-          value: answers[question.id] ?? '',
+          value: currentValue,
           onChange: (
             event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
           ) => onAnswerChange(question.id, event.target.value),
           placeholder: t('editor.fieldPlaceholder'),
         }
+        // Ethiopian legal smart inputs: offer a one-click suggestion when
+        // the typed value can become a dual-calendar date or a
+        // words-in-parentheses Birr amount.
+        const suggestion = getSmartSuggestion(question, currentValue, language)
+        // Previously used party/company values from earlier documents.
+        const recents = getSavedSuggestionsForField(question.id, question.label).filter(
+          (recent) => recent !== currentValue,
+        )
         return (
           <div key={question.id} className="editor-panel__field">
             {isMultilineQuestion(question) ? (
@@ -115,6 +128,16 @@ export function GuidedFieldsPanel({
             ) : (
               <Input {...shared} />
             )}
+            {suggestion ? (
+              <SmartSuggestionChip
+                suggestion={suggestion}
+                onApply={(formatted) => onAnswerChange(question.id, formatted)}
+              />
+            ) : null}
+            <RecentAnswerChips
+              suggestions={recents}
+              onPick={(recent) => onAnswerChange(question.id, recent)}
+            />
           </div>
         )
       })}

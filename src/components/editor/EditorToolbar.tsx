@@ -124,7 +124,7 @@ export function EditorToolbar({
           ) : status === 'error' || status === 'conflict' ? (
             <AlertIcon size={12} />
           ) : null}
-          {t(STATUS_LABEL_KEY[status] as never)}
+          {status !== 'idle' ? t(STATUS_LABEL_KEY[status] as never) : null}
         </span>
 
         {status === 'error' ? (

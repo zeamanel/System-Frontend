@@ -6,6 +6,7 @@ import { useI18n } from '../../i18n'
 import { usePreferences } from '../../preferences'
 import { isDocumentLanguage, LANGUAGES, type DocumentLanguage } from '../../lib/languages'
 import { generateKey } from '../../lib/api/idempotency'
+import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import type { TemplateDetail } from '../../lib/repositories'
 import {
   useCreateGenerationRequest,
@@ -14,6 +15,7 @@ import {
 import { GuidedFlowStepper, type FlowStep } from './GuidedFlowStepper'
 import { GuidedFlowSetupStep } from './GuidedFlowSetupStep'
 import { GuidedFlowQuestionStep } from './GuidedFlowQuestionStep'
+import { GuidedFlowQuickFillStep } from './GuidedFlowQuickFillStep'
 import { GuidedFlowReviewStep } from './GuidedFlowReviewStep'
 import { GuidedFlowGeneratingStep } from './GuidedFlowGeneratingStep'
 
@@ -36,6 +38,8 @@ export function GuidedFlowWizard({
 
   const [step, setStep] = useState<FlowStep>('setup')
   const [docTitle, setDocTitle] = useState('')
+  // Questions-step sub-mode: one-per-screen (default) or all-at-once Quick Fill.
+  const [quickFill, setQuickFill] = useState(false)
   const [language, setLanguage] = useState<DocumentLanguage>(() => {
     if (initialLanguage && isDocumentLanguage(initialLanguage)) {
       return initialLanguage
@@ -74,6 +78,11 @@ export function GuidedFlowWizard({
     if (fieldError) setFieldError('')
   }
 
+  /** Quick Fill edits any question at once, not just the current one. */
+  const handleQuickFillAnswer = (questionId: string, val: string) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: val }))
+  }
+
   const handleNextQuestion = () => {
     if (!currentQuestion) return
 
@@ -101,6 +110,9 @@ export function GuidedFlowWizard({
   }
 
   const handleStartGeneration = async () => {
+    // Remember reusable party/company details for the next document.
+    saveReusableAnswers(answers)
+
     const finalTitle =
       docTitle.trim() ||
       `${template.title} — ${new Date().toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US')}`
@@ -171,16 +183,44 @@ export function GuidedFlowWizard({
       )}
 
       {step === 'questions' && currentQuestion && (
-        <GuidedFlowQuestionStep
-          question={currentQuestion}
-          questionIndex={currentQuestionIndex}
-          totalQuestions={questions.length}
-          answer={answers[currentQuestion.id] ?? ''}
-          onAnswerChange={handleAnswerChange}
-          fieldError={fieldError}
-          onPrev={handlePrevQuestion}
-          onNext={handleNextQuestion}
-        />
+        <>
+          {questions.length > 1 ? (
+            <div className="guided-flow__mode-row">
+              <button
+                type="button"
+                className="guided-flow__mode-toggle"
+                aria-pressed={quickFill}
+                onClick={() => setQuickFill((current) => !current)}
+              >
+                {quickFill
+                  ? t('flow.oneByOne')
+                  : t('flow.allQuestions', { count: String(questions.length) })}
+              </button>
+            </div>
+          ) : null}
+          {quickFill ? (
+            <GuidedFlowQuickFillStep
+              questions={questions}
+              answers={answers}
+              onAnswerChange={handleQuickFillAnswer}
+              language={language}
+              isGenerating={createJob.isPending}
+              onGenerate={() => void handleStartGeneration()}
+            />
+          ) : (
+            <GuidedFlowQuestionStep
+              question={currentQuestion}
+              questionIndex={currentQuestionIndex}
+              totalQuestions={questions.length}
+              answer={answers[currentQuestion.id] ?? ''}
+              onAnswerChange={handleAnswerChange}
+              language={language}
+              fieldError={fieldError}
+              onPrev={handlePrevQuestion}
+              onNext={handleNextQuestion}
+            />
+          )}
+        </>
       )}
 
       {step === 'review' && (

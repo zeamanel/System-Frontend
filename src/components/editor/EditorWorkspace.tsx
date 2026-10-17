@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useI18n } from '../../i18n'
+import { useI18n, tForLocale } from '../../i18n'
+import type { MessageKey, MessageVars } from '../../i18n'
 import { useCreateExportRequest } from '../../hooks/use-documents'
 import { useCreateGenerationRequest, useGenerationJob } from '../../hooks/use-generation'
 import { generateKey } from '../../lib/api/idempotency'
@@ -9,6 +10,7 @@ import {
   addSignatureParty,
   addTableColumn,
   addTableRow,
+  applyDocumentPreset,
   clampIndent,
   createImage,
   createPageBreak,
@@ -43,6 +45,7 @@ import { execInlineCommand, type InlineCommand } from '../../lib/editor/commands
 import { isSafeUrl } from '../../lib/editor/sanitize'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
 import { triggerPrint } from '../../lib/editor/a4'
+import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { newId } from '../../lib/editor/ids'
 import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
 import { LANGUAGES } from '../../lib/languages'
@@ -79,6 +82,14 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
   const editor = useDocumentEditor({ document: doc, refresh })
   const { model, updateModel } = editor
 
+  // Document-scoped translator: labels rendered inside the A4 paper
+  // (signature captions, page numbers) follow the document's language,
+  // not the workspace UI locale.
+  const tDoc = useMemo(
+    () => (key: MessageKey, vars?: MessageVars) => tForLocale(editor.language, key, vars),
+    [editor.language],
+  )
+
   const [activeRef, setActiveRefState] = useState<EditableRef | null>(null)
   const focusRef = useRef<EditableRef | null>(null)
   const pendingFocusRef = useRef<{ ref: EditableRef; position: 'start' | 'end' } | null>(null)
@@ -88,7 +99,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
     () => typeof window === 'undefined' || window.innerWidth >= 1180,
   )
   const [rightOpen, setRightOpen] = useState(
-    () => typeof window === 'undefined' || window.innerWidth >= 1420,
+    () => typeof window === 'undefined' || window.innerWidth >= 1540,
   )
   const [ethiopicSupport] = useState(() => probeEthiopicSupport())
 
@@ -377,6 +388,8 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
 
   const handleGenerate = useCallback(
     async (answers: Record<string, string>): Promise<void> => {
+      // Remember reusable party/company details for the next document.
+      saveReusableAnswers(answers)
       try {
         const response = await createJob.mutateAsync({
           documentType: template?.id ?? doc.templateId ?? '',
@@ -443,14 +456,14 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
 
   const blockLabels = useMemo<BlockLabels>(
     () => ({
-      signatureCaption: t('editor.signatureCaption'),
-      printName: t('editor.printName'),
-      date: t('editor.dateLabel'),
-      pageBreak: t('editor.pageBreakLabel'),
-      emptyText: t('editor.emptyBlockHint'),
-      tableHint: t('editor.tableHint'),
+      signatureCaption: tDoc('editor.signatureCaption'),
+      printName: tDoc('editor.printName'),
+      date: tDoc('editor.dateLabel'),
+      pageBreak: tDoc('editor.pageBreakLabel'),
+      emptyText: tDoc('editor.emptyBlockHint'),
+      tableHint: tDoc('editor.tableHint'),
     }),
-    [t],
+    [tDoc],
   )
 
   const formatCallbacks = useMemo<FormatPanelCallbacks>(
@@ -510,7 +523,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
       },
       onInsertTable: () => insertAfterActive(() => createTable(2, 2, true)),
       onInsertSignature: () =>
-        insertAfterActive(() => createSignature([t('editor.signatureCaption')])),
+        insertAfterActive(() => createSignature([tDoc('editor.signatureCaption')])),
       onInsertPageBreak: () => insertAfterActive(() => createPageBreak()),
       onInsertImage: (file) => handleInsertImage(file),
       onUpdateImage: (patch) => {
@@ -551,6 +564,16 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
       },
       onUpdateMargins: (patch) => updateModel((current) => setMargins(current, patch)),
       onUpdatePageSetup: (patch) => updateModel((current) => updatePageSetup(current, patch)),
+      onApplyPreset: (preset) => updateModel((current) => applyDocumentPreset(current, preset)),
+      onUpdateBlockHtml: (blockId, html) =>
+        updateModel((current) =>
+          updateBlock(
+            current,
+            blockId,
+            (block) =>
+              block.type === 'paragraph' || block.type === 'heading' ? { ...block, html } : block,
+          ),
+        ),
     }),
     [
       activeRef,
@@ -561,7 +584,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
       insertAfterActive,
       model,
       queueFocus,
-      t,
+      tDoc,
       updateModel,
     ],
   )
@@ -633,7 +656,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
         api={api}
         blockLabels={blockLabels}
         formatPageLabel={(current, total) =>
-          t('editor.pageOf', { current: String(current), total: String(total) })
+          tDoc('editor.pageOf', { current: String(current), total: String(total) })
         }
         pageAriaLabel={t('editor.pageAriaLabel')}
         zoomLabel={t('editor.zoomLabel')}

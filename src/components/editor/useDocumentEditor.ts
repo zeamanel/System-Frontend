@@ -3,7 +3,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useUpdateDocument } from '../../hooks/use-documents'
 import { queryKeys } from '../../lib/query-keys'
 import { DocumentConflictError } from '../../lib/repositories'
-import { createEmptyDocument, parseDocumentContent, serializeModel } from '../../lib/editor/model'
+import {
+  createEmptyDocument,
+  parseDocumentContent,
+  replaceTextInModel,
+  serializeModel,
+} from '../../lib/editor/model'
 import type { DocumentModel } from '../../lib/editor/types'
 import type { DocumentDetailRecord } from '../../lib/repositories'
 
@@ -120,10 +125,22 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
 
   const setAnswer = useCallback(
     (questionId: string, value: string): void => {
+      const prevValue = answers[questionId] ?? ''
+      // Instant field-to-canvas sync: when the previous answer already
+      // appears in the document blocks, fix it in place in the same React
+      // batch — no AI regeneration round-trip needed.
+      if (
+        prevValue !== value &&
+        prevValue.trim().length >= 2 &&
+        value.trim().length >= 1
+      ) {
+        const result = replaceTextInModel(model, prevValue, value)
+        if (result.replaced) setModelState(result.model)
+      }
       setAnswersState((current) => ({ ...current, [questionId]: value }))
       markDirty()
     },
-    [markDirty],
+    [answers, markDirty, model],
   )
 
   const setLanguage = useCallback(

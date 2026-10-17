@@ -1,0 +1,1 @@
+export { SmartSuggestionChip } from './SmartSuggestionChip'

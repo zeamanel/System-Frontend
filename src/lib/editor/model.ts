@@ -174,6 +174,158 @@ export function withBlocks(
   return { ...model, blocks: transform(model.blocks) }
 }
 
+/**
+ * Replace every occurrence of `oldText` with `newText` inside block text
+ * (outside HTML tags), across paragraphs, headings, list items, table
+ * cells and signature party fields. Both texts are HTML-escaped so `&`,
+ * `<` and `>` never corrupt block markup. Returns the input model by
+ * reference when nothing matched.
+ */
+export function replaceTextInModel(
+  model: DocumentModel,
+  oldText: string,
+  newText: string,
+): { model: DocumentModel; replaced: boolean } {
+  if (oldText.trim().length < 2 || oldText === newText) {
+    return { model, replaced: false }
+  }
+  const oldEscaped = escapePlainText(oldText)
+  const newEscaped = escapePlainText(newText)
+
+  /** Replace only in text segments, never inside `<...>` tag markup. */
+  const replaceOutsideTags = (html: string): string | null => {
+    let changed = false
+    const result = html
+      .split(/(<[^>]*>)/)
+      .map((segment) => {
+        if (segment.startsWith('<') || !segment.includes(oldEscaped)) return segment
+        changed = true
+        return segment.split(oldEscaped).join(newEscaped)
+      })
+      .join('')
+    return changed ? result : null
+  }
+
+  let replaced = false
+  const blocks = model.blocks.map((block) => {
+    if (block.type === 'paragraph' || block.type === 'heading') {
+      const html = replaceOutsideTags(block.html)
+      if (html === null) return block
+      replaced = true
+      return { ...block, html }
+    }
+    if (block.type === 'list') {
+      let listChanged = false
+      const items = block.items.map((item) => {
+        const html = replaceOutsideTags(item.html)
+        if (html === null) return item
+        listChanged = true
+        return { ...item, html }
+      })
+      if (!listChanged) return block
+      replaced = true
+      return { ...block, items }
+    }
+    if (block.type === 'table') {
+      let tableChanged = false
+      const rows = block.rows.map((row) => {
+        let rowChanged = false
+        const cells = row.cells.map((cell) => {
+          const html = replaceOutsideTags(cell.html)
+          if (html === null) return cell
+          rowChanged = true
+          return { ...cell, html }
+        })
+        if (!rowChanged) return row
+        tableChanged = true
+        return { ...row, cells }
+      })
+      if (!tableChanged) return block
+      replaced = true
+      return { ...block, rows }
+    }
+    if (block.type === 'signature') {
+      let signatureChanged = false
+      const parties = block.parties.map((party) => {
+        const next: Partial<SignatureParty> = {}
+        for (const field of ['label', 'name', 'date'] as const) {
+          const html = replaceOutsideTags(party[field])
+          if (html !== null) next[field] = html
+        }
+        if (Object.keys(next).length === 0) return party
+        signatureChanged = true
+        return { ...party, ...next }
+      })
+      if (!signatureChanged) return block
+      replaced = true
+      return { ...block, parties }
+    }
+    return block
+  })
+
+  if (!replaced) return { model, replaced: false }
+  return { model: { ...model, blocks }, replaced: true }
+}
+
+// ---------- Document density / print-fit presets ----------
+
+export type DocumentPreset = 'compact' | 'standard' | 'spacious' | 'letterhead'
+
+interface DensityPreset {
+  fontSize: number
+  margins: PageMargins
+  spacing: ParagraphSpacing
+}
+
+const LETTERHEAD_TOP_MM = 38
+const STANDARD_TOP_MM = 20
+
+const DENSITY_PRESETS: Record<Exclude<DocumentPreset, 'letterhead'>, DensityPreset> = {
+  // Pull a spilling signature block back onto the previous page in one click.
+  compact: {
+    fontSize: 10,
+    margins: { top: 15, right: 16, bottom: 15, left: 16 },
+    spacing: 'compact',
+  },
+  standard: {
+    fontSize: 11,
+    margins: { top: 20, right: 20, bottom: 20, left: 20 },
+    spacing: 'normal',
+  },
+  spacious: {
+    fontSize: 12,
+    margins: { top: 25, right: 22, bottom: 25, left: 22 },
+    spacing: 'relaxed',
+  },
+}
+
+/**
+ * Apply a whole-document density preset in one step: font size, page
+ * margins and the spacing of every paragraph block (headings and lists
+ * carry no per-block spacing in the model). `'letterhead'` is a toggle
+ * that only flips the top margin between 38mm (clearance for physical
+ * pre-printed letterhead paper) and 20mm, leaving everything else alone.
+ */
+export function applyDocumentPreset(model: DocumentModel, preset: DocumentPreset): DocumentModel {
+  if (preset === 'letterhead') {
+    const top = model.page.margins.top >= 35 ? STANDARD_TOP_MM : LETTERHEAD_TOP_MM
+    if (top === model.page.margins.top) return model
+    return {
+      ...model,
+      page: { ...model.page, margins: { ...model.page.margins, top } },
+    }
+  }
+  const config = DENSITY_PRESETS[preset]
+  return {
+    ...model,
+    fontSize: config.fontSize,
+    page: { ...model.page, margins: { ...config.margins } },
+    blocks: model.blocks.map((block) =>
+      block.type === 'paragraph' ? { ...block, spacing: config.spacing } : block,
+    ),
+  }
+}
+
 export function updateBlock(
   model: DocumentModel,
   id: string,

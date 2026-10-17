@@ -71,3 +71,71 @@
     box-shadow: inset 0 -2px 0 var(--color-selected);
   }
 }
+
+/* ---------- Editor-route icon rail (desktop only) ----------
+   On document-editor routes the sidebar collapses to a narrow icon
+   rail so the A4 canvas reclaims horizontal space. Text labels move
+   into a floating tooltip pill; aria-labels keep the links accessible. */
+
+@media (min-width: 961px) {
+  .sidebar--rail {
+    width: var(--sidebar-rail-width);
+    padding: var(--space-4) var(--space-1);
+  }
+
+  .sidebar--rail .sidebar__group {
+    width: 100%;
+  }
+
+  /* Group headings (Workspace / Account / Administration) are noise at 56px. */
+  .sidebar--rail .sidebar__group-title {
+    display: none;
+  }
+
+  .sidebar--rail .sidebar__link {
+    position: relative;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sidebar--rail .sidebar__link > span {
+    display: none;
+  }
+
+  /* Floating tooltip pill on hover / keyboard focus. */
+  .sidebar--rail .sidebar__link::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: var(--z-dropdown);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-raised);
+    box-shadow: var(--shadow-md);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity var(--transition-fast),
+      visibility var(--transition-fast);
+  }
+
+  .sidebar--rail .sidebar__link:hover::after,
+  .sidebar--rail .sidebar__link:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* The fixtures dev badge does not fit the rail. */
+  .sidebar--rail .sidebar__footer {
+    display: none;
+  }
+}
+

@@ -120,6 +120,8 @@
   /* ---------- Layout ---------- */
   --topbar-height: 56px;
   --sidebar-width: 232px;
+  /* Collapsed icon rail the sidebar adopts on document-editor routes */
+  --sidebar-rail-width: 56px;
   --content-max-width: 1200px;
   /* A4 document canvas (210 × 297 mm) for the editor */
   --doc-page-width: 210mm;

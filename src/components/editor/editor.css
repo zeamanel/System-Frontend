@@ -858,6 +858,145 @@ figure.doc-block--image-right {
   border-bottom: 1px dashed var(--color-border-strong);
 }
 
+/* ---------- Page-setup density preset chips ---------- */
+
+.editor-preset-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-round);
+  background-color: var(--color-surface);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.editor-preset-chip small {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-tertiary);
+}
+
+.editor-preset-chip:hover,
+.editor-preset-chip:focus-visible {
+  background-color: var(--color-action-ghost-hover);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.editor-preset-chip[aria-pressed='true'] {
+  background-color: var(--color-app-bg);
+  border-color: var(--color-selected);
+  color: var(--color-text);
+}
+
+.editor-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+/* ---------- Scoped block AI refinement ---------- */
+
+.editor-refine-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.editor-refine-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-round);
+  background-color: var(--color-surface);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.editor-refine-chip:hover:not(:disabled),
+.editor-refine-chip:focus-visible:not(:disabled) {
+  background-color: var(--color-action-ghost-hover);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.editor-refine-chip:disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+.editor-refine-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.editor-refine-input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+}
+
+.editor-refine-input:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.editor-refine-preview {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-selected);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-muted);
+}
+
+.editor-refine-preview__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-1);
+}
+
+.editor-refine-preview__new {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+  overflow-wrap: break-word;
+}
+
+.editor-refine-preview__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1180px) {
@@ -980,6 +1119,22 @@ figure.doc-block--image-right {
   .doc-paper:last-child {
     break-after: auto;
     page-break-after: auto;
+  }
+
+  /* Never slice a signature line away from its party label, split a
+     witness table row in half, or strand a heading at the very bottom
+     of a page without its following paragraph. Long tables can still
+     break between rows. */
+  .doc-block--signature,
+  .doc-signature__party,
+  .doc-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .doc-heading {
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   .doc-block--active::after {

@@ -10,9 +10,11 @@ import type {
   ParagraphSpacing,
   TextAlign,
 } from '../../lib/editor/types'
+import type { DocumentPreset } from '../../lib/editor/model'
 import { MAX_FONT_SIZE_PT, MIN_FONT_SIZE_PT } from '../../lib/editor/types'
-import { FONT_OPTIONS, type EthiopicSupport } from '../../lib/editor/fonts'
 import type { InlineCommand } from '../../lib/editor/commands'
+import { FONT_OPTIONS, type EthiopicSupport } from '../../lib/editor/fonts'
+import { BlockRefinePanel } from './BlockRefinePanel'
 import { Input, Select } from '../ui'
 import {
   AlignCenterIcon,
@@ -58,6 +60,9 @@ export interface FormatPanelCallbacks {
   onRemoveSignatureParty(partyId: string): void
   onUpdateMargins(patch: Partial<DocumentModel['page']['margins']>): void
   onUpdatePageSetup(patch: Partial<DocumentModel['page']>): void
+  onApplyPreset(preset: DocumentPreset): void
+  /** Replace exactly one block's inline HTML (scoped AI refinement). */
+  onUpdateBlockHtml(blockId: string, html: string): void
 }
 
 function IconButton({
@@ -407,6 +412,11 @@ function renderMoreSections(
             : null}
         </section>
       ) : null}
+      <BlockRefinePanel
+        block={activeBlock}
+        documentLanguage={model.language}
+        onApply={callbacks.onUpdateBlockHtml}
+      />
       {renderPageSetup(model, callbacks, t)}
     </>
   )
@@ -425,6 +435,42 @@ function renderPageSetup(model: DocumentModel, callbacks: FormatPanelCallbacks, 
       <h2 id="format-page" className="editor-panel__title">
         {t('editor.panelPage')}
       </h2>
+
+      <div className="editor-preset-row" role="group" aria-label={t('editor.panelPage')}>
+        <button
+          type="button"
+          className="editor-preset-chip"
+          onClick={() => callbacks.onApplyPreset('compact')}
+        >
+          {t('editor.presetCompact')}
+          <small>10pt · 15mm</small>
+        </button>
+        <button
+          type="button"
+          className="editor-preset-chip"
+          onClick={() => callbacks.onApplyPreset('standard')}
+        >
+          {t('editor.presetStandard')}
+          <small>11pt · 20mm</small>
+        </button>
+        <button
+          type="button"
+          className="editor-preset-chip"
+          onClick={() => callbacks.onApplyPreset('spacious')}
+        >
+          {t('editor.presetSpacious')}
+          <small>12pt · 25mm</small>
+        </button>
+        <button
+          type="button"
+          className="editor-preset-chip"
+          aria-pressed={model.page.margins.top >= 35}
+          onClick={() => callbacks.onApplyPreset('letterhead')}
+        >
+          {t('editor.presetLetterhead')}
+          <small>38mm top</small>
+        </button>
+      </div>
 
       <div className="editor-panel__margins" role="group" aria-label={t('editor.margins')}>
         {MARGIN_FIELDS.map((field) => (
