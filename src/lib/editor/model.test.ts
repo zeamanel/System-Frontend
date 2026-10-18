@@ -21,9 +21,11 @@ import {
   replaceTextInModel,
   sanitizeModel,
   serializeModel,
+  setBilingualMode,
   setMargins,
   splitTextBlock,
   toggleList,
+  updateSecondaryText,
 } from './model'
 import type { DocumentModel } from './types'
 
@@ -474,6 +476,99 @@ describe('applyDocumentPreset', () => {
     expect(toggledBack.page.margins.top).toBe(20)
     expect(toggledBack.page.margins).toEqual({ ...withLetterhead.page.margins, top: 20 })
     expect(toggledBack.fontSize).toBe(model.fontSize)
+  })
+})
+
+describe('bilingual side-by-side mode', () => {
+  it('toggles bilingual mode on the page setup immutably', () => {
+    const doc = createEmptyDocument('am')
+    expect(doc.page.bilingual).toBeUndefined()
+
+    const enabled = setBilingualMode(doc, true)
+    expect(enabled.page.bilingual).toBe(true)
+    expect(doc.page.bilingual).toBeUndefined()
+
+    const disabled = setBilingualMode(enabled, false)
+    expect(disabled.page.bilingual).toBe(false)
+  })
+
+  it('updates secondary text on paragraph and heading blocks and sanitizes html', () => {
+    const p = createParagraph('የቤት ኪራይ ውል')
+    const h = createHeading('ዋና ክፍል', 2)
+    const doc = modelWith(p, h)
+
+    const updatedP = updateSecondaryText(doc, p.id, 'Residential Lease <script>alert(1)</script>')
+    const block0 = updatedP.blocks[0]
+    expect(block0.type).toBe('paragraph')
+    if (block0.type === 'paragraph') {
+      expect(block0.secondaryHtml).toBe('Residential Lease ')
+    }
+
+    const updatedH = updateSecondaryText(updatedP, h.id, 'Main Section')
+    const block1 = updatedH.blocks[1]
+    expect(block1.type).toBe('heading')
+    if (block1.type === 'heading') {
+      expect(block1.secondaryHtml).toBe('Main Section')
+    }
+  })
+
+  it('round-trips bilingual document through sanitizeModel and serializeModel', () => {
+    const p = createParagraph('አንቀጽ 1', { secondaryHtml: 'Clause 1' })
+    const h = createHeading('ርዕስ', 1, { secondaryHtml: 'Title' })
+    const doc = setBilingualMode(modelWith(h, p), true)
+
+    const serialized = serializeModel(doc)
+    const parsed = JSON.parse(serialized) as DocumentModel
+    const sanitized = sanitizeModel(parsed)
+
+    expect(sanitized.page.bilingual).toBe(true)
+    expect(sanitized.blocks[0]).toMatchObject({
+      type: 'heading',
+      html: 'ርዕስ',
+      secondaryHtml: 'Title',
+    })
+    expect(sanitized.blocks[1]).toMatchObject({
+      type: 'paragraph',
+      html: 'አንቀጽ 1',
+      secondaryHtml: 'Clause 1',
+    })
+  })
+
+  it('maps backend secondaryHtml and secondaryText via mapBackendBlock', () => {
+    const mappedHeading = mapBackendBlock({
+      type: 'heading',
+      text: 'ርዕስ',
+      level: 3,
+      secondaryText: 'Heading Translation',
+    })
+    expect(mappedHeading).toMatchObject({
+      type: 'heading',
+      level: 3,
+      html: 'ርዕስ',
+      secondaryHtml: 'Heading Translation',
+    })
+
+    const mappedParagraph = mapBackendBlock({
+      type: 'paragraph',
+      text: 'አንቀጽ',
+      secondaryHtml: '<em>Clause in English</em>',
+    })
+    expect(mappedParagraph).toMatchObject({
+      type: 'paragraph',
+      html: 'አንቀጽ',
+      secondaryHtml: '<em>Clause in English</em>',
+    })
+  })
+
+  it('replaces text in secondaryHtml via replaceTextInModel', () => {
+    const p = createParagraph('አዲስ አበባ', { secondaryHtml: 'Addis Ababa City' })
+    const doc = modelWith(p)
+    const result = replaceTextInModel(doc, 'Addis Ababa', 'Finfinnee')
+    expect(result.replaced).toBe(true)
+    const block = result.model.blocks[0]
+    if (block.type === 'paragraph') {
+      expect(block.secondaryHtml).toBe('Finfinnee City')
+    }
   })
 })
 

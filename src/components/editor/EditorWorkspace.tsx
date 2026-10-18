@@ -25,6 +25,7 @@ import {
   removeTableColumn,
   removeTableRow,
   setAlignment,
+  setBilingualMode,
   setDocumentFont,
   setDocumentFontSize,
   setIndent,
@@ -37,6 +38,7 @@ import {
   updateImage,
   updateListItem,
   updatePageSetup,
+  updateSecondaryText,
   updateSignatureParty,
   updateTableCell,
   withBlocks,
@@ -265,6 +267,8 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
             block.type === 'paragraph' || block.type === 'heading' ? { ...block, html } : block,
           ),
         ),
+      updateSecondaryText: (blockId, html) =>
+        updateModel((current) => updateSecondaryText(current, blockId, html)),
       updateListItem: (blockId, itemId, html) =>
         updateModel((current) => updateListItem(current, blockId, itemId, html)),
       updateTableCell: (blockId, cellId, html) =>
@@ -462,6 +466,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
       pageBreak: tDoc('editor.pageBreakLabel'),
       emptyText: tDoc('editor.emptyBlockHint'),
       tableHint: tDoc('editor.tableHint'),
+      bilingualPlaceholder: tDoc('editor.bilingualPlaceholder'),
     }),
     [tDoc],
   )
@@ -574,6 +579,10 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
               block.type === 'paragraph' || block.type === 'heading' ? { ...block, html } : block,
           ),
         ),
+      onToggleBilingual: () =>
+        updateModel((current) => setBilingualMode(current, !current.page.bilingual)),
+      onUpdateSecondaryHtml: (blockId, html) =>
+        updateModel((current) => updateSecondaryText(current, blockId, html)),
     }),
     [
       activeRef,

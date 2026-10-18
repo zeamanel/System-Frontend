@@ -58,12 +58,13 @@ export interface SidebarProps {
  */
 export function Sidebar({ mobileOpen = false, onNavigate, rail = false }: SidebarProps) {
   const { t } = useI18n()
-  const { isAdmin } = useSession()
+  const { user, isAdmin } = useSession()
+  const isUserAdmin = user ? user.role === 'admin' : Boolean(isAdmin)
 
   const groups: { labelKey: MessageKey; items: NavItem[] }[] = [
     { labelKey: 'nav.group.workspace', items: WORKSPACE_ITEMS },
     { labelKey: 'nav.group.account', items: ACCOUNT_ITEMS },
-    ...(isAdmin
+    ...(isUserAdmin
       ? [{ labelKey: 'nav.group.admin' as MessageKey, items: ADMIN_ITEMS }]
       : []),
   ]

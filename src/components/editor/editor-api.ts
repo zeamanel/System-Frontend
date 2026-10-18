@@ -9,6 +9,7 @@ import type { InlineHtml } from '../../lib/editor/types'
 export interface EditorApi {
   // ---- text content ----
   updateText(blockId: string, html: InlineHtml): void
+  updateSecondaryText(blockId: string, html: InlineHtml): void
   updateListItem(blockId: string, itemId: string, html: InlineHtml): void
   updateTableCell(blockId: string, cellId: string, html: InlineHtml): void
   updateSignatureField(

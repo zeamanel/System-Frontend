@@ -180,6 +180,7 @@ export function A4PagesCanvas({
                     api={api}
                     labels={blockLabels}
                     onImageLoad={measureAndPaginate}
+                    bilingual={Boolean(model.page.bilingual)}
                   />
                 )
               })}

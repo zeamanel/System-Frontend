@@ -210,9 +210,17 @@ export function replaceTextInModel(
   const blocks = model.blocks.map((block) => {
     if (block.type === 'paragraph' || block.type === 'heading') {
       const html = replaceOutsideTags(block.html)
-      if (html === null) return block
+      const secondaryHtml =
+        typeof block.secondaryHtml === 'string'
+          ? replaceOutsideTags(block.secondaryHtml)
+          : null
+      if (html === null && secondaryHtml === null) return block
       replaced = true
-      return { ...block, html }
+      return {
+        ...block,
+        ...(html !== null ? { html } : {}),
+        ...(secondaryHtml !== null ? { secondaryHtml } : {}),
+      }
     }
     if (block.type === 'list') {
       let listChanged = false
@@ -430,6 +438,24 @@ export function setMargins(model: DocumentModel, margins: Partial<PageMargins>):
 
 export function updatePageSetup(model: DocumentModel, patch: Partial<PageSetup>): DocumentModel {
   return { ...model, page: { ...model.page, ...patch } }
+}
+
+export function setBilingualMode(model: DocumentModel, enabled: boolean): DocumentModel {
+  return updatePageSetup(model, { bilingual: enabled })
+}
+
+export function updateSecondaryText(
+  model: DocumentModel,
+  blockId: string,
+  html: string,
+): DocumentModel {
+  const sanitized = sanitizeInlineHtml(html)
+  return updateBlock(model, blockId, (block) => {
+    if (block.type === 'paragraph' || block.type === 'heading') {
+      return { ...block, secondaryHtml: sanitized }
+    }
+    return block
+  })
 }
 
 // ---------- Split / merge (Enter & Backspace mechanics) ----------
@@ -797,6 +823,9 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
           level,
           html: sanitizeInlineHtml(String(raw.html ?? '')),
           align: asTextAlign(raw.align),
+          ...(typeof raw.secondaryHtml === 'string'
+            ? { secondaryHtml: sanitizeInlineHtml(raw.secondaryHtml) }
+            : {}),
         })
         break
       }
@@ -810,6 +839,9 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
           spacing: SPACINGS.includes(raw.spacing as ParagraphSpacing)
             ? (raw.spacing as ParagraphSpacing)
             : 'normal',
+          ...(typeof raw.secondaryHtml === 'string'
+            ? { secondaryHtml: sanitizeInlineHtml(raw.secondaryHtml) }
+            : {}),
         })
         break
       case 'list':
@@ -840,6 +872,9 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
       ...input.page,
       headerHtml: sanitizeInlineHtml(String(input.page?.headerHtml ?? '')),
       footerHtml: sanitizeInlineHtml(String(input.page?.footerHtml ?? '')),
+      ...(typeof input.page?.bilingual === 'boolean'
+        ? { bilingual: input.page.bilingual }
+        : {}),
     },
     blocks,
   }
@@ -926,6 +961,8 @@ export interface BackendHeadingBlock {
   html?: string
   level?: number
   align?: TextAlign
+  secondaryText?: string
+  secondaryHtml?: string
 }
 
 export interface BackendParagraphBlock {
@@ -935,6 +972,8 @@ export interface BackendParagraphBlock {
   align?: TextAlign
   indent?: number
   spacing?: ParagraphSpacing
+  secondaryText?: string
+  secondaryHtml?: string
 }
 
 export interface BackendListBlock {
@@ -984,6 +1023,11 @@ export function mapBackendBlock(raw: unknown): Block | null {
         level,
         html: text,
         align: asTextAlign(raw.align),
+        ...(typeof raw.secondaryHtml === 'string'
+          ? { secondaryHtml: raw.secondaryHtml }
+          : typeof raw.secondaryText === 'string'
+            ? { secondaryHtml: raw.secondaryText }
+            : {}),
       }
     }
     case 'paragraph': {
@@ -997,6 +1041,11 @@ export function mapBackendBlock(raw: unknown): Block | null {
         spacing: SPACINGS.includes(raw.spacing as ParagraphSpacing)
           ? (raw.spacing as ParagraphSpacing)
           : 'normal',
+        ...(typeof raw.secondaryHtml === 'string'
+          ? { secondaryHtml: raw.secondaryHtml }
+          : typeof raw.secondaryText === 'string'
+            ? { secondaryHtml: raw.secondaryText }
+            : {}),
       }
     }
     case 'list': {

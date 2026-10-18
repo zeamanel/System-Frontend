@@ -674,6 +674,30 @@
   margin: 0 0 0.55em;
 }
 
+/* ---------- Bilingual side-by-side parallel layout ---------- */
+
+.doc-bilingual-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6mm;
+  align-items: start;
+}
+
+.doc-bilingual-col {
+  min-width: 0;
+}
+
+.doc-bilingual-col--secondary {
+  border-left: 1px solid var(--color-border-subtle);
+  padding-left: 4mm;
+}
+
+.editor-refine-chip--bilingual {
+  background-color: var(--color-surface-muted);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
 .doc-block--spacing-compact {
   margin-bottom: 0.15em;
 }
@@ -1139,6 +1163,22 @@ figure.doc-block--image-right {
 
   .doc-block--active::after {
     display: none;
+  }
+
+  .doc-bilingual-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6mm !important;
+    align-items: start !important;
+  }
+
+  .doc-bilingual-col {
+    min-width: 0 !important;
+  }
+
+  .doc-bilingual-col--secondary {
+    border-left: 1px solid var(--color-border-subtle) !important;
+    padding-left: 4mm !important;
   }
 }
 

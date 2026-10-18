@@ -28,6 +28,7 @@ export interface HeadingBlock extends BlockBase {
   level: HeadingLevel
   html: InlineHtml
   align: TextAlign
+  secondaryHtml?: InlineHtml
 }
 
 export interface ParagraphBlock extends BlockBase {
@@ -36,6 +37,7 @@ export interface ParagraphBlock extends BlockBase {
   align: TextAlign
   indent: IndentLevel
   spacing: ParagraphSpacing
+  secondaryHtml?: InlineHtml
 }
 
 export interface ListItem {
@@ -124,6 +126,7 @@ export interface PageSetup {
   headerHtml: InlineHtml
   footerEnabled: boolean
   footerHtml: InlineHtml
+  bilingual?: boolean
 }
 
 export interface DocumentModel {

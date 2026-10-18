@@ -391,5 +391,50 @@ describe('EditorWorkspace', () => {
     expect(blockEls()[1].textContent).not.toContain('late fee')
     expect(blockEls()[1].textContent).toContain('shall pay')
   })
+
+  it('toggles bilingual side-by-side mode, edits the secondary column, and fills translation', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    // Initially, canvas blocks are single-column (no bilingual rows).
+    expect(document.querySelector('.doc-bilingual-row')).toBeNull()
+
+    // Toggle bilingual parallel view in FormatPanel Page Setup.
+    const bilingualToggle = screen.getByLabelText(/bilingual side-by-side/i)
+    expect(bilingualToggle).not.toBeChecked()
+    fireEvent.click(bilingualToggle)
+
+    // Parallel columns now render across the A4 canvas.
+    await waitFor(() => {
+      expect(document.querySelector('.doc-bilingual-row')).toBeInTheDocument()
+    })
+    expect(document.querySelector('.doc-bilingual-col--primary')).toBeInTheDocument()
+    const secondaryCol = document.querySelector<HTMLElement>('.doc-bilingual-col--secondary')
+    expect(secondaryCol).toBeInTheDocument()
+
+    // Edit the secondary column directly.
+    const secondaryEditable = document.querySelector<HTMLElement>(
+      '[data-bilingual-secondary="true"]',
+    )
+    expect(secondaryEditable).toBeInTheDocument()
+    if (!secondaryEditable) throw new Error('missing secondary editable surface')
+
+    secondaryEditable.focus()
+    fireEvent.input(secondaryEditable, {
+      target: { innerHTML: 'Parallel translation entered by user' },
+    })
+    expect(secondaryEditable.textContent).toContain('Parallel translation entered by user')
+
+    // Refine panel shows the one-click translation fill button when bilingual mode is active.
+    const fillButton = screen.getByRole('button', { name: /fill second column translation/i })
+    expect(fillButton).toBeInTheDocument()
+
+    fireEvent.click(fillButton)
+    await waitFor(() => {
+      // refineBlockContent fills secondaryHtml for the active block.
+      expect((secondaryEditable.textContent ?? '').length).toBeGreaterThan(0)
+    })
+  })
 })
 

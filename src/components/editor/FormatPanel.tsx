@@ -63,6 +63,8 @@ export interface FormatPanelCallbacks {
   onApplyPreset(preset: DocumentPreset): void
   /** Replace exactly one block's inline HTML (scoped AI refinement). */
   onUpdateBlockHtml(blockId: string, html: string): void
+  onToggleBilingual(): void
+  onUpdateSecondaryHtml(blockId: string, html: string): void
 }
 
 function IconButton({
@@ -416,6 +418,8 @@ function renderMoreSections(
         block={activeBlock}
         documentLanguage={model.language}
         onApply={callbacks.onUpdateBlockHtml}
+        bilingual={Boolean(model.page.bilingual)}
+        onApplySecondary={callbacks.onUpdateSecondaryHtml}
       />
       {renderPageSetup(model, callbacks, t)}
     </>
@@ -491,6 +495,16 @@ function renderPageSetup(model: DocumentModel, callbacks: FormatPanelCallbacks, 
           </label>
         ))}
       </div>
+
+      <label className="editor-panel__check">
+        <input
+          type="checkbox"
+          checked={Boolean(model.page.bilingual)}
+          aria-pressed={Boolean(model.page.bilingual)}
+          onChange={() => callbacks.onToggleBilingual()}
+        />
+        {t('editor.bilingualMode')}
+      </label>
 
       <label className="editor-panel__check">
         <input

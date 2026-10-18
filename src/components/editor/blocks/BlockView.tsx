@@ -21,6 +21,7 @@ export interface BlockViewProps {
   /** i18n labels needed inside block chrome (signature captions etc.). */
   labels: BlockLabels
   onImageLoad?: () => void
+  bilingual?: boolean
 }
 
 export interface BlockLabels {
@@ -30,6 +31,7 @@ export interface BlockLabels {
   pageBreak: string
   emptyText: string
   tableHint: string
+  bilingualPlaceholder: string
 }
 
 /**
@@ -38,7 +40,15 @@ export interface BlockLabels {
  * (Enter / Backspace / arrow navigation / plain-text paste) are handled here
  * and forwarded to the workspace through `EditorApi`.
  */
-export function BlockView({ block, editable, active, api, labels, onImageLoad }: BlockViewProps) {
+export function BlockView({
+  block,
+  editable,
+  active,
+  api,
+  labels,
+  onImageLoad,
+  bilingual = false,
+}: BlockViewProps) {
   const ref = useMemo<EditableRef>(() => ({ blockId: block.id }), [block.id])
 
   const handleTextInput = (html: InlineHtml): void => api.updateText(block.id, html)
@@ -97,6 +107,57 @@ export function BlockView({ block, editable, active, api, labels, onImageLoad }:
     const indentClass =
       'indent' in block && block.indent > 0 ? `doc-block--indent-${block.indent}` : null
     const spacingClass = block.type === 'paragraph' ? `doc-block--spacing-${block.spacing}` : null
+
+    if (bilingual) {
+      return (
+        <div
+          data-block-id={block.id}
+          className={[
+            blockClass,
+            `doc-block--align-${block.align}`,
+            indentClass,
+            spacingClass,
+            'doc-block--bilingual',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          <div className="doc-bilingual-row">
+            <div className="doc-bilingual-col doc-bilingual-col--primary">
+              <EditableHtml
+                html={block.html}
+                editable={editable}
+                className={isHeading ? `doc-heading doc-heading--${block.level}` : 'doc-paragraph'}
+                placeholder={isHeading && block.level === 1 ? labels.emptyText : undefined}
+                ariaLabel={isHeading ? `${block.type} ${block.level}` : 'Paragraph'}
+                data-block-id={block.id}
+                onInput={handleTextInput}
+                onKeyDown={handleTextKeyDown}
+                onPaste={handlePaste}
+                onFocus={handleFocus}
+              />
+            </div>
+            <div className="doc-bilingual-col doc-bilingual-col--secondary">
+              <EditableHtml
+                html={block.secondaryHtml ?? ''}
+                editable={editable}
+                className={isHeading ? `doc-heading doc-heading--${block.level}` : 'doc-paragraph'}
+                placeholder={labels.bilingualPlaceholder}
+                ariaLabel={
+                  isHeading ? `${block.type} ${block.level} (secondary)` : 'Paragraph (secondary)'
+                }
+                data-block-id={block.id}
+                data-bilingual-secondary="true"
+                onInput={(html) => api.updateSecondaryText(block.id, html)}
+                onKeyDown={handleTextKeyDown}
+                onPaste={handlePaste}
+                onFocus={handleFocus}
+              />
+            </div>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div

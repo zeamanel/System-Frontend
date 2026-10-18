@@ -11,6 +11,10 @@ export interface BlockRefinePanelProps {
   documentLanguage: string
   /** Replace exactly one block's inline HTML (surgical, siblings untouched). */
   onApply: (blockId: string, html: string) => void
+  /** When true, bilingual mode is active in the document. */
+  bilingual?: boolean
+  /** Populate or update the second column translation for the block. */
+  onApplySecondary?: (blockId: string, html: string) => void
 }
 
 /**
@@ -19,7 +23,13 @@ export interface BlockRefinePanelProps {
  * preview, then apply it to *only* that block or discard it. Nothing is
  * written to the document until "Apply to block" is clicked.
  */
-export function BlockRefinePanel({ block, documentLanguage, onApply }: BlockRefinePanelProps) {
+export function BlockRefinePanel({
+  block,
+  documentLanguage,
+  onApply,
+  bilingual = false,
+  onApplySecondary,
+}: BlockRefinePanelProps) {
   const { t } = useI18n()
   const [proposal, setProposal] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -61,6 +71,25 @@ export function BlockRefinePanel({ block, documentLanguage, onApply }: BlockRefi
     if (!block || proposal === null) return
     onApply(block.id, proposal)
     setProposal(null)
+  }
+
+  const fillBilingualTranslation = async (): Promise<void> => {
+    if (!isTextBlock || !block || pending || !onApplySecondary) return
+    setPending(true)
+    setError(null)
+    try {
+      const action: RefineAction = language === 'am' ? 'translate-en' : 'translate-am'
+      const html = await refineBlockContent({
+        block,
+        action,
+        documentLanguage: language,
+      })
+      onApplySecondary(block.id, html)
+    } catch {
+      setError(t('editor.refineError'))
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
@@ -109,6 +138,16 @@ export function BlockRefinePanel({ block, documentLanguage, onApply }: BlockRefi
             >
               <span aria-hidden="true">🌐</span> {translateLabel}
             </button>
+            {bilingual && onApplySecondary ? (
+              <button
+                type="button"
+                className="editor-refine-chip editor-refine-chip--bilingual"
+                disabled={pending}
+                onClick={() => void fillBilingualTranslation()}
+              >
+                <span aria-hidden="true">🌐</span> {t('editor.bilingualFillTranslation')}
+              </button>
+            ) : null}
           </div>
 
           <form

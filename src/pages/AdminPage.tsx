@@ -16,10 +16,11 @@ import {
 /** Admin-only area: usage (when provided) and team (arrives later). */
 export default function AdminPage() {
   const { t } = useI18n()
-  const { isAdmin } = useSession()
+  const { user, isAdmin } = useSession()
   const usage = useUsage()
+  const isUserAdmin = user ? user.role === 'admin' : Boolean(isAdmin)
 
-  if (!isAdmin) {
+  if (!isUserAdmin) {
     return (
       <div className="page">
         <EmptyState title={t('admin.limited')} />
