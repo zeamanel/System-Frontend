@@ -898,8 +898,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function asTextAlign(value: unknown): TextAlign {
-  return TEXT_ALIGNS.includes(value as TextAlign) ? (value as TextAlign) : 'left'
+export function asTextAlign(value: unknown): TextAlign {
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (TEXT_ALIGNS.includes(normalized as TextAlign)) {
+      return normalized as TextAlign
+    }
+  }
+  return 'left'
 }
 
 /** Re-sanitize every inline surface; drop blocks that are not a known type. */
@@ -1370,6 +1376,24 @@ export function parseDocumentContent(
   const blocks = plainTextToBlocks(trimmed)
   if (blocks.length === 0) return null
   return { ...createEmptyDocument(language), blocks }
+}
+
+/**
+ * Deserializes document content or a backend payload into a valid DocumentModel.
+ * Accepts serialized JSON strings, backend generation payloads ({ blocks: [...] }),
+ * HTML strings, or legacy plain text.
+ */
+export function deserializeModel(
+  content: unknown,
+  language = 'en',
+): DocumentModel | null {
+  if (typeof content === 'string') {
+    return parseDocumentContent(content, language)
+  }
+  if (isRecord(content) || Array.isArray(content)) {
+    return mapBackendPayload(content, language)
+  }
+  return null
 }
 
 // ---------- Legacy plain text (phase-3 drafts) → blocks ----------

@@ -87,7 +87,10 @@ export interface RequestOptions {
 
 function buildUrl(path: string, query?: QueryParams, baseUrl?: string): string {
   const base = (baseUrl ?? env.apiBaseUrl).replace(/\/+$/, '')
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  let normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (base.endsWith('/api/v1') && normalizedPath.startsWith('/api/v1/')) {
+    normalizedPath = normalizedPath.slice('/api/v1'.length)
+  }
   const url = `${base}${normalizedPath}`
 
   if (!query) return url

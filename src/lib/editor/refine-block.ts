@@ -13,6 +13,8 @@
  * `sanitize.ts`), the same guarantee the document model itself carries.
  */
 
+import { env } from '../../config/env'
+import { apiClient } from '../api'
 import type { DocumentLanguage } from '../languages'
 import type { Block } from './types'
 import { escapePlainText, inlineHtmlToText, sanitizeInlineHtml } from './sanitize'
@@ -31,6 +33,12 @@ export interface RefineBlockInput {
   instruction?: string
   documentLanguage: DocumentLanguage
   documentTitle?: string
+  /** Optional client override for testing or custom transport. */
+  client?: {
+    post: <T>(path: string, body?: unknown) => Promise<T>
+  }
+  /** Optional data source override (e.g. for testing 'http' mode). */
+  dataSource?: 'fixtures' | 'http'
 }
 
 // ---------- helpers ----------
@@ -265,18 +273,17 @@ function customText(text: string, instruction: string, language: DocumentLanguag
 // ---------- public API ----------
 
 /**
- * Produce a sanitized inline-HTML proposal for the given block's text.
- * Resolves with the proposal; rejects when the block is not a paragraph
- * or heading, or has no text to refine.
+ * Deterministic, offline refinement using local legal-language tables and heuristics.
+ * Synchronously transforms the block's text and returns allowlist-sanitized HTML.
  */
-export async function refineBlockContent(input: RefineBlockInput): Promise<string> {
+export function refineBlockLocally(input: RefineBlockInput): string {
   const { block, action, instruction, documentLanguage } = input
   if (block.type !== 'paragraph' && block.type !== 'heading') {
-    return Promise.reject(new Error('Only paragraph and heading blocks can be refined.'))
+    throw new Error('Only paragraph and heading blocks can be refined.')
   }
   const text = inlineHtmlToText(block.html)
   if (!text) {
-    return Promise.reject(new Error('The selected block has no text to refine.'))
+    throw new Error('The selected block has no text to refine.')
   }
 
   let result: string
@@ -307,4 +314,51 @@ export async function refineBlockContent(input: RefineBlockInput): Promise<strin
   // markup; sanitizeInlineHtml then re-serializes through the allowlist.
   return sanitizeInlineHtml(escapePlainText(result))
 }
+
+/**
+ * Produce a sanitized inline-HTML proposal for the given block's text.
+ * When the active data source is 'http' (or when a custom client is provided),
+ * calls the live POST /api/v1/ai/refine-block endpoint. If the request fails,
+ * times out, or the active data source is 'fixtures', falls back seamlessly
+ * to local refinement.
+ */
+export async function refineBlockContent(input: RefineBlockInput): Promise<string> {
+  const { block, action, instruction, documentLanguage, documentTitle } = input
+  if (block.type !== 'paragraph' && block.type !== 'heading') {
+    return Promise.reject(new Error('Only paragraph and heading blocks can be refined.'))
+  }
+  const plainText = inlineHtmlToText(block.html)
+  if (!plainText) {
+    return Promise.reject(new Error('The selected block has no text to refine.'))
+  }
+
+  const isHttp = Boolean(input.client) || (input.dataSource ?? env.dataSource) === 'http'
+
+  if (isHttp) {
+    try {
+      const client = input.client ?? apiClient
+      const payload = {
+        blockText: plainText,
+        blockType: block.type === 'heading' ? 'heading' : 'paragraph',
+        action,
+        ...(instruction?.trim() ? { instruction: instruction.trim() } : {}),
+        documentLanguage,
+        ...(documentTitle?.trim() ? { documentTitle: documentTitle.trim() } : {}),
+      }
+      const response = await client.post<{ refinedText?: string; text?: string }>(
+        '/api/v1/ai/refine-block',
+        payload,
+      )
+      const text = response?.refinedText ?? response?.text
+      if (typeof text === 'string' && text.trim().length > 0) {
+        return sanitizeInlineHtml(escapePlainText(text.trim()))
+      }
+    } catch {
+      // Offline, network failure, or timeout: fall through to local refinement.
+    }
+  }
+
+  return refineBlockLocally(input)
+}
+
 

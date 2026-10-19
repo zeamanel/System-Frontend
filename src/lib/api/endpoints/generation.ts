@@ -63,3 +63,25 @@ export function getGenerationUsage(
   return apiClient.get<GenerationUsageApiRecord>('/ai/usage', { signal, auth: 'required' })
 }
 
+export interface RefineBlockApiInput {
+  blockText: string
+  blockType: 'paragraph' | 'heading'
+  action: string
+  instruction?: string
+  documentLanguage: string
+  documentTitle?: string
+}
+
+export interface RefineBlockApiResponse {
+  refinedText?: string
+  text?: string
+}
+
+export function refineBlock(
+  input: RefineBlockApiInput,
+  signal?: AbortSignal,
+): Promise<RefineBlockApiResponse> {
+  return apiClient.post<RefineBlockApiResponse>('/api/v1/ai/refine-block', input, { signal })
+}
+
+

@@ -7,6 +7,7 @@ import {
   createParagraph,
   createSignature,
   createTable,
+  deserializeModel,
   documentOutline,
   draftFromTemplate,
   insertBlocksAfter,
@@ -580,6 +581,53 @@ describe('bilingual side-by-side mode', () => {
     if (block.type === 'paragraph') {
       expect(block.secondaryHtml).toBe('Finfinnee City')
     }
+  })
+
+  it('preserves backend block align in mapBackendBlock and deserializeModel', () => {
+    const rawParagraph = {
+      type: 'paragraph',
+      align: 'right',
+      text: 'ቀን፡ 12/02/2016 ዓ.ም.',
+    }
+    const rawHeading = {
+      type: 'heading',
+      align: 'center',
+      text: 'ጉዳዩ፦ የማመልከቻ ጥያቄ',
+      level: 1,
+    }
+
+    const mappedParagraph = mapBackendBlock(rawParagraph)
+    expect(mappedParagraph).toMatchObject({
+      type: 'paragraph',
+      align: 'right',
+      html: 'ቀን፡ 12/02/2016 ዓ.ም.',
+    })
+
+    const mappedHeading = mapBackendBlock(rawHeading)
+    expect(mappedHeading).toMatchObject({
+      type: 'heading',
+      align: 'center',
+      html: 'ጉዳዩ፦ የማመልከቻ ጥያቄ',
+      level: 1,
+    })
+
+    // deserializeModel on backend generation payload JSON
+    const payloadJson = JSON.stringify({
+      blocks: [rawParagraph, rawHeading],
+    })
+    const doc = deserializeModel(payloadJson, 'am')
+    expect(doc).not.toBeNull()
+    expect(doc?.blocks[0]).toMatchObject({
+      type: 'paragraph',
+      align: 'right',
+      html: 'ቀን፡ 12/02/2016 ዓ.ም.',
+    })
+    expect(doc?.blocks[1]).toMatchObject({
+      type: 'heading',
+      align: 'center',
+      html: 'ጉዳዩ፦ የማመልከቻ ጥያቄ',
+      level: 1,
+    })
   })
 })
 

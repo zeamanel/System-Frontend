@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHeading, createList, createParagraph } from './model'
-import { refineBlockContent } from './refine-block'
+import { refineBlockContent, refineBlockLocally } from './refine-block'
 
 const enParagraph = (html: string) => createParagraph(html)
 
@@ -129,5 +129,69 @@ describe('refineBlockContent', () => {
         documentLanguage: 'en',
       }),
     ).rejects.toThrow()
+  })
+
+  it('calls POST /api/v1/ai/refine-block and sanitizes returned refinedText when client is provided', async () => {
+    let capturedPath = ''
+    let capturedBody: unknown = null
+
+    const mockClient = {
+      post: async <T>(path: string, body?: unknown): Promise<T> => {
+        capturedPath = path
+        capturedBody = body
+        return {
+          refinedText: 'The tenant <em>shall pay</em> <strong>35,000</strong> ETB immediately.',
+        } as T
+      },
+    }
+
+    const html = await refineBlockContent({
+      block: enParagraph('The tenant will pay 35,000 ETB.'),
+      action: 'formalize',
+      documentLanguage: 'en',
+      documentTitle: 'Residential Lease Agreement',
+      client: mockClient,
+    })
+
+    expect(capturedPath).toBe('/api/v1/ai/refine-block')
+    expect(capturedBody).toEqual({
+      blockText: 'The tenant will pay 35,000 ETB.',
+      blockType: 'paragraph',
+      action: 'formalize',
+      documentLanguage: 'en',
+      documentTitle: 'Residential Lease Agreement',
+    })
+    // Sanitized HTML: tags in returned plain text are escaped and sanitized through allowlist
+    expect(html).toContain('The tenant')
+    expect(html).toContain('35,000')
+    expect(html).not.toContain('<strong')
+  })
+
+  it('falls back to local refinement when HTTP request fails', async () => {
+    const failingClient = {
+      post: async <T>(): Promise<T> => {
+        throw new Error('500 Internal Server Error / Network Timeout')
+      },
+    }
+
+    const html = await refineBlockContent({
+      block: enParagraph('The tenant will pay 35,000 birr every month and can cancel anytime.'),
+      action: 'formalize',
+      documentLanguage: 'en',
+      client: failingClient,
+    })
+
+    // Fell back seamlessly to local refine logic
+    expect(html).toContain('shall pay')
+    expect(html).toContain('may terminate upon written notice')
+  })
+
+  it('refines locally and deterministically via refineBlockLocally', () => {
+    const html = refineBlockLocally({
+      block: enParagraph('The tenant can cancel.'),
+      action: 'formalize',
+      documentLanguage: 'en',
+    })
+    expect(html).toContain('may terminate upon written notice')
   })
 })
