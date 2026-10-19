@@ -430,6 +430,17 @@ describe('replaceTextInModel', () => {
       expect(result.model.blocks[0].parties[0].label).toBe('Daniel Mersha')
     }
   })
+
+  it('replaces an existing Ge\'ez-numeral date when updating to an Ethiopian Calendar date', () => {
+    const model = modelWith(
+      createParagraph('ይህ ውል በዛሬው ቀን፡ ጥቅምት ፳፮ ቀን ፳፻፲፰ ዓ.ም. ተፈርሟል።'),
+    )
+    const result = replaceTextInModel(model, '16/10/26', 'ጥቅምት 6 ቀን 2019 ዓ.ም.')
+    expect(result.replaced).toBe(true)
+    expect(result.model.blocks[0]).toMatchObject({
+      html: 'ይህ ውል በዛሬው ቀን፡ ጥቅምት 6 ቀን 2019 ዓ.ም. ተፈርሟል።',
+    })
+  })
 })
 
 describe('applyDocumentPreset', () => {

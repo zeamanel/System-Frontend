@@ -14,7 +14,6 @@ import type { DocumentPreset } from '../../lib/editor/model'
 import { MAX_FONT_SIZE_PT, MIN_FONT_SIZE_PT } from '../../lib/editor/types'
 import type { InlineCommand } from '../../lib/editor/commands'
 import { FONT_OPTIONS, type EthiopicSupport } from '../../lib/editor/fonts'
-import { BlockRefinePanel } from './BlockRefinePanel'
 import { Input, Select } from '../ui'
 import {
   AlignCenterIcon,
@@ -414,13 +413,6 @@ function renderMoreSections(
             : null}
         </section>
       ) : null}
-      <BlockRefinePanel
-        block={activeBlock}
-        documentLanguage={model.language}
-        onApply={callbacks.onUpdateBlockHtml}
-        bilingual={Boolean(model.page.bilingual)}
-        onApplySecondary={callbacks.onUpdateSecondaryHtml}
-      />
       {renderPageSetup(model, callbacks, t)}
     </>
   )

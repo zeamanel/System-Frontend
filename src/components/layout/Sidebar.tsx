@@ -9,6 +9,7 @@ import {
   DocumentIcon,
   HomeIcon,
   SettingsIcon,
+  ShieldIcon,
   StarIcon,
   TemplateIcon,
   UserIcon,
@@ -37,7 +38,7 @@ const ACCOUNT_ITEMS: NavItem[] = [
 ]
 
 const ADMIN_ITEMS: NavItem[] = [
-  { to: '/admin', labelKey: 'nav.admin', icon: SettingsIcon },
+  { to: '/admin', labelKey: 'nav.admin', icon: ShieldIcon },
 ]
 
 export interface SidebarProps {

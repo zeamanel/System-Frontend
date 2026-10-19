@@ -53,6 +53,7 @@ import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../li
 import { LANGUAGES } from '../../lib/languages'
 import { useToast } from '../ui'
 import { A4PagesCanvas } from './A4PagesCanvas'
+import { BlockRefinePanel } from './BlockRefinePanel'
 import { EditorToolbar } from './EditorToolbar'
 import { FormatPanel, type FormatPanelCallbacks } from './FormatPanel'
 import { GuidedFieldsPanel, SectionsOutline } from './GuidedFieldsPanel'
@@ -654,6 +655,21 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
           onGenerate={(answers) => void handleGenerate(answers)}
           outline={outline}
           onOutlineSelect={handleOutlineSelect}
+        />
+        <BlockRefinePanel
+          block={activeBlock}
+          documentLanguage={editor.language}
+          onApply={(blockId, html) =>
+            updateModel((current) =>
+              updateBlock(current, blockId, (b) =>
+                b.type === 'paragraph' || b.type === 'heading' ? { ...b, html } : b,
+              ),
+            )
+          }
+          bilingual={Boolean(model.page.bilingual)}
+          onApplySecondary={(blockId, html) =>
+            updateModel((current) => updateSecondaryText(current, blockId, html))
+          }
         />
         <SectionsOutline outline={outline} onSelect={handleOutlineSelect} />
       </aside>

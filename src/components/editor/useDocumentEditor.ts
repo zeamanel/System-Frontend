@@ -129,10 +129,11 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
       // Instant field-to-canvas sync: when the previous answer already
       // appears in the document blocks, fix it in place in the same React
       // batch — no AI regeneration round-trip needed.
+      const isEthDate = /ዓ\.ም\.?$/.test(value.trim())
       if (
         prevValue !== value &&
-        prevValue.trim().length >= 2 &&
-        value.trim().length >= 1
+        value.trim().length >= 1 &&
+        (prevValue.trim().length >= 2 || isEthDate)
       ) {
         const result = replaceTextInModel(model, prevValue, value)
         if (result.replaced) setModelState(result.model)

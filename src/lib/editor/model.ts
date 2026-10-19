@@ -181,12 +181,16 @@ export function withBlocks(
  * `<` and `>` never corrupt block markup. Returns the input model by
  * reference when nothing matched.
  */
+export const ETHIOPIAN_DATE_PATTERN =
+  /(?:መስከረም|ጥቅምት|ኅዳር|ህዳር|ታኅሣሥ|ታህሳስ|ጥር|የካቲት|መጋቢት|ሚያዝያ|ግንቦት|ሰኔ|ሐምሌ|ነሐሴ|ጳጉሜን|ጳጉሜ)\s+[\d፩-፼]+\s+ቀን\s+[\d፩-፼]+\s*ዓ\.ም\.?/g
+
 export function replaceTextInModel(
   model: DocumentModel,
   oldText: string,
   newText: string,
 ): { model: DocumentModel; replaced: boolean } {
-  if (oldText.trim().length < 2 || oldText === newText) {
+  const isEthDate = /ዓ\.ም\.?$/.test(newText.trim())
+  if ((oldText.trim().length < 2 && !isEthDate) || oldText === newText) {
     return { model, replaced: false }
   }
   const oldEscaped = escapePlainText(oldText)
@@ -207,72 +211,167 @@ export function replaceTextInModel(
   }
 
   let replaced = false
-  const blocks = model.blocks.map((block) => {
-    if (block.type === 'paragraph' || block.type === 'heading') {
-      const html = replaceOutsideTags(block.html)
-      const secondaryHtml =
-        typeof block.secondaryHtml === 'string'
-          ? replaceOutsideTags(block.secondaryHtml)
-          : null
-      if (html === null && secondaryHtml === null) return block
-      replaced = true
-      return {
-        ...block,
-        ...(html !== null ? { html } : {}),
-        ...(secondaryHtml !== null ? { secondaryHtml } : {}),
-      }
-    }
-    if (block.type === 'list') {
-      let listChanged = false
-      const items = block.items.map((item) => {
-        const html = replaceOutsideTags(item.html)
-        if (html === null) return item
-        listChanged = true
-        return { ...item, html }
-      })
-      if (!listChanged) return block
-      replaced = true
-      return { ...block, items }
-    }
-    if (block.type === 'table') {
-      let tableChanged = false
-      const rows = block.rows.map((row) => {
-        let rowChanged = false
-        const cells = row.cells.map((cell) => {
-          const html = replaceOutsideTags(cell.html)
-          if (html === null) return cell
-          rowChanged = true
-          return { ...cell, html }
-        })
-        if (!rowChanged) return row
-        tableChanged = true
-        return { ...row, cells }
-      })
-      if (!tableChanged) return block
-      replaced = true
-      return { ...block, rows }
-    }
-    if (block.type === 'signature') {
-      let signatureChanged = false
-      const parties = block.parties.map((party) => {
-        const next: Partial<SignatureParty> = {}
-        for (const field of ['label', 'name', 'date'] as const) {
-          const html = replaceOutsideTags(party[field])
-          if (html !== null) next[field] = html
-        }
-        if (Object.keys(next).length === 0) return party
-        signatureChanged = true
-        return { ...party, ...next }
-      })
-      if (!signatureChanged) return block
-      replaced = true
-      return { ...block, parties }
-    }
-    return block
-  })
+  let blocks = model.blocks
 
-  if (!replaced) return { model, replaced: false }
-  return { model: { ...model, blocks }, replaced: true }
+  if (oldText.trim().length >= 2) {
+    blocks = model.blocks.map((block) => {
+      if (block.type === 'paragraph' || block.type === 'heading') {
+        const html = replaceOutsideTags(block.html)
+        const secondaryHtml =
+          typeof block.secondaryHtml === 'string'
+            ? replaceOutsideTags(block.secondaryHtml)
+            : null
+        if (html === null && secondaryHtml === null) return block
+        replaced = true
+        return {
+          ...block,
+          ...(html !== null ? { html } : {}),
+          ...(secondaryHtml !== null ? { secondaryHtml } : {}),
+        }
+      }
+      if (block.type === 'list') {
+        let listChanged = false
+        const items = block.items.map((item) => {
+          const html = replaceOutsideTags(item.html)
+          if (html === null) return item
+          listChanged = true
+          return { ...item, html }
+        })
+        if (!listChanged) return block
+        replaced = true
+        return { ...block, items }
+      }
+      if (block.type === 'table') {
+        let tableChanged = false
+        const rows = block.rows.map((row) => {
+          let rowChanged = false
+          const cells = row.cells.map((cell) => {
+            const html = replaceOutsideTags(cell.html)
+            if (html === null) return cell
+            rowChanged = true
+            return { ...cell, html }
+          })
+          if (!rowChanged) return row
+          tableChanged = true
+          return { ...row, cells }
+        })
+        if (!tableChanged) return block
+        replaced = true
+        return { ...block, rows }
+      }
+      if (block.type === 'signature') {
+        let signatureChanged = false
+        const parties = block.parties.map((party) => {
+          const next: Partial<SignatureParty> = {}
+          for (const field of ['label', 'name', 'date'] as const) {
+            const html = replaceOutsideTags(party[field])
+            if (html !== null) next[field] = html
+          }
+          if (Object.keys(next).length === 0) return party
+          signatureChanged = true
+          return { ...party, ...next }
+        })
+        if (!signatureChanged) return block
+        replaced = true
+        return { ...block, parties }
+      }
+      return block
+    })
+  }
+
+  if (replaced) {
+    return { model: { ...model, blocks }, replaced: true }
+  }
+
+  // If exact replacement found no match and newText is an Ethiopian Calendar date,
+  // replace any existing Ethiopian date pattern (e.g. Ge'ez numerals or prior dates).
+  if (isEthDate) {
+    const replaceDateOutsideTags = (html: string): string | null => {
+      let changed = false
+      const result = html
+        .split(/(<[^>]*>)/)
+        .map((segment) => {
+          if (segment.startsWith('<')) return segment
+          const pattern = new RegExp(ETHIOPIAN_DATE_PATTERN.source, 'g')
+          return segment.replace(pattern, () => {
+            changed = true
+            return newEscaped
+          })
+        })
+        .join('')
+      return changed ? result : null
+    }
+
+    blocks = model.blocks.map((block) => {
+      if (block.type === 'paragraph' || block.type === 'heading') {
+        const html = replaceDateOutsideTags(block.html)
+        const secondaryHtml =
+          typeof block.secondaryHtml === 'string'
+            ? replaceDateOutsideTags(block.secondaryHtml)
+            : null
+        if (html === null && secondaryHtml === null) return block
+        replaced = true
+        return {
+          ...block,
+          ...(html !== null ? { html } : {}),
+          ...(secondaryHtml !== null ? { secondaryHtml } : {}),
+        }
+      }
+      if (block.type === 'list') {
+        let listChanged = false
+        const items = block.items.map((item) => {
+          const html = replaceDateOutsideTags(item.html)
+          if (html === null) return item
+          listChanged = true
+          return { ...item, html }
+        })
+        if (!listChanged) return block
+        replaced = true
+        return { ...block, items }
+      }
+      if (block.type === 'table') {
+        let tableChanged = false
+        const rows = block.rows.map((row) => {
+          let rowChanged = false
+          const cells = row.cells.map((cell) => {
+            const html = replaceDateOutsideTags(cell.html)
+            if (html === null) return cell
+            rowChanged = true
+            return { ...cell, html }
+          })
+          if (!rowChanged) return row
+          tableChanged = true
+          return { ...row, cells }
+        })
+        if (!tableChanged) return block
+        replaced = true
+        return { ...block, rows }
+      }
+      if (block.type === 'signature') {
+        let signatureChanged = false
+        const parties = block.parties.map((party) => {
+          const next: Partial<SignatureParty> = {}
+          for (const field of ['label', 'name', 'date'] as const) {
+            const html = replaceDateOutsideTags(party[field])
+            if (html !== null) next[field] = html
+          }
+          if (Object.keys(next).length === 0) return party
+          signatureChanged = true
+          return { ...party, ...next }
+        })
+        if (!signatureChanged) return block
+        replaced = true
+        return { ...block, parties }
+      }
+      return block
+    })
+
+    if (replaced) {
+      return { model: { ...model, blocks }, replaced: true }
+    }
+  }
+
+  return { model, replaced: false }
 }
 
 // ---------- Document density / print-fit presets ----------

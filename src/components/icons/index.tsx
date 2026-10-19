@@ -412,3 +412,11 @@ export function PanelRightIcon({ size = 18, ...rest }: IconProps) {
     </svg>
   )
 }
+
+export function ShieldIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  )
+}
