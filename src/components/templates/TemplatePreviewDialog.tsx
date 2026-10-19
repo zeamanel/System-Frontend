@@ -1,9 +1,10 @@
 import './TemplatePreviewDialog.css'
 
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n'
 import { useTemplateDetail } from '../../hooks/use-templates'
+import { useStartTemplateDocument } from '../../hooks/use-start-template-document'
 import { LANGUAGES, type DocumentLanguage } from '../../lib/languages'
 import { ArrowRightIcon, StarIcon } from '../icons'
 import {
@@ -30,14 +31,14 @@ export function TemplatePreviewDialog({
   onToggleFavorite,
 }: TemplatePreviewDialogProps) {
   const { t } = useI18n()
-  const navigate = useNavigate()
+  const { startTemplateDocument, isStarting } = useStartTemplateDocument()
   const templateQuery = useTemplateDetail(open && templateId ? templateId : '')
   const detail = templateQuery.data
 
-  const handleUseTemplate = () => {
+  const handleUseTemplate = async () => {
     if (!detail) return
     onClose()
-    navigate(`/templates/${encodeURIComponent(detail.id)}/create?lang=${encodeURIComponent(detail.language)}`)
+    await startTemplateDocument(detail)
   }
 
   const langInfo = detail ? LANGUAGES[detail.language as DocumentLanguage] : undefined
@@ -77,6 +78,7 @@ export function TemplatePreviewDialog({
               <Button
                 variant="primary"
                 size="sm"
+                loading={isStarting}
                 icon={<ArrowRightIcon size={14} />}
                 onClick={handleUseTemplate}
               >

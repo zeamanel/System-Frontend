@@ -99,12 +99,48 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
   const [previewMode, setPreviewMode] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
   const [leftOpen, setLeftOpen] = useState(
-    () => typeof window === 'undefined' || window.innerWidth >= 1180,
+    () =>
+      Boolean(template || doc.templateId) ||
+      typeof window === 'undefined' ||
+      window.innerWidth >= 1180,
   )
   const [rightOpen, setRightOpen] = useState(
     () => typeof window === 'undefined' || window.innerWidth >= 1540,
   )
   const [ethiopicSupport] = useState(() => probeEthiopicSupport())
+
+  const hasContent = useMemo(
+    () =>
+      model.blocks.some(
+        (block) =>
+          (block.type === 'paragraph' || block.type === 'heading') && block.html.trim() !== '',
+      ),
+    [model.blocks],
+  )
+
+  // Auto-focus on initial mount: when opening a blank template document, focus
+  // the first field in GuidedFieldsPanel (if questions exist) or the blank canvas.
+  useEffect(() => {
+    if (hasContent) return
+    const timer = setTimeout(() => {
+      if (template?.questions?.length) {
+        const firstField = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          `#field-${template.questions[0].id}`,
+        )
+        if (firstField) {
+          firstField.focus()
+          return
+        }
+      }
+      if (model.blocks[0]) {
+        const firstEditable = findEditable(document, { blockId: model.blocks[0].id })
+        if (firstEditable) focusEditable(firstEditable, 'start')
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+    // Run once on mount for blank initial state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ---- generation (initial + in-place regeneration) ----
   const createJob = useCreateGenerationRequest()
@@ -646,10 +682,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
           onAnswerChange={editor.setAnswer}
           language={editor.language}
           onLanguageChange={editor.setLanguage}
-          hasContent={model.blocks.some(
-            (block) =>
-              (block.type === 'paragraph' || block.type === 'heading') && block.html.trim() !== '',
-          )}
+          hasContent={hasContent}
           generationPending={generationPending}
           generationFailed={jobData?.status === 'failed'}
           onGenerate={(answers) => void handleGenerate(answers)}

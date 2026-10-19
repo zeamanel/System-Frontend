@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import { useTemplatesList } from '../../hooks/use-templates'
+import { useStartTemplateDocument } from '../../hooks/use-start-template-document'
 import { ArrowRightIcon } from '../icons'
 import { templateIcon } from '../templates/template-icons'
 import { Button, Dialog, PanelError, SearchInput } from '../ui'
@@ -21,6 +22,7 @@ export interface CreateDocumentDialogProps {
 export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const { startTemplateDocument } = useStartTemplateDocument()
   const [filter, setFilter] = useState('')
 
   const templates = useTemplatesList()
@@ -83,7 +85,7 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
                     className="create-dialog__item"
                     onClick={() => {
                       onClose()
-                      navigate(`/templates/${encodeURIComponent(template.id)}/create`)
+                      void startTemplateDocument(template)
                     }}
                   >
                     <span className="create-dialog__item-icon">

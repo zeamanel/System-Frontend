@@ -110,6 +110,7 @@ export interface DocumentVersionSnapshot {
 export interface CreateDocumentPayload {
   title?: string
   templateId: string
+  documentTypeId?: string
   language: string
   answers?: Record<string, string>
   content?: string

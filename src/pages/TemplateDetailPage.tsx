@@ -1,13 +1,11 @@
 import './pages.css'
 
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
-import {
-  useFavoriteTemplateIdSet,
-  useToggleFavoriteTemplate,
-} from '../hooks/use-favorites'
+import { useFavoriteTemplateIdSet, useToggleFavoriteTemplate } from '../hooks/use-favorites'
 import { useTemplateDetail } from '../hooks/use-templates'
+import { useStartTemplateDocument } from '../hooks/use-start-template-document'
 import { templateIcon } from '../components/templates/template-icons'
 import { ArrowLeftIcon, StarIcon } from '../components/icons'
 import {
@@ -23,11 +21,11 @@ import {
 
 export default function TemplateDetailPage() {
   const { t } = useI18n()
-  const navigate = useNavigate()
   const { templateId = '' } = useParams<'templateId'>()
   const template = useTemplateDetail(templateId)
   const favoriteIds = useFavoriteTemplateIdSet()
   const toggleFavorite = useToggleFavoriteTemplate()
+  const { startTemplateDocument, isStarting } = useStartTemplateDocument()
 
   if (template.isPending) {
     return <LoadingState full label={t('common.loading')} />
@@ -113,11 +111,8 @@ export default function TemplateDetailPage() {
           </Button>
           <Button
             variant="primary"
-            onClick={() =>
-              navigate(
-                `/templates/${encodeURIComponent(detail.id)}/create?lang=${encodeURIComponent(detail.language)}`,
-              )
-            }
+            loading={isStarting}
+            onClick={() => void startTemplateDocument(detail)}
           >
             {t('template.createDocument')}
           </Button>

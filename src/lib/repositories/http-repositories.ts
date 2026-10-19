@@ -373,6 +373,7 @@ class HttpDocumentsRepository implements DocumentsRepository {
     const record = await createDocumentEndpoint(
       {
         templateId: payload.templateId,
+        documentTypeId: payload.documentTypeId,
         title: payload.title,
         language: payload.language,
         answers: payload.answers,

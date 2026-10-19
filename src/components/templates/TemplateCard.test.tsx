@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { TemplateCard } from './TemplateCard'
@@ -28,18 +29,21 @@ const template: TemplateSummary = {
 
 function renderCard(overrides: Partial<Parameters<typeof TemplateCard>[0]> = {}) {
   const onToggleFavorite = vi.fn()
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const utils = render(
-    <MemoryRouter>
-      <TemplateCard
-        template={template}
-        favorited={false}
-        onToggleFavorite={onToggleFavorite}
-        favoriteAddLabel="Add to favorites"
-        favoriteRemoveLabel="Remove from favorites"
-        categoryLabel="Business"
-        {...overrides}
-      />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <TemplateCard
+          template={template}
+          favorited={false}
+          onToggleFavorite={onToggleFavorite}
+          favoriteAddLabel="Add to favorites"
+          favoriteRemoveLabel="Remove from favorites"
+          categoryLabel="Business"
+          {...overrides}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
   return { onToggleFavorite, ...utils }
 }
@@ -75,4 +79,11 @@ describe('TemplateCard', () => {
     expect(onPreview).toHaveBeenCalledWith('letter')
   })
 
+  it('triggers onUseTemplate when Use Template is clicked', () => {
+    const onUseTemplate = vi.fn()
+    renderCard({ onUseTemplate })
+    const useBtn = screen.getByRole('button', { name: /use template/i })
+    fireEvent.click(useBtn)
+    expect(onUseTemplate).toHaveBeenCalledWith(template)
+  })
 })

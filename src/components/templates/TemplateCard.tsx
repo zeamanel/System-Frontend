@@ -1,7 +1,8 @@
 import './TemplateCard.css'
 
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import type { TemplateSummary } from '../../lib/repositories'
+import { useStartTemplateDocument } from '../../hooks/use-start-template-document'
 import { ArrowRightIcon, EyeIcon, StarIcon } from '../icons'
 import { Badge, Button } from '../ui'
 import { templateIcon } from './template-icons'
@@ -17,6 +18,7 @@ export interface TemplateCardProps {
   onPreview?: (templateId: string) => void
   previewLabel?: string
   useTemplateLabel?: string
+  onUseTemplate?: (template: TemplateSummary) => void
 }
 
 /** Browseable template card: navigates to the template detail page. */
@@ -30,9 +32,10 @@ export function TemplateCard({
   onPreview,
   previewLabel = 'Preview',
   useTemplateLabel = 'Use Template',
+  onUseTemplate,
 }: TemplateCardProps) {
   const Icon = templateIcon(template.iconKey)
-  const navigate = useNavigate()
+  const { startTemplateDocument, isStarting } = useStartTemplateDocument()
 
   return (
     <article className="template-card">
@@ -83,9 +86,14 @@ export function TemplateCard({
           <Button
             variant="secondary"
             size="sm"
+            loading={isStarting}
             onClick={(e) => {
               e.preventDefault()
-              navigate(`/templates/${encodeURIComponent(template.id)}/create?lang=${encodeURIComponent(template.language)}`)
+              if (onUseTemplate) {
+                onUseTemplate(template)
+              } else {
+                void startTemplateDocument(template)
+              }
             }}
           >
             {useTemplateLabel} &rarr;
