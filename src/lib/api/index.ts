@@ -5,7 +5,7 @@ export {
   VersionConflictError,
   RateLimitError,
 } from './client'
-export type { QueryParams, RequestOptions } from './client'
+export type { ApiClient, QueryParams, RequestOptions } from './client'
 export { generateKey, generationDocumentKey } from './idempotency'
 export { ensureSyncedUser } from './sync-user'
 export { onSessionExpired } from './auth-store'
@@ -14,4 +14,8 @@ export {
   type RefineBlockApiInput,
   type RefineBlockApiResponse,
 } from './endpoints/generation'
-
+export {
+  trackTemplateSearch,
+  resetSearchTrackingCache,
+  type TrackTemplateSearchInput,
+} from './endpoints/templates'

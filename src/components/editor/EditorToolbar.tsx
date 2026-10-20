@@ -1,6 +1,7 @@
 ﻿import { useI18n } from '../../i18n'
 import type { SaveStatus } from './useDocumentEditor'
 import { Badge, Button, Popover } from '../ui'
+import { OpenLocalFileButton } from '../documents/OpenLocalFileButton'
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -31,6 +32,7 @@ export interface EditorToolbarProps {
   onToggleLeftPanel: () => void
   onToggleRightPanel: () => void
   onBack: () => void
+  onImportFile?: (content: string, title: string) => void
 }
 
 const STATUS_LABEL_KEY: Record<SaveStatus, string> = {
@@ -66,6 +68,7 @@ export function EditorToolbar({
   onToggleLeftPanel,
   onToggleRightPanel,
   onBack,
+  onImportFile,
 }: EditorToolbarProps) {
   const { t } = useI18n()
 
@@ -152,6 +155,7 @@ export function EditorToolbar({
         exportPending,
         exportError,
         status,
+        onImportFile,
         t,
       })}
     </header>
@@ -169,11 +173,15 @@ function renderToolbarEnd(props: {
   exportPending: boolean
   exportError: string | null
   status: SaveStatus
+  onImportFile?: (content: string, title: string) => void
   t: T
 }) {
   const { t } = props
   return (
     <div className="editor-toolbar__group editor-toolbar__group--end">
+      {props.onImportFile ? (
+        <OpenLocalFileButton onImportIntoCurrent={props.onImportFile} compact />
+      ) : null}
       <Button
         variant="ghost"
         icon={<EyeIcon size={16} />}

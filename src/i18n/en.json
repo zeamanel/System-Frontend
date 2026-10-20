@@ -77,6 +77,8 @@
   "empty.documents.action": "Create your first document",
   "documents.title": "My Documents",
   "documents.searchPlaceholder": "Search documents…",
+  "documents.openFile": "Open file",
+  "documents.openFileError": "Failed to open file. Please make sure it is a supported format (.txt, .md, .html, .json, .docx).",
   "documents.status.draft": "Draft",
   "documents.status.generating": "Generating",
   "documents.status.ready": "Ready",

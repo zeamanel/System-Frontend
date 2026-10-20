@@ -395,6 +395,16 @@ export function DownloadIcon({ size = 18, ...rest }: IconProps) {
   )
 }
 
+export function UploadIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M12 15V4" />
+      <path d="m7 8.5 5-5 5 5" />
+      <path d="M4 19h16" />
+    </svg>
+  )
+}
+
 export function PanelLeftIcon({ size = 18, ...rest }: IconProps) {
   return (
     <svg {...svgProps(size)} {...rest}>

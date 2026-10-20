@@ -77,6 +77,8 @@
   "empty.documents.action": "የመጀመሪያዎን ሰነድ ይፍጠሩ",
   "documents.title": "ሰነዶቼ",
   "documents.searchPlaceholder": "ሰነዶችን ይፈልጉ…",
+  "documents.openFile": "ፋይል ክፈት",
+  "documents.openFileError": "ፋይሉን መክፈት አልተቻለም። እባክዎ የተደገፈ ቅርጸት (.txt, .md, .html, .json, .docx) መሆኑን ያረጋግጡ።",
   "documents.status.draft": "ረቂቅ",
   "documents.status.generating": "በማመንጨት ላይ",
   "documents.status.ready": "ዝግጁ",

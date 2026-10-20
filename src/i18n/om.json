@@ -77,6 +77,8 @@
   "empty.documents.action": "Create your first document",
   "documents.title": "My Documents",
   "documents.searchPlaceholder": "Search documents…",
+  "documents.openFile": "Faayilii bani",
+  "documents.openFileError": "Faayilii banuun hin danda'amne. Maaloo bifa deeggaramu (.txt, .md, .html, .json, .docx) ta'uu isaa mirkaneeffadhaa.",
   "documents.status.draft": "Draft",
   "documents.status.generating": "Generating",
   "documents.status.ready": "Ready",

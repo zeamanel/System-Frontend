@@ -6,6 +6,7 @@ import { useI18n } from '../i18n'
 import { useDebouncedValue } from '../hooks/use-debounced-value'
 import { useDocumentsList } from '../hooks/use-documents'
 import { DocumentListItem } from '../components/documents/DocumentListItem'
+import { OpenLocalFileButton } from '../components/documents/OpenLocalFileButton'
 import { DocumentIcon } from '../components/icons'
 import {
   Button,
@@ -27,7 +28,10 @@ export default function DocumentsPage() {
 
   return (
     <div className="page">
-      <PageHeader title={t('documents.title')} />
+      <PageHeader
+        title={t('documents.title')}
+        actions={<OpenLocalFileButton />}
+      />
 
       <div className="toolbar">
         <div className="toolbar__search">

@@ -1,6 +1,6 @@
 import './pages.css'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
 import { useDebouncedValue } from '../hooks/use-debounced-value'
@@ -12,6 +12,7 @@ import { useTemplatesPaginated } from '../hooks/use-templates'
 import type { TemplateCategory, TemplateSortBy } from '../lib/repositories'
 import { TemplateCard } from '../components/templates/TemplateCard'
 import { TemplatePreviewDialog } from '../components/templates/TemplatePreviewDialog'
+import { trackTemplateSearch } from '../lib/api'
 import { StarIcon } from '../components/icons'
 import { COUNTRIES, type CountryCode } from '../preferences'
 import { regionsForCountry, regionDisplayName } from '../lib/geo'
@@ -101,6 +102,16 @@ export default function TemplatesPage() {
   const totalPages = templates.data?.totalPages ?? 1
   const startCount = total === 0 ? 0 : (page - 1) * 8 + 1
   const endCount = Math.min(page * 8, total)
+
+  useEffect(() => {
+    if (!templates.isLoading && debouncedSearch.trim().length >= 2) {
+      trackTemplateSearch({
+        query: debouncedSearch,
+        locale,
+        resultCount: total,
+      })
+    }
+  }, [debouncedSearch, templates.isLoading, total, locale])
 
   const resetFilters = () => {
     setSearch('')

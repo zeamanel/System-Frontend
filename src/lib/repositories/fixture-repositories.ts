@@ -150,7 +150,7 @@ class FixtureTemplatesRepository implements TemplatesRepository {
 interface CustomDocumentRecord {
   id: string
   title: string
-  templateId: string
+  templateId: string | null
   status: 'draft' | 'generating' | 'ready' | 'error'
   language: string
   createdAt: string
@@ -188,7 +188,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         id: doc.id,
         title: doc.title,
         templateId: doc.templateId,
-        templateTitle: templates.get(doc.templateId) ?? doc.templateId,
+        templateTitle: doc.templateId ? (templates.get(doc.templateId) ?? doc.templateId) : null,
         status: doc.status,
         language: doc.language,
         version: doc.version ?? 1,
@@ -248,7 +248,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         id: custom.id,
         title: custom.title,
         templateId: custom.templateId,
-        templateTitle: templates.get(custom.templateId) ?? custom.templateId,
+        templateTitle: custom.templateId ? (templates.get(custom.templateId) ?? custom.templateId) : null,
         status: custom.status,
         language: custom.language,
         version: custom.version ?? 1,
@@ -284,15 +284,15 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         (fixture) => [fixture.id, pickText(fixture.titles, locale)] as const,
       ),
     )
-    const templateTitle = templates.get(payload.templateId) ?? payload.templateId
+    const templateTitle = payload.templateId ? (templates.get(payload.templateId) ?? payload.templateId) : ''
     const nowIso = new Date().toISOString()
     const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    const title = payload.title?.trim() || templateTitle
+    const title = payload.title?.trim() || templateTitle || 'Untitled Document'
 
     const newDoc: CustomDocumentRecord = {
       id,
       title,
-      templateId: payload.templateId,
+      templateId: payload.templateId ?? null,
       status: 'ready',
       language: payload.language,
       version: 1,
@@ -308,7 +308,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
     return {
       id,
       title,
-      templateId: payload.templateId,
+      templateId: payload.templateId ?? null,
       templateTitle,
       status: 'ready',
       language: payload.language,
@@ -392,7 +392,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       id: record.id,
       title: record.title,
       templateId: record.templateId,
-      templateTitle: templates.get(record.templateId) ?? record.templateId,
+      templateTitle: record.templateId ? (templates.get(record.templateId) ?? record.templateId) : null,
       status: record.status,
       language: record.language,
       version: record.version ?? 1,

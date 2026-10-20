@@ -1,5 +1,6 @@
 import './pages.css'
 
+import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
@@ -20,9 +21,10 @@ import {
   SearchInput,
   SkeletonText,
 } from '../components/ui'
+import { trackTemplateSearch } from '../lib/api'
 
 export default function SearchPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get('q') ?? ''
   const debouncedQuery = useDebouncedValue(query, 300)
@@ -36,6 +38,16 @@ export default function SearchPage() {
 
   const templates = results.data?.templates ?? []
   const documents = results.data?.documents ?? []
+
+  useEffect(() => {
+    if (!results.isLoading && debouncedQuery.trim().length >= 2) {
+      trackTemplateSearch({
+        query: debouncedQuery,
+        locale,
+        resultCount: templates.length,
+      })
+    }
+  }, [debouncedQuery, results.isLoading, templates.length, locale])
 
   return (
     <div className="page">

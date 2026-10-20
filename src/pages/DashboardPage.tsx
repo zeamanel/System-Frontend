@@ -18,6 +18,7 @@ import { useRecommendedTemplates } from '../hooks/use-templates'
 import { useUsage } from '../hooks/use-usage'
 import { CreateDocumentDialog } from '../components/create-document/CreateDocumentDialog'
 import { DocumentListItem } from '../components/documents/DocumentListItem'
+import { OpenLocalFileButton } from '../components/documents/OpenLocalFileButton'
 import { TemplateCard } from '../components/templates/TemplateCard'
 import { templateIcon } from '../components/templates/template-icons'
 import { DocumentIcon } from '../components/icons'
@@ -74,6 +75,7 @@ export default function DashboardPage() {
             <Button variant="secondary" onClick={() => navigate('/templates')}>
               {t('dashboard.browseTemplates')}
             </Button>
+            <OpenLocalFileButton />
           </>
         }
       />

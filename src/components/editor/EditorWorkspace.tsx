@@ -13,6 +13,7 @@ import {
   applyDocumentPreset,
   clampIndent,
   createImage,
+  deserializeModel,
   createPageBreak,
   createSignature,
   createTable,
@@ -466,6 +467,16 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generationComplete])
 
+  const handleImportFile = (serializedContent: string, newTitle: string) => {
+    const parsed = deserializeModel(serializedContent, editor.language)
+    if (parsed) {
+      editor.updateModel(() => parsed)
+      if (newTitle) {
+        editor.setTitle(newTitle)
+      }
+    }
+  }
+
   const handlePrint = useCallback((): void => {
     void editor.flush()
     triggerPrint()
@@ -667,6 +678,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
         onToggleLeftPanel={() => setLeftOpen((current) => !current)}
         onToggleRightPanel={() => setRightOpen((current) => !current)}
         onBack={onBack}
+        onImportFile={handleImportFile}
       />
 
       {editor.recovered ? (

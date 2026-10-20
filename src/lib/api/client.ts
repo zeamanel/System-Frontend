@@ -315,3 +315,5 @@ export const apiClient = {
   delete: <T>(path: string, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'DELETE' }),
 }
+
+export type ApiClient = typeof apiClient
