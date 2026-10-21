@@ -114,6 +114,7 @@ async function nullOnNotFound<T>(run: () => Promise<T>): Promise<T | null> {
 
 interface TemplateApiRecord {
   id: string
+  slug?: string
   documentTypeId?: string
   category: string
   title: string
@@ -175,6 +176,7 @@ function mapDocumentDetail(record: DocumentApiRecord): DocumentDetailRecord {
 function mapTemplate(record: TemplateApiRecord): TemplateSummary {
   return {
     id: record.id,
+    slug: record.slug ?? record.id,
     documentTypeId: record.documentTypeId ?? record.id,
     title: record.title,
     description: record.description,

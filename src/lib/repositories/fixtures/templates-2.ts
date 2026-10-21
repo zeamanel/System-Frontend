@@ -621,7 +621,7 @@ export const TEMPLATES_PART_2: TemplateFixture[] = [
   },
 
   {
-    id: '00000000-0000-4000-a000-000000000011',
+    id: 'd7e8f9a0-0011-4000-8000-000000000011',
     slug: 'custom-ai-document',
     documentTypeId: 'custom_ai_document',
     category: 'translation_rewriting',

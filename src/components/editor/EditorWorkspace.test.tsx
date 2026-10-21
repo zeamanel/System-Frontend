@@ -557,7 +557,7 @@ describe('EditorWorkspace', () => {
   it('opens prompt-only blank document without party inputs and generates content from prompt', async () => {
     const created = await repos.documents.create({
       title: 'Vehicle Sale Agreement',
-      templateId: null,
+      templateId: undefined,
       language: 'en',
     })
     const { doc } = await loadDocument(created.id)
@@ -589,12 +589,12 @@ describe('EditorWorkspace', () => {
     // The generated document renders onto the canvas
     await waitFor(
       () => {
-        expect(screen.getAllByText(/900,000 Birr/i).length).toBeGreaterThan(0)
+        expect(screen.getAllByText(/Signatures/i).length).toBeGreaterThan(0)
       },
       { timeout: 4000 },
     )
-    expect(screen.getAllByText(/2022 Toyota Corolla/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Signatures/i).length).toBeGreaterThan(0)
+    const canvas = document.querySelector('.doc-pages')
+    expect(canvas?.textContent).toContain('900,000 Birr')
+    expect(canvas?.textContent).toContain('2022 Toyota Corolla')
   })
-
 })
