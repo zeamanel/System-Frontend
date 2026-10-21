@@ -1625,6 +1625,18 @@ export function draftFromTemplate(
     blocks.push(...answerToBlocks(answer))
   }
 
+  const additionalInstructions = answers['additional_instructions']?.trim()
+  if (additionalInstructions) {
+    const additionalHeading =
+      language === 'am'
+        ? 'ተጨማሪ መረጃ እና ልዩ ውሎች'
+        : language === 'om'
+          ? 'Odeeffannoo fi Haalawwan Dabalataa'
+          : 'Additional Details & Terms'
+    blocks.push(createHeading(escapePlainText(additionalHeading), 2))
+    blocks.push(...answerToBlocks(additionalInstructions))
+  }
+
   const roleQuestions = template.questions.filter(
     (question) => ROLE_QUESTION_IDS.includes(question.id) && answers[question.id]?.trim(),
   )

@@ -406,5 +406,10 @@
   "settings.numberFormat.ethi": "የግዕዝ ቁጥሮች (፩, ፪, ፫)",
   "language.fallbackHint": "የመተግበሪያ ጽሑፎች ወደ እንግሊዝኛ ይመለሳሉ",
   "language.partialNotice": "የ{language} በይነገጽ በቅርቡ ይመጣል — በ{language} ያሉ ናሙናዎችና ሰነዶች ይገኛሉ።",
-  "session.expired": "የክፍለ-ጊዜዎ አበቃል። እባክዎ እንደገና ይግቡ።"
+  "session.expired": "የክፍለ-ጊዜዎ አበቃል። እባክዎ እንደገና ይግቡ።",
+  "editor.additionalInstructionsLabel": "ተጨማሪ መረጃ ወይም መመሪያ",
+  "editor.additionalInstructionsPlaceholder": "ለሰነዱ የሚያስፈልጉ ተጨማሪ መረጃዎችን፣ ውሎችን ወይም መመሪያዎችን እዚህ ይጻፉ...",
+  "editor.insertClausePlaceholder": "ምሳሌ፦ የክፍያ መዘግየት ቅጣት አንቀጽ ጻፍ...",
+  "editor.draftNewClause": "አንቀጽ አዘጋጅ",
+  "wizard.optionalTag": "አስገዳጅ ያልሆነ"
 }

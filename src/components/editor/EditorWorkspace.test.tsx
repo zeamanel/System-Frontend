@@ -436,5 +436,88 @@ describe('EditorWorkspace', () => {
       expect((secondaryEditable.textContent ?? '').length).toBeGreaterThan(0)
     })
   })
-})
+
+  it('renders always-available additional details textarea and includes it in generated content', async () => {
+    const created = await repos.documents.create({
+      title: 'Additional details target',
+      templateId: 'letter',
+      language: 'en',
+      content: '',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    // Find the additional instructions field
+    const additionalField = screen.getByLabelText(/additional details or instructions/i)
+    expect(additionalField).toBeInTheDocument()
+
+    // Fill required fields + additional instructions
+    fireEvent.change(screen.getByLabelText(/letter addressed to/i), {
+      target: { value: 'Revenue Authority' },
+    })
+    fireEvent.change(screen.getByLabelText(/subject of the letter/i), {
+      target: { value: 'Tax Clearance Certificate' },
+    })
+    fireEvent.change(screen.getByLabelText(/points should the letter cover/i), {
+      target: { value: 'All audit reports submitted' },
+    })
+    fireEvent.change(additionalField, {
+      target: { value: 'TIN number 0012345678 and receipt batch #42' },
+    })
+
+    // Click generate
+    fireEvent.click(screen.getByRole('button', { name: /generate content/i }))
+    await waitFor(() => expect(screen.getByTestId('editor-generating')).toBeInTheDocument(), {
+      timeout: 2500,
+    })
+
+    // The generated document incorporates the additional instructions
+    await waitFor(
+      () => {
+        const matching = screen.getAllByText(/TIN number 0012345678/i)
+        expect(matching.length).toBeGreaterThan(0)
+      },
+      { timeout: 4000 },
+    )
+  })
+
+  it('drafts and inserts a new clause when no block is selected in BlockRefinePanel', async () => {
+    const created = await repos.documents.create({
+      title: 'New clause draft',
+      templateId: 'rental-agreement',
+      language: 'en',
+      content:
+        'RENTAL TERMS\n\nThe tenant will pay 20,000 birr every month.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    // Initially no block is selected; the refine panel prompt is available with "Draft clause"
+    const input = screen.getByPlaceholderText(/e\.g\. write a late payment penalty clause/i)
+    expect(input).toBeInTheDocument()
+    const draftButton = screen.getByRole('button', { name: /draft clause/i })
+    expect(draftButton).toBeInTheDocument()
+
+    // Type new clause instructions
+    fireEvent.change(input, {
+      target: { value: 'Security deposit will pay 40,000 birr upon signing' },
+    })
+    fireEvent.click(draftButton)
+
+    // The proposal appears in the preview
+    const preview = await screen.findByTestId('editor-refine-preview')
+    expect(preview.innerHTML).toContain('shall pay')
+
+    // Click Apply to insert the new clause into the document
+    fireEvent.click(screen.getByRole('button', { name: /apply to block/i }))
+
+    // Canvas now contains the newly inserted clause
+    await waitFor(() => {
+      expect(screen.getAllByText(/40,000 birr upon signing/i).length).toBeGreaterThan(0)
+    })
+  })
+});
+
 

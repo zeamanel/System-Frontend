@@ -131,6 +131,7 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
       // batch — no AI regeneration round-trip needed.
       const isEthDate = /ዓ\.ም\.?$/.test(value.trim())
       if (
+        questionId !== 'additional_instructions' &&
         prevValue !== value &&
         value.trim().length >= 1 &&
         (prevValue.trim().length >= 2 || isEthDate)

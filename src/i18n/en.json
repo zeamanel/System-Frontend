@@ -406,5 +406,10 @@
   "settings.numberFormat.ethi": "Ge'ez numerals (፩, ፪, ፫)",
   "language.fallbackHint": "UI strings fall back to English",
   "language.partialNotice": "{language} interface coming soon — templates and documents in {language} are available.",
-  "session.expired": "Your session has expired. Please sign in again."
+  "session.expired": "Your session has expired. Please sign in again.",
+  "editor.additionalInstructionsLabel": "Additional details or instructions",
+  "editor.additionalInstructionsPlaceholder": "Add any extra facts, terms, house/ID numbers, or instructions for the AI...",
+  "editor.insertClausePlaceholder": "e.g. Write a late payment penalty clause...",
+  "editor.draftNewClause": "Draft clause",
+  "wizard.optionalTag": "Optional"
 }

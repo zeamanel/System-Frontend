@@ -10,6 +10,8 @@ import type { OutlineEntry } from '../../lib/editor/model'
 import { Badge, Button, Input, Select, Spinner, Textarea } from '../ui'
 import { AlertIcon, SparkIcon } from '../icons'
 
+export const ADDITIONAL_INSTRUCTIONS_FIELD_ID = 'additional_instructions'
+
 export interface GuidedFieldsPanelProps {
   template: TemplateDetail | null | undefined
   answers: Record<string, string>
@@ -141,6 +143,24 @@ export function GuidedFieldsPanel({
           </div>
         )
       })}
+
+      <div className="editor-panel__field">
+        <Textarea
+          id={`field-${ADDITIONAL_INSTRUCTIONS_FIELD_ID}`}
+          rows={3}
+          label={
+            <>
+              {t('editor.additionalInstructionsLabel')}
+              <Badge variant="neutral">{t('wizard.optionalTag')}</Badge>
+            </>
+          }
+          placeholder={t('editor.additionalInstructionsPlaceholder')}
+          value={answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID] ?? ''}
+          onChange={(event) =>
+            onAnswerChange(ADDITIONAL_INSTRUCTIONS_FIELD_ID, event.target.value)
+          }
+        />
+      </div>
 
       <Select
         id="editor-language-select"

@@ -116,6 +116,23 @@ export function GuidedFlowQuickFillStep({
               </div>
             )
           })}
+            <div className="guided-flow__quickfill-field">
+              <Textarea
+                id="quickfill-additional_instructions"
+                rows={3}
+                label={
+                  <>
+                    {t('editor.additionalInstructionsLabel')}
+                    <Badge variant="neutral">{t('wizard.optionalTag')}</Badge>
+                  </>
+                }
+                value={answers['additional_instructions'] ?? ''}
+                placeholder={t('editor.additionalInstructionsPlaceholder')}
+                onChange={(event) =>
+                  onAnswerChange('additional_instructions', event.target.value)
+                }
+              />
+            </div>
         </div>
         <div className="guided-flow__actions guided-flow__actions--end">
           <Button

@@ -15,6 +15,7 @@ import {
   createImage,
   deserializeModel,
   createPageBreak,
+  createParagraph,
   createSignature,
   createTable,
   documentOutline,
@@ -711,6 +712,27 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
               ),
             )
           }
+          onInsertBlock={(html) => {
+            const newParagraph = createParagraph(html)
+            updateModel((current) => {
+              let targetIndex = current.blocks.length
+              for (let i = current.blocks.length - 1; i >= 0; i--) {
+                if (current.blocks[i].type === 'signature') {
+                  targetIndex = i
+                } else {
+                  break
+                }
+              }
+              const nextBlocks = [
+                ...current.blocks.slice(0, targetIndex),
+                newParagraph,
+                ...current.blocks.slice(targetIndex),
+              ]
+              return withBlocks(current, () => nextBlocks)
+            })
+            setActiveRef({ blockId: newParagraph.id })
+            queueFocus({ blockId: newParagraph.id }, 'end')
+          }}
           bilingual={Boolean(model.page.bilingual)}
           onApplySecondary={(blockId, html) =>
             updateModel((current) => updateSecondaryText(current, blockId, html))

@@ -406,5 +406,10 @@
   "settings.numberFormat.ethi": "Ge'ez numerals (፩, ፪, ፫)",
   "language.fallbackHint": "UI strings fall back to English",
   "language.partialNotice": "{language} interface coming soon — templates and documents in {language} are available.",
-  "session.expired": "Your session has expired. Please sign in again."
+  "session.expired": "Your session has expired. Please sign in again.",
+  "editor.additionalInstructionsLabel": "Odeeffannoo ykn qajeelfama dabalataa",
+  "editor.additionalInstructionsPlaceholder": "Odeeffannoo dabalataa, haalawwan waliigaltee ykn qajeelfama AI asitti barreessaa...",
+  "editor.insertClausePlaceholder": "Fkn: Keewwata adabbii turtii kaffaltii barreessi...",
+  "editor.draftNewClause": "Keewwata qopheessi",
+  "wizard.optionalTag": "Dirqama kan hin taane"
 }
