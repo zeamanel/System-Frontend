@@ -518,6 +518,39 @@ describe('EditorWorkspace', () => {
       expect(screen.getAllByText(/40,000 birr upon signing/i).length).toBeGreaterThan(0)
     })
   })
-});
 
+  it('toggles page orientation between portrait and landscape from the format panel', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
 
+    // Initially portrait
+    const sheet = document.querySelector<HTMLElement>('.a4-sheet')
+    expect(sheet).toBeInTheDocument()
+    expect(sheet?.dataset.orientation).toBe('portrait')
+    expect(sheet?.classList.contains('a4-sheet--landscape')).toBe(false)
+
+    // Find and click Landscape button in FormatPanel
+    const landscapeButton = screen.getByRole('button', { name: /^Landscape$/i })
+    expect(landscapeButton).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(landscapeButton)
+
+    await waitFor(() => {
+      expect(sheet?.dataset.orientation).toBe('landscape')
+      expect(sheet?.classList.contains('a4-sheet--landscape')).toBe(true)
+    })
+    expect(landscapeButton).toHaveAttribute('aria-pressed', 'true')
+
+    // Click Portrait button
+    const portraitButton = screen.getByRole('button', { name: /^Portrait$/i })
+    fireEvent.click(portraitButton)
+
+    await waitFor(() => {
+      expect(sheet?.dataset.orientation).toBe('portrait')
+      expect(sheet?.classList.contains('a4-sheet--landscape')).toBe(false)
+    })
+    expect(portraitButton).toHaveAttribute('aria-pressed', 'true')
+  })
+
+})

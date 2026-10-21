@@ -62,7 +62,8 @@ export function A4PagesCanvas({
     return map
   }, [model.blocks])
 
-  const contentHeightPx = contentHeightMm(model.page.margins) * (96 / 25.4)
+  const isLandscape = model.page.orientation === 'landscape'
+  const contentHeightPx = contentHeightMm(model.page.margins, model.page.orientation) * (96 / 25.4)
 
   const measureAndPaginate = useCallback(() => {
     const wrap = pagesWrapRef.current
@@ -117,7 +118,7 @@ export function A4PagesCanvas({
   useEffect(() => {
     const scroll = scrollRef.current
     if (!scroll) return
-    const update = (): void => setFit(fitWidthZoom(scroll.clientWidth))
+    const update = (): void => setFit(fitWidthZoom(scroll.clientWidth, model.page.orientation))
     update()
     if (typeof ResizeObserver === 'undefined') {
       window.addEventListener('resize', update)
@@ -126,7 +127,7 @@ export function A4PagesCanvas({
     const observer = new ResizeObserver(update)
     observer.observe(scroll)
     return () => observer.disconnect()
-  }, [])
+  }, [model.page.orientation])
 
   // Restore caret after re-pagination moved the focused block between pages.
   useLayoutEffect(() => {
@@ -139,6 +140,7 @@ export function A4PagesCanvas({
 
   return (
     <div className="doc-canvas-scroll" ref={scrollRef} data-editor-canvas-root>
+      <style>{`@page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 0; }`}</style>
       <div
         className="doc-pages"
         ref={pagesWrapRef}
@@ -148,8 +150,15 @@ export function A4PagesCanvas({
         {pages.map((pageBlockIds, pageIndex) => (
           <article
             key={pageIndex}
-            className="doc-paper"
+            className={[
+              'doc-paper',
+              'a4-sheet',
+              isLandscape ? 'doc-paper--landscape a4-sheet--landscape' : null,
+            ]
+              .filter(Boolean)
+              .join(' ')}
             data-page-index={pageIndex}
+            data-orientation={isLandscape ? 'landscape' : 'portrait'}
             aria-label={`${pageAriaLabel} ${pageIndex + 1}`}
           >
             {model.page.headerEnabled ? (

@@ -32,6 +32,7 @@ import {
   setDocumentFontSize,
   setIndent,
   setMargins,
+  setPageOrientation,
   setSpacing,
   setTableHeaderRow,
   splitTextBlock,
@@ -616,6 +617,8 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
           updateModel((current) => removeSignatureParty(current, activeRef.blockId, partyId))
         }
       },
+      onSetOrientation: (orientation) =>
+        updateModel((current) => setPageOrientation(current, orientation)),
       onUpdateMargins: (patch) => updateModel((current) => setMargins(current, patch)),
       onUpdatePageSetup: (patch) => updateModel((current) => updatePageSetup(current, patch)),
       onApplyPreset: (preset) => updateModel((current) => applyDocumentPreset(current, preset)),

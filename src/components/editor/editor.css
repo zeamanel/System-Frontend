@@ -503,7 +503,8 @@
   margin: 0 auto;
 }
 
-.doc-paper {
+.doc-paper,
+.a4-sheet {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -513,6 +514,12 @@
   box-shadow: var(--shadow-doc);
   border: 1px solid var(--color-border-subtle);
   box-sizing: border-box;
+}
+
+.doc-paper--landscape,
+.a4-sheet--landscape {
+  width: 297mm;
+  min-height: 210mm;
 }
 
 .doc-paper__content {
@@ -1128,7 +1135,8 @@ figure.doc-block--image-right {
     zoom: 1 !important;
   }
 
-  .doc-paper {
+  .doc-paper,
+  .a4-sheet {
     width: 210mm;
     height: 297mm;
     min-height: 297mm;
@@ -1140,7 +1148,15 @@ figure.doc-block--image-right {
     overflow: hidden;
   }
 
-  .doc-paper:last-child {
+  .doc-paper--landscape,
+  .a4-sheet--landscape {
+    width: 297mm;
+    height: 210mm;
+    min-height: 210mm;
+  }
+
+  .doc-paper:last-child,
+  .a4-sheet:last-child {
     break-after: auto;
     page-break-after: auto;
   }

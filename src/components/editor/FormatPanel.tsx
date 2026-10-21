@@ -7,6 +7,7 @@ import type {
   FontKey,
   HeadingLevel,
   ImageBlock,
+  PageOrientation,
   ParagraphSpacing,
   TextAlign,
 } from '../../lib/editor/types'
@@ -57,6 +58,7 @@ export interface FormatPanelCallbacks {
   onToggleTableHeader(): void
   onAddSignatureParty(): void
   onRemoveSignatureParty(partyId: string): void
+  onSetOrientation(orientation: PageOrientation): void
   onUpdateMargins(patch: Partial<DocumentModel['page']['margins']>): void
   onUpdatePageSetup(patch: Partial<DocumentModel['page']>): void
   onApplyPreset(preset: DocumentPreset): void
@@ -431,6 +433,25 @@ function renderPageSetup(model: DocumentModel, callbacks: FormatPanelCallbacks, 
       <h2 id="format-page" className="editor-panel__title">
         {t('editor.panelPage')}
       </h2>
+
+      <div className="editor-preset-row" role="group" aria-label={t('editor.orientation')}>
+        <button
+          type="button"
+          className="editor-preset-chip"
+          aria-pressed={model.page.orientation !== 'landscape'}
+          onClick={() => callbacks.onSetOrientation('portrait')}
+        >
+          {t('editor.orientationPortrait')}
+        </button>
+        <button
+          type="button"
+          className="editor-preset-chip"
+          aria-pressed={model.page.orientation === 'landscape'}
+          onClick={() => callbacks.onSetOrientation('landscape')}
+        >
+          {t('editor.orientationLandscape')}
+        </button>
+      </div>
 
       <div className="editor-preset-row" role="group" aria-label={t('editor.panelPage')}>
         <button

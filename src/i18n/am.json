@@ -411,5 +411,8 @@
   "editor.additionalInstructionsPlaceholder": "ለሰነዱ የሚያስፈልጉ ተጨማሪ መረጃዎችን፣ ውሎችን ወይም መመሪያዎችን እዚህ ይጻፉ...",
   "editor.insertClausePlaceholder": "ምሳሌ፦ የክፍያ መዘግየት ቅጣት አንቀጽ ጻፍ...",
   "editor.draftNewClause": "አንቀጽ አዘጋጅ",
-  "wizard.optionalTag": "አስገዳጅ ያልሆነ"
+  "wizard.optionalTag": "አስገዳጅ ያልሆነ",
+  "editor.orientation": "የገጽ አቀማመጥ",
+  "editor.orientationPortrait": "በቁመት (Portrait)",
+  "editor.orientationLandscape": "በወርድ (Landscape)"
 }

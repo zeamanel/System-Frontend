@@ -17,6 +17,7 @@ import type {
   InlineHtml,
   ListBlock,
   PageMargins,
+  PageOrientation,
   PageSetup,
   ParagraphBlock,
   ParagraphSpacing,
@@ -152,12 +153,14 @@ export function createEmptyDocument(language = 'en'): DocumentModel {
 }
 
 /** Page geometry helpers used by the canvas and the print stylesheet. */
-export function contentWidthMm(margins: PageMargins): number {
-  return A4_WIDTH_MM - margins.left - margins.right
+export function contentWidthMm(margins: PageMargins, orientation: PageOrientation = 'portrait'): number {
+  const width = orientation === 'landscape' ? A4_HEIGHT_MM : A4_WIDTH_MM
+  return width - margins.left - margins.right
 }
 
-export function contentHeightMm(margins: PageMargins): number {
-  return A4_HEIGHT_MM - margins.top - margins.bottom
+export function contentHeightMm(margins: PageMargins, orientation: PageOrientation = 'portrait'): number {
+  const height = orientation === 'landscape' ? A4_WIDTH_MM : A4_HEIGHT_MM
+  return height - margins.top - margins.bottom
 }
 
 // ---------- Generic immutable operations ----------
@@ -541,6 +544,13 @@ export function updatePageSetup(model: DocumentModel, patch: Partial<PageSetup>)
 
 export function setBilingualMode(model: DocumentModel, enabled: boolean): DocumentModel {
   return updatePageSetup(model, { bilingual: enabled })
+}
+
+export function setPageOrientation(
+  model: DocumentModel,
+  orientation: PageOrientation,
+): DocumentModel {
+  return updatePageSetup(model, { orientation })
 }
 
 export function updateSecondaryText(
@@ -979,6 +989,9 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
       footerHtml: sanitizeInlineHtml(String(input.page?.footerHtml ?? '')),
       ...(typeof input.page?.bilingual === 'boolean'
         ? { bilingual: input.page.bilingual }
+        : {}),
+      ...(input.page?.orientation === 'landscape' || input.page?.orientation === 'portrait'
+        ? { orientation: input.page.orientation }
         : {}),
     },
     blocks,

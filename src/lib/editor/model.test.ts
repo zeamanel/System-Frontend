@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyDocumentPreset,
+  contentHeightMm,
+  contentWidthMm,
   createEmptyDocument,
   createHeading,
   createList,
@@ -23,6 +25,7 @@ import {
   sanitizeModel,
   serializeModel,
   setBilingualMode,
+  setPageOrientation,
   setMargins,
   splitTextBlock,
   toggleList,
@@ -631,5 +634,42 @@ describe('bilingual side-by-side mode', () => {
   })
 })
 
+describe('page orientation (portrait vs landscape)', () => {
+  it('toggles page orientation immutably', () => {
+    const doc = createEmptyDocument('en')
+    expect(doc.page.orientation).toBeUndefined()
 
+    const landscape = setPageOrientation(doc, 'landscape')
+    expect(landscape.page.orientation).toBe('landscape')
+    expect(doc.page.orientation).toBeUndefined()
 
+    const portrait = setPageOrientation(landscape, 'portrait')
+    expect(portrait.page.orientation).toBe('portrait')
+    expect(landscape.page.orientation).toBe('landscape')
+  })
+
+  it('adjusts contentWidthMm and contentHeightMm based on orientation', () => {
+    const margins = { top: 20, right: 20, bottom: 20, left: 20 }
+    expect(contentWidthMm(margins, 'portrait')).toBe(170)
+    expect(contentHeightMm(margins, 'portrait')).toBe(257)
+    expect(contentWidthMm(margins)).toBe(170)
+    expect(contentHeightMm(margins)).toBe(257)
+
+    expect(contentWidthMm(margins, 'landscape')).toBe(257)
+    expect(contentHeightMm(margins, 'landscape')).toBe(170)
+  })
+
+  it('round-trips page orientation through sanitizeModel, serializeModel and deserializeModel', () => {
+    const doc = setPageOrientation(modelWith(createParagraph('Landscape content')), 'landscape')
+    const serialized = serializeModel(doc)
+    const deserialized = deserializeModel(serialized)
+
+    expect(deserialized?.page.orientation).toBe('landscape')
+
+    const portraitDoc = setPageOrientation(doc, 'portrait')
+    const portraitSerialized = serializeModel(portraitDoc)
+    const portraitDeserialized = deserializeModel(portraitSerialized)
+
+    expect(portraitDeserialized?.page.orientation).toBe('portrait')
+  })
+})

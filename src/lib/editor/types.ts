@@ -119,6 +119,8 @@ export interface PageMargins {
   left: number
 }
 
+export type PageOrientation = 'portrait' | 'landscape'
+
 export interface PageSetup {
   margins: PageMargins
   showPageNumbers: boolean
@@ -127,6 +129,7 @@ export interface PageSetup {
   footerEnabled: boolean
   footerHtml: InlineHtml
   bilingual?: boolean
+  orientation?: PageOrientation
 }
 
 export interface DocumentModel {

@@ -411,5 +411,8 @@
   "editor.additionalInstructionsPlaceholder": "Add any extra facts, terms, house/ID numbers, or instructions for the AI...",
   "editor.insertClausePlaceholder": "e.g. Write a late payment penalty clause...",
   "editor.draftNewClause": "Draft clause",
-  "wizard.optionalTag": "Optional"
+  "wizard.optionalTag": "Optional",
+  "editor.orientation": "Orientation",
+  "editor.orientationPortrait": "Portrait",
+  "editor.orientationLandscape": "Landscape"
 }
