@@ -4,6 +4,7 @@ import type { MessageKey, MessageVars } from '../../i18n'
 import { useCreateExportRequest } from '../../hooks/use-documents'
 import { useCreateGenerationRequest, useGenerationJob } from '../../hooks/use-generation'
 import { generateKey } from '../../lib/api/idempotency'
+import type { TelegramProfile } from '../../lib/api/endpoints/telegram-bridge'
 import type { DocumentDetailRecord, TemplateDetail } from '../../lib/repositories'
 import { ExportUnavailableError } from '../../lib/repositories'
 import {
@@ -476,7 +477,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generationComplete])
 
-  const handleImportFile = (serializedContent: string, newTitle: string) => {
+  const handleImportFile = useCallback((serializedContent: string, newTitle: string) => {
     const parsed = deserializeModel(serializedContent, editor.language)
     if (parsed) {
       editor.updateModel(() => parsed)
@@ -484,7 +485,70 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
         editor.setTitle(newTitle)
       }
     }
-  }
+  }, [editor])
+
+  const handleApplyTelegramData = useCallback(
+    (data: { profile?: TelegramProfile; content?: string; title?: string }) => {
+      if (data.content) {
+        handleImportFile(data.content, data.title ?? "")
+      }
+      if (data.profile) {
+        const p = data.profile
+        const currentAnswers = { ...editor.answers }
+        const questions = template?.questions ?? []
+
+        const setFieldIfEmpty = (matcher: (id: string, label: string) => boolean, val?: string) => {
+          if (!val) return
+          const match = questions.find((q) => matcher(q.id.toLowerCase(), (q.label ?? "").toLowerCase()))
+          if (match) {
+            if (!currentAnswers[match.id]?.trim()) {
+              editor.setAnswer(match.id, val)
+              currentAnswers[match.id] = val
+            }
+            return
+          }
+          const candidates = ["applicant_name", "party_a_name", "full_name", "seller_name", "client_name"]
+          for (const k of candidates) {
+            if (matcher(k, k)) {
+              if (!currentAnswers[k]?.trim()) {
+                editor.setAnswer(k, val)
+                currentAnswers[k] = val
+              }
+              break
+            }
+          }
+        }
+
+        if (p.fullName) {
+          setFieldIfEmpty((id, lbl) => id.includes("name") || lbl.includes("name") || lbl.includes("ስም") || id.includes("party_a") || id.includes("applicant"), p.fullName)
+        }
+        if (p.phone) {
+          setFieldIfEmpty((id, lbl) => id.includes("phone") || lbl.includes("phone") || lbl.includes("ስልክ"), p.phone)
+        }
+        if (p.address) {
+          setFieldIfEmpty((id, lbl) => id.includes("address") || lbl.includes("address") || lbl.includes("አድራሻ"), p.address)
+        }
+        if (p.idNumber) {
+          setFieldIfEmpty((id, lbl) => id.includes("id") || lbl.includes("id") || lbl.includes("መታወቂያ") || id.includes("kebele"), p.idNumber)
+        }
+
+        const profileLines = [
+          p.fullName ? `Full Name: ${p.fullName}` : null,
+          p.phone ? `Phone: ${p.phone}` : null,
+          p.address ? `Address: ${p.address}` : null,
+          p.idNumber ? `ID Number: ${p.idNumber}` : null,
+          p.extraInfo ? `Note: ${p.extraInfo}` : null,
+        ].filter(Boolean).join("\n")
+
+        if (profileLines) {
+          const prev = currentAnswers.additional_instructions?.trim()
+          const updated = prev ? `${prev}\n\n[Telegram Profile]:\n${profileLines}` : `[Telegram Profile]:\n${profileLines}`
+          editor.setAnswer("additional_instructions", updated)
+        }
+      }
+    },
+    [editor, template, handleImportFile],
+  )
 
   const handlePrint = useCallback((): void => {
     void editor.flush()
@@ -690,6 +754,8 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
         onToggleRightPanel={() => setRightOpen((current) => !current)}
         onBack={onBack}
         onImportFile={handleImportFile}
+        onApplyTelegramData={handleApplyTelegramData}
+        documentId={doc.id}
       />
 
       {editor.recovered ? (

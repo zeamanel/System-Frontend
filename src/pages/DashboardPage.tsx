@@ -19,6 +19,7 @@ import { useUsage } from '../hooks/use-usage'
 import { CreateDocumentDialog } from '../components/create-document/CreateDocumentDialog'
 import { DocumentListItem } from '../components/documents/DocumentListItem'
 import { OpenLocalFileButton } from '../components/documents/OpenLocalFileButton'
+import { TelegramBridgeButton } from '../components/documents/TelegramBridgeButton'
 import { TemplateCard } from '../components/templates/TemplateCard'
 import { templateIcon } from '../components/templates/template-icons'
 import { DocumentIcon } from '../components/icons'
@@ -76,6 +77,7 @@ export default function DashboardPage() {
               {t('dashboard.browseTemplates')}
             </Button>
             <OpenLocalFileButton />
+            <TelegramBridgeButton />
           </>
         }
       />

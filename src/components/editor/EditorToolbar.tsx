@@ -1,7 +1,9 @@
-﻿import { useI18n } from '../../i18n'
+import { useI18n } from '../../i18n'
 import type { SaveStatus } from './useDocumentEditor'
 import { Badge, Button, Popover } from '../ui'
 import { OpenLocalFileButton } from '../documents/OpenLocalFileButton'
+import { TelegramBridgeButton } from '../documents/TelegramBridgeButton'
+import type { TelegramProfile } from '../../lib/api/endpoints/telegram-bridge'
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -33,6 +35,12 @@ export interface EditorToolbarProps {
   onToggleRightPanel: () => void
   onBack: () => void
   onImportFile?: (content: string, title: string) => void
+  onApplyTelegramData?: (data: {
+    profile?: TelegramProfile
+    content?: string
+    title?: string
+  }) => void
+  documentId?: string
 }
 
 const STATUS_LABEL_KEY: Record<SaveStatus, string> = {
@@ -69,6 +77,8 @@ export function EditorToolbar({
   onToggleRightPanel,
   onBack,
   onImportFile,
+  onApplyTelegramData,
+  documentId,
 }: EditorToolbarProps) {
   const { t } = useI18n()
 
@@ -156,6 +166,8 @@ export function EditorToolbar({
         exportError,
         status,
         onImportFile,
+        onApplyTelegramData,
+        documentId,
         t,
       })}
     </header>
@@ -174,13 +186,27 @@ function renderToolbarEnd(props: {
   exportError: string | null
   status: SaveStatus
   onImportFile?: (content: string, title: string) => void
+  onApplyTelegramData?: (data: {
+    profile?: TelegramProfile
+    content?: string
+    title?: string
+  }) => void
+  documentId?: string
   t: T
 }) {
   const { t } = props
   return (
     <div className="editor-toolbar__group editor-toolbar__group--end">
       {props.onImportFile ? (
-        <OpenLocalFileButton onImportIntoCurrent={props.onImportFile} compact />
+        <>
+          <OpenLocalFileButton onImportIntoCurrent={props.onImportFile} compact />
+          <TelegramBridgeButton
+            documentId={props.documentId}
+            onImportIntoCurrent={props.onImportFile}
+            onApplyTelegramData={props.onApplyTelegramData}
+            compact
+          />
+        </>
       ) : null}
       <Button
         variant="ghost"

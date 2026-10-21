@@ -7,6 +7,7 @@ import { useDebouncedValue } from '../hooks/use-debounced-value'
 import { useDocumentsList } from '../hooks/use-documents'
 import { DocumentListItem } from '../components/documents/DocumentListItem'
 import { OpenLocalFileButton } from '../components/documents/OpenLocalFileButton'
+import { TelegramBridgeButton } from '../components/documents/TelegramBridgeButton'
 import { DocumentIcon } from '../components/icons'
 import {
   Button,
@@ -30,7 +31,12 @@ export default function DocumentsPage() {
     <div className="page">
       <PageHeader
         title={t('documents.title')}
-        actions={<OpenLocalFileButton />}
+        actions={
+          <>
+            <OpenLocalFileButton />
+            <TelegramBridgeButton />
+          </>
+        }
       />
 
       <div className="toolbar">

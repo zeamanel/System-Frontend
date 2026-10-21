@@ -19,3 +19,15 @@ export {
   resetSearchTrackingCache,
   type TrackTemplateSearchInput,
 } from './endpoints/templates'
+export {
+  createTelegramBridgeSession,
+  pingTelegramQalId,
+  getTelegramBridgeSessionStatus,
+  type CreateTelegramSessionInput,
+  type TelegramBridgeSessionRecord,
+  type TelegramBridgeStatus,
+  type TelegramProfile,
+  type TelegramBridgeStatusRecord,
+  type PingTelegramQalIdInput,
+  type PingTelegramQalIdResponse,
+} from './endpoints/telegram-bridge'

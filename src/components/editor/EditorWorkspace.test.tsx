@@ -597,4 +597,48 @@ describe('EditorWorkspace', () => {
     expect(canvas?.textContent).toContain('900,000 Birr')
     expect(canvas?.textContent).toContain('2022 Toyota Corolla')
   })
+
+  it('connects to phone via Telegram bridge, applies profile into answers and loads content onto canvas', async () => {
+    const created = await repos.documents.create({
+      title: 'Blank Document',
+      templateId: undefined,
+      language: 'en',
+    })
+    const { doc } = await loadDocument(created.id)
+    renderWorkspace(doc, null)
+    await screen.findByTestId('editor-title-input')
+
+    // Find and click the Telegram Bridge button
+    const bridgeButton = screen.getByTestId('telegram-bridge-button')
+    fireEvent.click(bridgeButton)
+
+    // Wait for the modal and 4-digit page code to appear
+    const pageCode = await screen.findByTestId('telegram-page-code')
+    expect(pageCode).toBeInTheDocument()
+
+    // Type 4-digit Qal ID
+    const qalInput = screen.getByTestId('telegram-qal-id-input')
+    fireEvent.change(qalInput, { target: { value: '7392' } })
+
+    // Click Request Permission
+    const pingBtn = screen.getByTestId('telegram-ping-button')
+    fireEvent.click(pingBtn)
+
+    // Verify modal closes and content is loaded onto canvas
+    await waitFor(
+      () => {
+        const canvas = document.querySelector('.doc-pages')
+        expect(canvas?.textContent).toContain('Abebe Bikila')
+        expect(canvas?.textContent).toContain('Kebede Chala')
+      },
+      { timeout: 4000 },
+    )
+
+    // Verify additional instructions has received the Telegram profile summary
+    const instructionsArea = screen.getByLabelText(
+      /additional details or instructions/i,
+    ) as HTMLTextAreaElement
+    expect(instructionsArea.value).toContain('Abebe Bikila')
+    expect(instructionsArea.value).toContain('+251911223344')
+  })
 })
