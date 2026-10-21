@@ -1,3 +1,25 @@
+
+export function getMissingRequiredQuestionIds(
+  questions: Array<{ id: string; required?: boolean }>,
+  answers: Record<string, string>,
+): string[] {
+  return questions
+    .filter((q) => q.required && !(answers[q.id] ?? '').trim())
+    .map((q) => q.id)
+}
+
+export function canGenerateContent(
+  template: { questions?: Array<{ id: string; required?: boolean }> } | null | undefined,
+  answers: Record<string, string>,
+): boolean {
+  const questions = template?.questions ?? []
+  const requiredQuestions = questions.filter((q) => q.required)
+  if (requiredQuestions.length === 0) {
+    return Boolean(answers['additional_instructions']?.trim())
+  }
+  return requiredQuestions.every((q) => Boolean((answers[q.id] ?? '').trim()))
+}
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUpdateDocument } from '../../hooks/use-documents'
@@ -304,6 +326,11 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
     overwrite,
     flush,
     adoptSnapshot,
+    templateId: doc.templateId || 'custom-ai-document',
+    canRegenerate: (tpl?: { questions?: Array<{ id: string; required?: boolean }> } | null) =>
+      canGenerateContent(tpl, answers),
+    missingRequiredIds: (questionsList: Array<{ id: string; required?: boolean }>) =>
+      getMissingRequiredQuestionIds(questionsList, answers),
   }
 }
 

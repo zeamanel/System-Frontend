@@ -1530,6 +1530,7 @@ const SIGNATURE_TEMPLATE_TYPES = new Set([
   'application',
   'request',
   'affidavit',
+  'custom_ai_document',
 ])
 
 const ROLE_QUESTION_IDS = [
@@ -1581,6 +1582,42 @@ export function draftFromTemplate(
 ): DocumentModel {
   const strings = draftL10n(language)
   const blocks: Block[] = []
+
+  const isCustomOrPromptOnly =
+    template.documentTypeId === 'custom_ai_document' || template.questions.length === 0
+
+  if (isCustomOrPromptOnly && answers['additional_instructions']?.trim()) {
+    const rawPrompt = answers['additional_instructions'].trim()
+    const lines = rawPrompt.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+
+    const docTitle =
+      title && title !== 'Untitled Document' && !title.toLowerCase().startsWith('custom ai document')
+        ? title
+        : lines[0] || title
+    const bodyLines = lines[0] === docTitle ? lines.slice(1) : lines
+
+    blocks.push(createParagraph(escapePlainText(`${strings.date}: ${localizedDate(language)}`)))
+    blocks.push(createHeading(escapePlainText(docTitle), 1))
+
+    if (bodyLines.length > 0) {
+      for (const line of bodyLines) {
+        blocks.push(createParagraph(escapePlainText(line)))
+      }
+    } else {
+      blocks.push(createParagraph(escapePlainText(rawPrompt)))
+    }
+
+    blocks.push(createHeading(escapePlainText(strings.signatures), 2))
+    const sigParties =
+      language === 'am'
+        ? ['አዘጋጅ / ፈራሚ ወገን', 'ተቀባይ / ምስክር']
+        : language === 'om'
+          ? ['Qopheessaa / Mallatteessaa', 'Fudhataa / Ragaa']
+          : ['First Party / Signatory', 'Second Party / Witness']
+    blocks.push(createSignature(sigParties))
+
+    return { ...createEmptyDocument(language), blocks }
+  }
 
   blocks.push(createParagraph(escapePlainText(`${strings.date}: ${localizedDate(language)}`)))
   blocks.push(createHeading(escapePlainText(title), 1))

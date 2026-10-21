@@ -135,6 +135,13 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
           return
         }
       }
+      const instructionsField = document.querySelector<HTMLTextAreaElement>(
+        '#field-additional_instructions',
+      )
+      if (instructionsField && (!template || template.questions.length === 0)) {
+        instructionsField.focus()
+        return
+      }
       if (model.blocks[0]) {
         const firstEditable = findEditable(document, { blockId: model.blocks[0].id })
         if (firstEditable) focusEditable(firstEditable, 'start')
@@ -436,7 +443,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
       saveReusableAnswers(answers)
       try {
         const response = await createJob.mutateAsync({
-          documentType: template?.id ?? doc.templateId ?? '',
+          documentType: template?.id ?? doc.templateId ?? 'custom-ai-document',
           answers: { ...answers, title: editor.title },
           language: editor.language,
           documentId: doc.id,

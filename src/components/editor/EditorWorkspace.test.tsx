@@ -553,4 +553,48 @@ describe('EditorWorkspace', () => {
     expect(portraitButton).toHaveAttribute('aria-pressed', 'true')
   })
 
+
+  it('opens prompt-only blank document without party inputs and generates content from prompt', async () => {
+    const created = await repos.documents.create({
+      title: 'Vehicle Sale Agreement',
+      templateId: null,
+      language: 'en',
+    })
+    const { doc } = await loadDocument(created.id)
+    renderWorkspace(doc, null)
+    await screen.findByTestId('editor-title-input')
+
+    // Verify there are no fixed party / question fields
+    expect(screen.queryByLabelText(/first party/i)).toBeNull()
+    expect(screen.queryByLabelText(/second party/i)).toBeNull()
+
+    // The Additional details or instructions textarea is present and 5 rows tall
+    const promptInput = screen.getByLabelText(/additional details or instructions/i)
+    expect(promptInput).toBeInTheDocument()
+    expect(promptInput).toHaveAttribute('rows', '5')
+
+    // Type the prompt into the textarea
+    fireEvent.change(promptInput, {
+      target: {
+        value:
+          'Vehicle Sale Agreement\nThis Vehicle Sale Agreement is made between Abebe and Kebede for 900,000 Birr.\nThe vehicle is a 2022 Toyota Corolla.',
+      },
+    })
+
+    // Click Generate content
+    const generateButton = screen.getByRole('button', { name: /generate content/i })
+    expect(generateButton).toBeEnabled()
+    fireEvent.click(generateButton)
+
+    // The generated document renders onto the canvas
+    await waitFor(
+      () => {
+        expect(screen.getAllByText(/900,000 Birr/i).length).toBeGreaterThan(0)
+      },
+      { timeout: 4000 },
+    )
+    expect(screen.getAllByText(/2022 Toyota Corolla/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Signatures/i).length).toBeGreaterThan(0)
+  })
+
 })

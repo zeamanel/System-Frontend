@@ -142,7 +142,7 @@ class FixtureTemplatesRepository implements TemplatesRepository {
   }
 
   async get(id: string, locale: Locale): Promise<TemplateDetail | null> {
-    const fixture = TEMPLATE_FIXTURES.find((item) => item.id === id)
+    const fixture = TEMPLATE_FIXTURES.find((item) => item.id === id || item.slug === id)
     return fixture ? toDetail(fixture, locale) : null
   }
 }
@@ -619,12 +619,17 @@ class FixtureGenerationRepository implements GenerationRepository {
     }
 
     job.status = 'completed'
-    const template = TEMPLATE_FIXTURES.find((t) => t.id === job.documentType)
+    const template = TEMPLATE_FIXTURES.find((t) => t.id === job.documentType || t.slug === job.documentType)
     const locale: Locale = job.language === 'am' ? 'am' : 'en'
     const defaultTemplateTitle = template ? pickText(template.titles, locale) : job.documentType
+    const promptTitle =
+      job.answers['additional_instructions']?.trim()
+        ? job.answers['additional_instructions'].trim().split(/\r?\n/)[0]?.slice(0, 60)
+        : null
     const title =
       job.answers['title'] ||
       job.answers['subject'] ||
+      (template?.documentTypeId === 'custom_ai_document' ? promptTitle : null) ||
       `${defaultTemplateTitle} — ${new Date().toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US')}`
 
     const content = serializeModel(

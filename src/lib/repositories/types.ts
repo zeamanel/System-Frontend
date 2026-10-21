@@ -49,6 +49,7 @@ export interface TemplateQuestion {
 
 export interface TemplateSummary {
   id: string
+  slug?: string
   documentTypeId: string
   title: string
   description: string
@@ -187,6 +188,7 @@ export interface LocalizedText {
 
 export interface TemplateFixture {
   id: string
+  slug?: string
   documentTypeId: string
   category: TemplateCategory
   iconKey: string

@@ -55,6 +55,11 @@ export function GuidedFieldsPanel({
   const [confirming, setConfirming] = useState(false)
 
   const questions = template?.questions ?? []
+  const isPromptOnly = questions.length === 0
+  const missingRequiredIds = questions
+    .filter((q) => q.required && !(answers[q.id] ?? '').trim())
+    .map((q) => q.id)
+
   const languageOptions = (
     template?.supportedLanguages?.length ? template.supportedLanguages : [...DOCUMENT_LANGUAGES]
   ).map((code) => ({
@@ -64,10 +69,11 @@ export function GuidedFieldsPanel({
 
   const handleGenerateClick = (): void => {
     const missing: Record<string, boolean> = {}
-    for (const question of questions) {
-      if (question.required && !(answers[question.id] ?? '').trim()) {
-        missing[question.id] = true
-      }
+    for (const id of missingRequiredIds) {
+      missing[id] = true
+    }
+    if (isPromptOnly && !answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID]?.trim()) {
+      missing[ADDITIONAL_INSTRUCTIONS_FIELD_ID] = true
     }
     setInvalid(missing)
     if (Object.keys(missing).length > 0) return
@@ -147,7 +153,8 @@ export function GuidedFieldsPanel({
       <div className="editor-panel__field">
         <Textarea
           id={`field-${ADDITIONAL_INSTRUCTIONS_FIELD_ID}`}
-          rows={3}
+          rows={isPromptOnly ? 5 : 3}
+          autoFocus={isPromptOnly && !hasContent}
           label={
             <>
               {t('editor.additionalInstructionsLabel')}
@@ -189,6 +196,7 @@ export function GuidedFieldsPanel({
           fullWidth
           icon={<SparkIcon size={15} />}
           loading={generationPending}
+          disabled={generationPending || (isPromptOnly && !answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID]?.trim())}
           onClick={handleGenerateClick}
         >
           {hasContent ? t('editor.regenerate') : t('editor.generate')}

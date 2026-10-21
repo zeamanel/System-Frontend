@@ -37,6 +37,7 @@ export function toSummary(
 
   return {
     id: fixture.id,
+    slug: fixture.slug ?? fixture.id,
     documentTypeId: fixture.documentTypeId,
     title,
     description,
