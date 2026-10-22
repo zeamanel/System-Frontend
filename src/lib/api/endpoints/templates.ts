@@ -54,3 +54,80 @@ export function trackTemplateSearch(
       // Fire-and-forget telemetry: never throw or block UI
     })
 }
+
+// ---------- Template Question / Input Form Mappers ----------
+
+export interface TemplateFieldApiRecord {
+  id: string
+  label: string | Record<string, string>
+  required?: boolean
+  type?: string
+  placeholder?: string
+  options?: string[]
+}
+
+export interface TemplateDetailApiResponse {
+  id: string
+  slug?: string
+  documentTypeId?: string
+  title?: string | Record<string, string>
+  description?: string | Record<string, string>
+  category?: string
+  questions?: TemplateFieldApiRecord[]
+  requiredFields?: TemplateFieldApiRecord[]
+  optionalFields?: TemplateFieldApiRecord[]
+  [key: string]: unknown
+}
+
+export interface MappedTemplateQuestion {
+  id: string
+  label: string
+  required: boolean
+  type?: string
+}
+
+/**
+ * Maps template question fields into form input questions for the UI panel.
+ * Guaranteed to map both requiredFields (as required: true) AND optionalFields
+ * (as required: false) into a single ordered list so all fields render in the
+ * scrollable GuidedFieldsPanel. If pre-combined `questions` is provided, resolves
+ * any multi-locale labels into the active locale.
+ */
+export function mapTemplateFieldsToQuestions(
+  template: TemplateDetailApiResponse | null | undefined,
+  locale = 'en',
+): MappedTemplateQuestion[] {
+  if (!template) return []
+
+  const resolveLabel = (label: string | Record<string, string> | undefined): string => {
+    if (!label) return ''
+    if (typeof label === 'string') return label
+    return label[locale] ?? label.en ?? label.am ?? label.om ?? Object.values(label)[0] ?? ''
+  }
+
+  // If questions is present and already non-empty
+  if (Array.isArray(template.questions) && template.questions.length > 0) {
+    return template.questions.map((q) => ({
+      id: q.id,
+      label: resolveLabel(q.label),
+      required: Boolean(q.required),
+      ...(q.type ? { type: q.type } : {}),
+    }))
+  }
+
+  const required: MappedTemplateQuestion[] = (template.requiredFields ?? []).map((f) => ({
+    id: f.id,
+    label: resolveLabel(f.label),
+    required: true,
+    ...(f.type ? { type: f.type } : {}),
+  }))
+
+  const optional: MappedTemplateQuestion[] = (template.optionalFields ?? []).map((f) => ({
+    id: f.id,
+    label: resolveLabel(f.label),
+    required: false,
+    ...(f.type ? { type: f.type } : {}),
+  }))
+
+  return [...required, ...optional]
+}

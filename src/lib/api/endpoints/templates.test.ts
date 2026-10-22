@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  mapTemplateFieldsToQuestions,
   resetSearchTrackingCache,
   trackTemplateSearch,
 } from './templates'
@@ -95,5 +96,56 @@ describe('trackTemplateSearch', () => {
         { dataSource: 'fixtures' },
       )
     }).not.toThrow()
+  })
+})
+
+describe('mapTemplateFieldsToQuestions', () => {
+  it('returns empty array when template is null or undefined', () => {
+    expect(mapTemplateFieldsToQuestions(null)).toEqual([])
+    expect(mapTemplateFieldsToQuestions(undefined)).toEqual([])
+  })
+
+  it('maps both requiredFields and optionalFields into ordered questions', () => {
+    const rawTemplate = {
+      id: 'test-template',
+      title: 'Test Template',
+      description: 'Description',
+      requiredFields: [
+        { id: 'seller_name', label: { en: 'Seller Name', am: 'የሻጭ ስም', om: 'Maqaa gurguraa' } },
+        { id: 'buyer_name', label: 'Buyer Name' },
+      ],
+      optionalFields: [
+        { id: 'witness_names', label: { en: 'Witnesses', am: 'ምስክሮች', om: 'Ragaalee' } },
+      ],
+    }
+
+    const enResult = mapTemplateFieldsToQuestions(rawTemplate, 'en')
+    expect(enResult).toHaveLength(3)
+    expect(enResult[0]).toEqual({ id: 'seller_name', label: 'Seller Name', required: true })
+    expect(enResult[1]).toEqual({ id: 'buyer_name', label: 'Buyer Name', required: true })
+    expect(enResult[2]).toEqual({ id: 'witness_names', label: 'Witnesses', required: false })
+
+    const amResult = mapTemplateFieldsToQuestions(rawTemplate, 'am')
+    expect(amResult[0].label).toBe('የሻጭ ስም')
+    expect(amResult[2].label).toBe('ምስክሮች')
+
+    const omResult = mapTemplateFieldsToQuestions(rawTemplate, 'om')
+    expect(omResult[0].label).toBe('Maqaa gurguraa')
+    expect(omResult[2].label).toBe('Ragaalee')
+  })
+
+  it('maps pre-combined questions array and resolves locale', () => {
+    const templateWithQuestions = {
+      id: 'pre-combined',
+      questions: [
+        { id: 'q1', label: { en: 'Question 1', am: 'ጥያቄ 1' }, required: true, type: 'text' },
+        { id: 'q2', label: 'Question 2', required: false },
+      ],
+    }
+
+    const amResult = mapTemplateFieldsToQuestions(templateWithQuestions, 'am')
+    expect(amResult).toHaveLength(2)
+    expect(amResult[0]).toEqual({ id: 'q1', label: 'ጥያቄ 1', required: true, type: 'text' })
+    expect(amResult[1]).toEqual({ id: 'q2', label: 'Question 2', required: false })
   })
 })

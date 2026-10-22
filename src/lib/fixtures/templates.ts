@@ -6,5 +6,8 @@ import {
 } from '../repositories/fixtures'
 
 export { CUSTOM_AI_DOCUMENT_TEMPLATE, GOLD_STANDARD_TEMPLATES, TEMPLATE_FIXTURES }
+export const PRODUCTION_TEMPLATES_20: TemplateFixture[] = GOLD_STANDARD_TEMPLATES
+export const PRODUCTION_TEMPLATES: TemplateFixture[] = GOLD_STANDARD_TEMPLATES
+export const ETHIOPIAN_PRODUCTION_TEMPLATES: TemplateFixture[] = GOLD_STANDARD_TEMPLATES
 export const FIXTURE_TEMPLATES: TemplateFixture[] = TEMPLATE_FIXTURES
 export default TEMPLATE_FIXTURES
