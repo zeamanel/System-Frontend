@@ -10,6 +10,7 @@ const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const TemplateDetailPage = lazy(() => import('./pages/TemplateDetailPage'))
 const CreateDocumentFlowPage = lazy(() => import('./pages/CreateDocumentFlowPage'))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'))
+const TelegramFilesPage = lazy(() => import('./pages/TelegramFilesPage'))
 const EditorPage = lazy(() => import('./pages/EditorPage'))
 const FavoritesPage = lazy(() => import('./pages/FavoritesPage'))
 const OrganizationPage = lazy(() => import('./pages/OrganizationPage'))
@@ -39,6 +40,7 @@ export function AppRoutes() {
           <Route path="templates/:templateId" element={<TemplateDetailPage />} />
           <Route path="templates/:templateId/create" element={<CreateDocumentFlowPage />} />
           <Route path="documents" element={<DocumentsPage />} />
+          <Route path="telegram-files" element={<TelegramFilesPage />} />
           <Route path="documents/:documentId" element={<EditorPage />} />
           <Route path="favorites" element={<FavoritesPage />} />
           <Route path="organization" element={<OrganizationPage />} />

@@ -45,6 +45,7 @@ describe('Sidebar', () => {
     renderSidebar(regularUser)
     expect(screen.getByRole('link', { name: 'Home' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'My Documents' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Telegram Files' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Favorites' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Organization' })).toBeInTheDocument()
   })

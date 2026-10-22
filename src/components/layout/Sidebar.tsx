@@ -10,6 +10,7 @@ import {
   HomeIcon,
   SettingsIcon,
   ShieldIcon,
+  SmartphoneIcon,
   StarIcon,
   TemplateIcon,
   UserIcon,
@@ -29,6 +30,7 @@ const WORKSPACE_ITEMS: NavItem[] = [
   { to: '/', labelKey: 'nav.home', icon: HomeIcon, end: true },
   { to: '/templates', labelKey: 'nav.templates', icon: TemplateIcon },
   { to: '/documents', labelKey: 'nav.documents', icon: DocumentIcon },
+  { to: '/telegram-files', labelKey: 'nav.telegramFiles', icon: SmartphoneIcon },
   { to: '/favorites', labelKey: 'nav.favorites', icon: StarIcon },
 ]
 

@@ -4,8 +4,12 @@ import {
   __resetTelegramBridgeFixtures,
   __setFixtureSession,
   createTelegramBridgeSession,
+  dismissTelegramHubItem,
+  getTelegramBotHealth,
   getTelegramBridgeSessionStatus,
+  getTelegramHubMedia,
   pingTelegramQalId,
+  syncTelegramWebhook,
 } from './telegram-bridge'
 
 describe('telegram-bridge endpoint client', () => {
@@ -181,6 +185,53 @@ describe('telegram-bridge endpoint client', () => {
       })
       expect(status.imageKind).toBe('id_card')
       expect(status.imageDataUrl).toBe('data:image/png;base64,abc')
+    })
+
+    it('dispatches getTelegramHubMedia and dismissTelegramHubItem', async () => {
+      const mockGet = vi.fn().mockResolvedValue({ items: [], accounts: [] })
+      const mockDelete = vi.fn().mockResolvedValue({ ok: true, status: 'dismissed' })
+      const client = { get: mockGet, delete: mockDelete } as unknown as ApiClient
+
+      await getTelegramHubMedia(['s1', 's2'], { client, dataSource: 'http' })
+      expect(mockGet).toHaveBeenCalledWith('/telegram-bridge/media?sessionIds=s1%2Cs2', {
+        auth: 'optional',
+      })
+
+      await dismissTelegramHubItem('item_1', { client, dataSource: 'http' })
+      expect(mockDelete).toHaveBeenCalledWith('/telegram-bridge/media/item_1', {
+        auth: 'optional',
+      })
+    })
+
+    it('dispatches getTelegramBotHealth and syncTelegramWebhook', async () => {
+      const mockGet = vi.fn().mockResolvedValue({ ok: true, status: 'ready' })
+      const mockPost = vi.fn().mockResolvedValue({ ok: true, webhookUrl: 'https://test/admin/telegram/webhook' })
+      const client = { get: mockGet, post: mockPost } as unknown as ApiClient
+
+      await getTelegramBotHealth({ client, dataSource: 'http' })
+      expect(mockGet).toHaveBeenCalledWith('/telegram-bridge/health', { auth: 'optional' })
+
+      await syncTelegramWebhook('https://test', { client, dataSource: 'http' })
+      expect(mockPost).toHaveBeenCalledWith(
+        '/telegram-bridge/sync-webhook',
+        { publicBaseUrl: 'https://test' },
+        { auth: 'optional' },
+      )
+    })
+  })
+
+  describe('hub fixture operations', () => {
+    it('returns fixture hub media and dismisses items', async () => {
+      const hub = await getTelegramHubMedia(undefined, { dataSource: 'fixtures' })
+      expect(hub.items.length).toBe(2)
+      expect(hub.accounts.length).toBe(2)
+
+      const dismissRes = await dismissTelegramHubItem('evt_fixture_1', { dataSource: 'fixtures' })
+      expect(dismissRes.ok).toBe(true)
+
+      const hubAfter = await getTelegramHubMedia(undefined, { dataSource: 'fixtures' })
+      expect(hubAfter.items.length).toBe(1)
+      expect(hubAfter.items[0].id).toBe('evt_fixture_2')
     })
   })
 })

@@ -57,6 +57,49 @@ export interface PingTelegramQalIdResponse {
   qalId: string
 }
 
+export interface TelegramHubItem {
+  id: string
+  sessionId: string
+  qalId: string
+  accountLabel: string
+  fullName?: string
+  filename: string
+  mimeType: string
+  imageKind?: TelegramImageKind | null
+  imageDataUrl?: string | null
+  text: string
+  profile: TelegramProfile
+  createdAt: string
+}
+
+export interface TelegramHubAccount {
+  qalId: string
+  accountLabel: string
+  fullName?: string
+  itemCount: number
+}
+
+export interface TelegramHubMediaResponse {
+  items: TelegramHubItem[]
+  accounts: TelegramHubAccount[]
+}
+
+export interface TelegramBotHealthResponse {
+  ok: boolean
+  configured: boolean
+  status: 'ready' | 'missing_token' | 'error'
+  bot?: { id: number; username?: string; first_name?: string }
+  webhook?: { url?: string; has_custom_certificate?: boolean; pending_update_count?: number }
+  registeredAdminChatId?: string | null
+  message?: string
+}
+
+export interface SyncTelegramWebhookResponse {
+  ok: boolean
+  webhookUrl: string
+  description?: string
+}
+
 export interface TelegramBridgeOptions {
   client?: ApiClient
   dataSource?: DataSource
@@ -84,9 +127,92 @@ interface FixtureSessionState {
 const fixtureSessions = new Map<string, FixtureSessionState>()
 let fixtureSessionCounter = 1000
 
+let fixtureHubItems: TelegramHubItem[] = [
+  {
+    id: 'evt_fixture_1',
+    sessionId: 'qal_hub_1',
+    qalId: '7392',
+    accountLabel: '@abebe_k (Qal ID: 7392)',
+    fullName: 'Abebe Bikila',
+    filename: 'Vehicle_Sale_Agreement.txt',
+    mimeType: 'text/plain',
+    imageKind: null,
+    imageDataUrl: null,
+    text: 'Vehicle Sale Agreement between Abebe Bikila (Seller) and Kebede Chala (Buyer) for Toyota Corolla.',
+    profile: {
+      fullName: 'Abebe Bikila',
+      phone: '+251911223344',
+      address: 'Addis Ababa, Kirkos Sub-City, Woreda 03',
+      idNumber: 'ET-AA-2024-98765',
+    },
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'evt_fixture_2',
+    sessionId: 'qal_hub_2',
+    qalId: '4815',
+    accountLabel: '@almaz_k (Qal ID: 4815)',
+    fullName: 'Almaz Kebede',
+    filename: 'almaz-id-card.png',
+    mimeType: 'image/png',
+    imageKind: 'id_card',
+    imageDataUrl:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    text: 'Ethiopian Resident ID Card: Almaz Kebede, Bole Sub-City, Woreda 03, ID: ET-AA-481516',
+    profile: {
+      fullName: 'Almaz Kebede',
+      phone: '+251911445566',
+      address: 'Bole Sub-City, Woreda 03',
+      idNumber: 'ET-AA-481516',
+    },
+    createdAt: new Date().toISOString(),
+  },
+]
+
 export function __resetTelegramBridgeFixtures(): void {
   fixtureSessions.clear()
   fixtureSessionCounter = 1000
+  fixtureHubItems = [
+    {
+      id: 'evt_fixture_1',
+      sessionId: 'qal_hub_1',
+      qalId: '7392',
+      accountLabel: '@abebe_k (Qal ID: 7392)',
+      fullName: 'Abebe Bikila',
+      filename: 'Vehicle_Sale_Agreement.txt',
+      mimeType: 'text/plain',
+      imageKind: null,
+      imageDataUrl: null,
+      text: 'Vehicle Sale Agreement between Abebe Bikila (Seller) and Kebede Chala (Buyer) for Toyota Corolla.',
+      profile: {
+        fullName: 'Abebe Bikila',
+        phone: '+251911223344',
+        address: 'Addis Ababa, Kirkos Sub-City, Woreda 03',
+        idNumber: 'ET-AA-2024-98765',
+      },
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'evt_fixture_2',
+      sessionId: 'qal_hub_2',
+      qalId: '4815',
+      accountLabel: '@almaz_k (Qal ID: 4815)',
+      fullName: 'Almaz Kebede',
+      filename: 'almaz-id-card.png',
+      mimeType: 'image/png',
+      imageKind: 'id_card',
+      imageDataUrl:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      text: 'Ethiopian Resident ID Card: Almaz Kebede, Bole Sub-City, Woreda 03, ID: ET-AA-481516',
+      profile: {
+        fullName: 'Almaz Kebede',
+        phone: '+251911445566',
+        address: 'Bole Sub-City, Woreda 03',
+        idNumber: 'ET-AA-481516',
+      },
+      createdAt: new Date().toISOString(),
+    },
+  ]
 }
 
 export function __setFixtureSession(
@@ -274,6 +400,125 @@ export async function getTelegramBridgeSessionStatus(
   const client = options?.client ?? apiClient
   return client.get<TelegramBridgeStatusRecord>(
     `/telegram-bridge/sessions/${encodeURIComponent(sessionId)}`,
+    { auth: 'optional' },
+  )
+}
+
+/**
+ * Retrieves the aggregated multi-account Telegram media and files hub.
+ * In HTTP mode: GET /api/v1/telegram-bridge/media(?sessionIds=...)
+ * In Fixture mode: returns deterministic fixture media items and accounts.
+ */
+export async function getTelegramHubMedia(
+  sessionIds?: string[],
+  options?: TelegramBridgeOptions,
+): Promise<TelegramHubMediaResponse> {
+  if (isFixtureMode(options)) {
+    const items =
+      sessionIds && sessionIds.length > 0
+        ? fixtureHubItems.filter((i) => sessionIds.includes(i.sessionId))
+        : [...fixtureHubItems]
+
+    const accountMap = new Map<string, TelegramHubAccount>()
+    for (const item of items) {
+      const existing = accountMap.get(item.qalId)
+      if (existing) {
+        existing.itemCount += 1
+      } else {
+        accountMap.set(item.qalId, {
+          qalId: item.qalId,
+          accountLabel: item.accountLabel,
+          fullName: item.fullName,
+          itemCount: 1,
+        })
+      }
+    }
+
+    return {
+      items,
+      accounts: Array.from(accountMap.values()),
+    }
+  }
+
+  const client = options?.client ?? apiClient
+  const query =
+    sessionIds && sessionIds.length > 0
+      ? `?sessionIds=${encodeURIComponent(sessionIds.join(','))}`
+      : ''
+  return client.get<TelegramHubMediaResponse>(`/telegram-bridge/media${query}`, {
+    auth: 'optional',
+  })
+}
+
+/**
+ * Dismisses an item from the webpage hub list only (does NOT wipe the user's phone vault).
+ * In HTTP mode: DELETE /api/v1/telegram-bridge/media/:id
+ * In Fixture mode: removes the item from the in-memory list.
+ */
+export async function dismissTelegramHubItem(
+  id: string,
+  options?: TelegramBridgeOptions,
+): Promise<{ ok: boolean; status: string }> {
+  if (isFixtureMode(options)) {
+    fixtureHubItems = fixtureHubItems.filter((i) => i.id !== id && i.sessionId !== id)
+    return { ok: true, status: 'dismissed' }
+  }
+
+  const client = options?.client ?? apiClient
+  return client.delete<{ ok: boolean; status: string }>(
+    `/telegram-bridge/media/${encodeURIComponent(id)}`,
+    { auth: 'optional' },
+  )
+}
+
+/**
+ * Retrieves diagnostics for the Telegram bot connection.
+ * In HTTP mode: GET /api/v1/telegram-bridge/health
+ * In Fixture mode: returns simulated healthy status.
+ */
+export async function getTelegramBotHealth(
+  options?: TelegramBridgeOptions,
+): Promise<TelegramBotHealthResponse> {
+  if (isFixtureMode(options)) {
+    return {
+      ok: true,
+      configured: true,
+      status: 'ready',
+      bot: { id: 789456123, username: 'Qal_copy_bot', first_name: 'DocuA4 Qal Bot' },
+      webhook: {
+        url: 'https://docua4.test/admin/telegram/webhook',
+        has_custom_certificate: false,
+        pending_update_count: 0,
+      },
+    }
+  }
+
+  const client = options?.client ?? apiClient
+  return client.get<TelegramBotHealthResponse>('/telegram-bridge/health', {
+    auth: 'optional',
+  })
+}
+
+/**
+ * Synchronizes or heals the Telegram bot webhook.
+ * In HTTP mode: POST /api/v1/telegram-bridge/sync-webhook
+ */
+export async function syncTelegramWebhook(
+  publicBaseUrl?: string,
+  options?: TelegramBridgeOptions,
+): Promise<SyncTelegramWebhookResponse> {
+  if (isFixtureMode(options)) {
+    return {
+      ok: true,
+      webhookUrl: `${publicBaseUrl ?? 'https://docua4.test'}/admin/telegram/webhook`,
+      description: 'Webhook synchronized (fixture mode)',
+    }
+  }
+
+  const client = options?.client ?? apiClient
+  return client.post<SyncTelegramWebhookResponse>(
+    '/telegram-bridge/sync-webhook',
+    { publicBaseUrl },
     { auth: 'optional' },
   )
 }
