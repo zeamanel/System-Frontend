@@ -14,11 +14,18 @@
     var(--editor-left-width)
     minmax(0, 1fr)
     var(--editor-right-width);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: var(--space-4);
-  align-items: start;
+  align-items: stretch;
   margin: calc(-1 * var(--space-8)) calc(-1 * var(--space-10));
-  min-height: calc(100dvh - var(--topbar-height));
+  height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+  max-height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+  overflow: hidden;
   background-color: var(--color-surface-muted);
+}
+
+.editor-workspace:has(.editor-recovered) {
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .editor-workspace:not(.editor-workspace--left-open) {
@@ -38,6 +45,7 @@
   top: 0;
   z-index: 20;
   grid-column: 1 / -1;
+  flex-shrink: 0;
 }
 
 /* ---------- Toolbar ---------- */
@@ -174,21 +182,33 @@
 /* ---------- Side panels ---------- */
 
 .editor-side {
-  position: sticky;
-  top: 53px;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-height: calc(100dvh - var(--topbar-height) - 60px);
-  overflow-y: auto;
-  padding: var(--space-3);
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
   background-color: var(--color-surface);
   border-right: 1px solid var(--color-border-subtle);
+  box-sizing: border-box;
+}
+
+.editor-side--left {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  height: 100%;
+  min-height: 0;
 }
 
 .editor-side--right {
   border-right: none;
   border-left: 1px solid var(--color-border-subtle);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-3);
 }
 
 .editor-workspace:not(.editor-workspace--left-open) > .editor-side--left,
@@ -534,9 +554,12 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: calc(100dvh - var(--topbar-height));
+  height: 100%;
+  min-height: 0;
   padding: var(--space-6) var(--space-4) var(--space-10);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
   background-color: var(--color-app-bg);
 }
 
@@ -1084,10 +1107,11 @@ figure.doc-block--image-right {
   .editor-workspace--left-open .editor-side--left {
     position: fixed;
     z-index: 60;
-    top: var(--topbar-height);
+    top: var(--header-height, var(--topbar-height, 56px));
     bottom: 0;
     left: 0;
     width: min(320px, 85vw);
+    height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
     max-height: none;
     border-right: 1px solid var(--color-border);
     box-shadow: var(--shadow-md);
@@ -1111,15 +1135,19 @@ figure.doc-block--image-right {
   .editor-workspace:not(.editor-workspace--left-open):not(.editor-workspace--right-open) {
     grid-template-columns: minmax(0, 1fr);
     margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-4)) 0;
+    height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+    max-height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+    overflow: hidden;
   }
 
   .editor-workspace--right-open .editor-side--right {
     position: fixed;
     z-index: 60;
-    top: var(--topbar-height);
+    top: var(--header-height, var(--topbar-height, 56px));
     bottom: 0;
     right: 0;
     width: min(320px, 85vw);
+    height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
     max-height: none;
     border-left: 1px solid var(--color-border);
     box-shadow: var(--shadow-md);
@@ -1160,18 +1188,23 @@ figure.doc-block--image-right {
   }
 
   .editor-workspace {
-    display: block;
-    min-height: 0;
-    margin: 0;
-    background: none;
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    background: none !important;
   }
 
   .doc-canvas-scroll {
-    display: block;
-    min-height: 0;
-    padding: 0;
-    overflow: visible;
-    background: none;
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
   }
 
   .doc-pages {

@@ -1,0 +1,63 @@
+/* ============================================================
+   GuidedFieldsPanel: Independent Scroll Locking
+   - Fixed panel header at the top
+   - Smoothly scrolling fields container (with overscroll contain)
+   - Pinned action footer at the bottom
+   ============================================================ */
+
+.guided-fields-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.guided-fields-panel__header {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface);
+}
+
+.guided-fields-panel__header .editor-panel__title {
+  margin: 0 0 var(--space-1);
+}
+
+.guided-fields-panel__header .editor-panel__hint {
+  margin: 0;
+}
+
+.guided-fields-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.guided-fields-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.guided-fields-panel__footer {
+  flex-shrink: 0;
+  max-height: 48vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-shadow: 0 -2px 8px rgb(13 13 16 / 0.04);
+}

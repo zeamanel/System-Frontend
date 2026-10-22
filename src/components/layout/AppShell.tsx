@@ -41,14 +41,14 @@ export function AppShell() {
   }, [navOpen])
 
   return (
-    <div className="app-shell">
+    <div className={['app-shell', isEditorRoute ? 'app-shell--editor' : null].filter(Boolean).join(' ')}>
       <a className="skip-link" href="#main-content">
         {t('nav.skipToContent')}
       </a>
       <TopBar onOpenMenu={() => setNavOpen(true)} />
-      <div className="app-shell__body">
+      <div className={['app-shell__body', isEditorRoute ? 'app-shell__body--editor' : null].filter(Boolean).join(' ')}>
         <Sidebar mobileOpen={navOpen} onNavigate={() => setNavOpen(false)} rail={isEditorRoute} />
-        <main id="main-content" className="app-shell__main" tabIndex={-1}>
+        <main id="main-content" className={['app-shell__main', isEditorRoute ? 'app-shell__main--editor' : null].filter(Boolean).join(' ')} tabIndex={-1}>
           <Outlet />
         </main>
       </div>

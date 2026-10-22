@@ -805,7 +805,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
           onGenerate={(answers) => void handleGenerate(answers)}
           outline={outline}
           onOutlineSelect={handleOutlineSelect}
-        />
+        >
         {telegramMedia ? (
           <div className="telegram-media-tray" data-testid="telegram-media-tray">
             <div className="telegram-media-tray__header">
@@ -876,6 +876,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
           }
         />
         <SectionsOutline outline={outline} onSelect={handleOutlineSelect} />
+        </GuidedFieldsPanel>
       </aside>
 
       <A4PagesCanvas

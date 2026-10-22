@@ -1,3 +1,5 @@
+import './GuidedFieldsPanel.css'
+
 import { useState } from 'react'
 import { useI18n } from '../../i18n'
 import { DOCUMENT_LANGUAGES, LANGUAGES } from '../../lib/languages'
@@ -24,6 +26,7 @@ export interface GuidedFieldsPanelProps {
   onGenerate: (answers: Record<string, string>) => void
   outline: OutlineEntry[]
   onOutlineSelect: (blockId: string) => void
+  children?: React.ReactNode
 }
 
 function isMultilineQuestion(question: { id: string; label: string }): boolean {
@@ -34,10 +37,10 @@ function isMultilineQuestion(question: { id: string; label: string }): boolean {
 }
 
 /**
- * Left panel, part 1: guided document fields rendered from the linked
- * template's schema (required/optional, hints, per-field validation), the
- * document language, and generate/regenerate — which always sends the current
- * answers so changing language or settings never discards user input.
+ * Left panel: guided document fields with independent scroll locking.
+ * - Header: "DOCUMENT FIELDS" fixed at top
+ * - Body: dynamic template input fields scroll smoothly (overscroll contain)
+ * - Footer: additional details/instructions, language selector, and actions pinned at bottom
  */
 export function GuidedFieldsPanel({
   template,
@@ -49,6 +52,7 @@ export function GuidedFieldsPanel({
   generationPending,
   generationFailed,
   onGenerate,
+  children,
 }: GuidedFieldsPanelProps) {
   const { t } = useI18n()
   const [invalid, setInvalid] = useState<Record<string, boolean>>({})
@@ -90,130 +94,143 @@ export function GuidedFieldsPanel({
   }
 
   return (
-    <section className="editor-panel__section" aria-labelledby="editor-fields-title">
-      <h2 id="editor-fields-title" className="editor-panel__title">
-        {t('editor.panelFields')}
-      </h2>
+    <section
+      className="editor-panel__section guided-fields-panel"
+      aria-labelledby="editor-fields-title"
+      data-testid="guided-fields-panel"
+    >
+      <header className="guided-fields-panel__header" data-testid="guided-fields-header">
+        <h2 id="editor-fields-title" className="editor-panel__title">
+          {t('editor.panelFields')}
+        </h2>
 
-      {template ? (
-        <p className="editor-panel__hint">{t('editor.fieldsHint')}</p>
-      ) : (
-        <p className="editor-panel__hint">{t('editor.noTemplate')}</p>
-      )}
+        {template ? (
+          <p className="editor-panel__hint">{t('editor.fieldsHint')}</p>
+        ) : (
+          <p className="editor-panel__hint">{t('editor.noTemplate')}</p>
+        )}
+      </header>
 
-      {questions.map((question) => {
-        const currentValue = answers[question.id] ?? ''
-        const shared = {
-          id: `field-${question.id}`,
-          label: (
-            <>
-              {question.label}
-              {question.required ? (
-                <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
-              ) : null}
-            </>
-          ),
-          hint: isMultilineQuestion(question) ? t('editor.fieldMultilineHint') : undefined,
-          error: invalid[question.id] ? t('editor.fieldRequired') : undefined,
-          value: currentValue,
-          onChange: (
-            event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-          ) => onAnswerChange(question.id, event.target.value),
-          placeholder: t('editor.fieldPlaceholder'),
-        }
-        // Ethiopian legal smart inputs: offer a one-click suggestion when
-        // the typed value can become a dual-calendar date or a
-        // words-in-parentheses Birr amount.
-        const suggestion = getSmartSuggestion(question, currentValue, language)
-        // Previously used party/company values from earlier documents.
-        const recents = getSavedSuggestionsForField(question.id, question.label).filter(
-          (recent) => recent !== currentValue,
-        )
-        return (
-          <div key={question.id} className="editor-panel__field">
-            {isMultilineQuestion(question) ? (
-              <Textarea rows={3} {...shared} />
-            ) : (
-              <Input {...shared} />
-            )}
-            {suggestion ? (
-              <SmartSuggestionChip
-                suggestion={suggestion}
-                onApply={(formatted) => onAnswerChange(question.id, formatted)}
-              />
-            ) : null}
-            <RecentAnswerChips
-              suggestions={recents}
-              onPick={(recent) => onAnswerChange(question.id, recent)}
-            />
-          </div>
-        )
-      })}
-
-      <div className="editor-panel__field">
-        <Textarea
-          id={`field-${ADDITIONAL_INSTRUCTIONS_FIELD_ID}`}
-          rows={isPromptOnly ? 5 : 3}
-          autoFocus={isPromptOnly && !hasContent}
-          label={
-            <>
-              {t('editor.additionalInstructionsLabel')}
-              <Badge variant="neutral">{t('wizard.optionalTag')}</Badge>
-            </>
-          }
-          placeholder={t('editor.additionalInstructionsPlaceholder')}
-          value={answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID] ?? ''}
-          onChange={(event) =>
-            onAnswerChange(ADDITIONAL_INSTRUCTIONS_FIELD_ID, event.target.value)
-          }
-        />
+      <div className="guided-fields-panel__body" data-testid="guided-fields-body">
+        <div className="guided-fields-panel__list">
+          {questions.map((question) => {
+            const currentValue = answers[question.id] ?? ''
+            const shared = {
+              id: `field-${question.id}`,
+              label: (
+                <>
+                  {question.label}
+                  {question.required ? (
+                    <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
+                  ) : null}
+                </>
+              ),
+              hint: isMultilineQuestion(question) ? t('editor.fieldMultilineHint') : undefined,
+              error: invalid[question.id] ? t('editor.fieldRequired') : undefined,
+              value: currentValue,
+              onChange: (
+                event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+              ) => onAnswerChange(question.id, event.target.value),
+              placeholder: t('editor.fieldPlaceholder'),
+            }
+            // Ethiopian legal smart inputs: offer a one-click suggestion when
+            // the typed value can become a dual-calendar date or a
+            // words-in-parentheses Birr amount.
+            const suggestion = getSmartSuggestion(question, currentValue, language)
+            // Previously used party/company values from earlier documents.
+            const recents = getSavedSuggestionsForField(question.id, question.label).filter(
+              (recent) => recent !== currentValue,
+            )
+            return (
+              <div key={question.id} className="editor-panel__field">
+                {isMultilineQuestion(question) ? (
+                  <Textarea rows={3} {...shared} />
+                ) : (
+                  <Input {...shared} />
+                )}
+                {suggestion ? (
+                  <SmartSuggestionChip
+                    suggestion={suggestion}
+                    onApply={(formatted) => onAnswerChange(question.id, formatted)}
+                  />
+                ) : null}
+                <RecentAnswerChips
+                  suggestions={recents}
+                  onPick={(recent) => onAnswerChange(question.id, recent)}
+                />
+              </div>
+            )
+          })}
+        </div>
+        {children}
       </div>
 
-      <Select
-        id="editor-language-select"
-        label={t('flow.language')}
-        hint={t('editor.languageHelp')}
-        options={languageOptions}
-        value={language}
-        onChange={(event) => onLanguageChange(event.target.value)}
-      />
-
-      {confirming ? (
-        <div className="editor-panel__confirm" role="alertdialog" aria-label={t('editor.regenerate')}>
-          <p>{t('editor.regenerateConfirm')}</p>
-          <div className="editor-panel__confirm-actions">
-            <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleConfirmGenerate}>
-              {t('editor.regenerateConfirmAction')}
-            </Button>
-          </div>
+      <footer className="guided-fields-panel__footer" data-testid="guided-fields-footer">
+        <div className="editor-panel__field">
+          <Textarea
+            id={`field-${ADDITIONAL_INSTRUCTIONS_FIELD_ID}`}
+            rows={isPromptOnly ? 5 : 3}
+            autoFocus={isPromptOnly && !hasContent}
+            label={
+              <>
+                {t('editor.additionalInstructionsLabel')}
+                <Badge variant="neutral">{t('wizard.optionalTag')}</Badge>
+              </>
+            }
+            placeholder={t('editor.additionalInstructionsPlaceholder')}
+            value={answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID] ?? ''}
+            onChange={(event) =>
+              onAnswerChange(ADDITIONAL_INSTRUCTIONS_FIELD_ID, event.target.value)
+            }
+          />
         </div>
-      ) : (
-        <Button
-          variant="secondary"
-          fullWidth
-          icon={<SparkIcon size={15} />}
-          loading={generationPending}
-          disabled={generationPending || (isPromptOnly && !answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID]?.trim())}
-          onClick={handleGenerateClick}
-        >
-          {hasContent ? t('editor.regenerate') : t('editor.generate')}
-        </Button>
-      )}
 
-      {generationPending ? (
-        <p className="editor-panel__status editor-panel__status--muted" data-testid="editor-generating">
-          <Spinner size={14} /> {t('editor.generating')}
-        </p>
-      ) : null}
+        <Select
+          id="editor-language-select"
+          label={t('flow.language')}
+          hint={t('editor.languageHelp')}
+          options={languageOptions}
+          value={language}
+          onChange={(event) => onLanguageChange(event.target.value)}
+        />
 
-      {generationFailed ? (
-        <p className="editor-panel__status editor-panel__status--error" role="alert">
-          <AlertIcon size={14} /> {t('editor.generateFailed')}
-        </p>
-      ) : null}
+        {confirming ? (
+          <div className="editor-panel__confirm" role="alertdialog" aria-label={t('editor.regenerate')}>
+            <p>{t('editor.regenerateConfirm')}</p>
+            <div className="editor-panel__confirm-actions">
+              <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleConfirmGenerate}>
+                {t('editor.regenerateConfirmAction')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="secondary"
+            fullWidth
+            icon={<SparkIcon size={15} />}
+            loading={generationPending}
+            disabled={generationPending || (isPromptOnly && !answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID]?.trim())}
+            onClick={handleGenerateClick}
+          >
+            {hasContent ? t('editor.regenerate') : t('editor.generate')}
+          </Button>
+        )}
+
+        {generationPending ? (
+          <p className="editor-panel__status editor-panel__status--muted" data-testid="editor-generating">
+            <Spinner size={14} /> {t('editor.generating')}
+          </p>
+        ) : null}
+
+        {generationFailed ? (
+          <p className="editor-panel__status editor-panel__status--error" role="alert">
+            <AlertIcon size={14} /> {t('editor.generateFailed')}
+          </p>
+        ) : null}
+      </footer>
     </section>
   )
 }
@@ -251,4 +268,3 @@ export function SectionsOutline({
     </section>
   )
 }
-

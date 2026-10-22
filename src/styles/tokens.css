@@ -119,6 +119,7 @@
 
   /* ---------- Layout ---------- */
   --topbar-height: 56px;
+  --header-height: var(--topbar-height);
   --sidebar-width: 232px;
   /* Collapsed icon rail the sidebar adopts on document-editor routes */
   --sidebar-rail-width: 56px;

@@ -55,3 +55,12 @@
   }
 }
 
+
+/* Editor route scroll locking: prevents outer shell/page scroll */
+.app-shell--editor,
+.app-shell__body--editor,
+.app-shell__main--editor {
+  height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+  max-height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+  overflow: hidden;
+}
