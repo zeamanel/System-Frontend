@@ -2,8 +2,7 @@ import { useI18n } from '../../i18n'
 import type { SaveStatus } from './useDocumentEditor'
 import { Badge, Button, Popover } from '../ui'
 import { OpenLocalFileButton } from '../documents/OpenLocalFileButton'
-import { TelegramBridgeButton } from '../documents/TelegramBridgeButton'
-import type { TelegramProfile } from '../../lib/api/endpoints/telegram-bridge'
+import { TelegramBridgeButton, type TelegramBridgeTransferPayload } from '../documents/TelegramBridgeButton'
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -35,11 +34,7 @@ export interface EditorToolbarProps {
   onToggleRightPanel: () => void
   onBack: () => void
   onImportFile?: (content: string, title: string) => void
-  onApplyTelegramData?: (data: {
-    profile?: TelegramProfile
-    content?: string
-    title?: string
-  }) => void
+  onApplyTelegramData?: (data: TelegramBridgeTransferPayload) => void
   documentId?: string
 }
 
@@ -186,11 +181,7 @@ function renderToolbarEnd(props: {
   exportError: string | null
   status: SaveStatus
   onImportFile?: (content: string, title: string) => void
-  onApplyTelegramData?: (data: {
-    profile?: TelegramProfile
-    content?: string
-    title?: string
-  }) => void
+  onApplyTelegramData?: (data: TelegramBridgeTransferPayload) => void
   documentId?: string
   t: T
 }) {

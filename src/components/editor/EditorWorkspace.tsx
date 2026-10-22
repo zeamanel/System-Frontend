@@ -4,7 +4,8 @@ import type { MessageKey, MessageVars } from '../../i18n'
 import { useCreateExportRequest } from '../../hooks/use-documents'
 import { useCreateGenerationRequest, useGenerationJob } from '../../hooks/use-generation'
 import { generateKey } from '../../lib/api/idempotency'
-import type { TelegramProfile } from '../../lib/api/endpoints/telegram-bridge'
+import type { TelegramBridgeTransferPayload } from '../documents/TelegramBridgeButton'
+import type { TelegramImageKind } from '../../lib/api/endpoints/telegram-bridge'
 import type { DocumentDetailRecord, TemplateDetail } from '../../lib/repositories'
 import { ExportUnavailableError } from '../../lib/repositories'
 import {
@@ -55,7 +56,7 @@ import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { newId } from '../../lib/editor/ids'
 import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
 import { LANGUAGES } from '../../lib/languages'
-import { useToast } from '../ui'
+import { Button, useToast } from '../ui'
 import { A4PagesCanvas } from './A4PagesCanvas'
 import { BlockRefinePanel } from './BlockRefinePanel'
 import { EditorToolbar } from './EditorToolbar'
@@ -477,6 +478,21 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generationComplete])
 
+  const [telegramMedia, setTelegramMedia] = useState<{
+    url: string
+    mimeType?: string | null
+    kind?: TelegramImageKind | null
+    caption?: string
+  } | null>(null)
+
+  const handleInsertTelegramImage = useCallback(() => {
+    if (!telegramMedia?.url) return
+    const imgBlock = createImage(telegramMedia.url, telegramMedia.caption || 'Telegram Attachment')
+    updateModel((current) =>
+      insertBlocksAfter(current, activeRef?.blockId ?? null, [imgBlock]),
+    )
+  }, [activeRef?.blockId, telegramMedia, updateModel])
+
   const handleImportFile = useCallback((serializedContent: string, newTitle: string) => {
     const parsed = deserializeModel(serializedContent, editor.language)
     if (parsed) {
@@ -488,9 +504,21 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
   }, [editor])
 
   const handleApplyTelegramData = useCallback(
-    (data: { profile?: TelegramProfile; content?: string; title?: string }) => {
+    (data: TelegramBridgeTransferPayload) => {
       if (data.content) {
         handleImportFile(data.content, data.title ?? "")
+      }
+      if (data.imageDataUrl) {
+        setTelegramMedia({
+          url: data.imageDataUrl,
+          mimeType: data.mimeType,
+          kind: data.imageKind,
+          caption: data.filename ?? 'Telegram Attachment',
+        })
+        if (data.imageKind === 'media_photo') {
+          const imgBlock = createImage(data.imageDataUrl, data.filename || 'Photo')
+          updateModel((current) => insertBlocksAfter(current, null, [imgBlock]))
+        }
       }
       if (data.profile) {
         const p = data.profile
@@ -547,7 +575,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
         }
       }
     },
-    [editor, template, handleImportFile],
+    [editor, template, handleImportFile, updateModel],
   )
 
   const handlePrint = useCallback((): void => {
@@ -778,9 +806,42 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
           outline={outline}
           onOutlineSelect={handleOutlineSelect}
         />
+        {telegramMedia ? (
+          <div className="telegram-media-tray" data-testid="telegram-media-tray">
+            <div className="telegram-media-tray__header">
+              <span className="telegram-media-tray__title">
+                {t('documents.telegramImageReceived')}
+              </span>
+              {telegramMedia.kind ? (
+                <span className="telegram-media-tray__badge">
+                  {telegramMedia.kind === 'id_card'
+                    ? 'ID Card'
+                    : telegramMedia.kind === 'document_text'
+                      ? 'Document'
+                      : 'Photo'}
+                </span>
+              ) : null}
+            </div>
+            <img
+              src={telegramMedia.url}
+              alt={telegramMedia.caption || 'Telegram Attachment'}
+              className="telegram-media-tray__thumbnail"
+              data-testid="telegram-media-thumbnail"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleInsertTelegramImage}
+              data-testid="insert-telegram-image-button"
+            >
+              {t('editor.insertTelegramImage')}
+            </Button>
+          </div>
+        ) : null}
         <BlockRefinePanel
           block={activeBlock}
           documentLanguage={editor.language}
+          templateId={doc.templateId ?? template?.id ?? undefined}
           onApply={(blockId, html) =>
             updateModel((current) =>
               updateBlock(current, blockId, (b) =>

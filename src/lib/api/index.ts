@@ -26,6 +26,7 @@ export {
   type CreateTelegramSessionInput,
   type TelegramBridgeSessionRecord,
   type TelegramBridgeStatus,
+  type TelegramImageKind,
   type TelegramProfile,
   type TelegramBridgeStatusRecord,
   type PingTelegramQalIdInput,

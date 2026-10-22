@@ -186,6 +186,27 @@ describe('refineBlockContent', () => {
     expect(html).toContain('may terminate upon written notice')
   })
 
+  it('forwards templateId in the HTTP request payload when provided', async () => {
+    let capturedBody: unknown = null
+    const mockClient = {
+      post: async <T>(_path: string, body?: unknown): Promise<T> => {
+        capturedBody = body
+        return { refinedText: 'The tenant shall pay 35,000 ETB.' } as T
+      },
+    }
+
+    await refineBlockContent({
+      block: enParagraph('The tenant will pay 35,000 ETB.'),
+      action: 'formalize',
+      documentLanguage: 'en',
+      templateId: 'd7e8f9a0-0011-4000-8000-000000000011',
+      client: mockClient,
+    })
+
+    expect(capturedBody).toMatchObject({
+      templateId: 'd7e8f9a0-0011-4000-8000-000000000011',
+    })
+  })
   it('refines locally and deterministically via refineBlockLocally', () => {
     const html = refineBlockLocally({
       block: enParagraph('The tenant can cancel.'),

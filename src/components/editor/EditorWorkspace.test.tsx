@@ -641,4 +641,53 @@ describe('EditorWorkspace', () => {
     expect(instructionsArea.value).toContain('Abebe Bikila')
     expect(instructionsArea.value).toContain('+251911223344')
   })
+
+  it('receives multimodal Telegram ID card scan, shows media tray, and inserts image onto canvas', async () => {
+    const created = await repos.documents.create({
+      title: 'Blank Document',
+      templateId: undefined,
+      language: 'en',
+    })
+    const { doc } = await loadDocument(created.id)
+    renderWorkspace(doc, null)
+    await screen.findByTestId('editor-title-input')
+
+    // Find and click the Telegram Bridge button
+    const bridgeButton = screen.getByTestId('telegram-bridge-button')
+    fireEvent.click(bridgeButton)
+
+    await screen.findByTestId('telegram-page-code')
+
+    // Type 4-digit Qal ID 4815 (simulates ID card with image)
+    const qalInput = screen.getByTestId('telegram-qal-id-input')
+    fireEvent.change(qalInput, { target: { value: '4815' } })
+
+    // Click Request Permission
+    const pingBtn = screen.getByTestId('telegram-ping-button')
+    fireEvent.click(pingBtn)
+
+    // Verify modal closes and media tray is displayed
+    await waitFor(() => {
+      expect(screen.getByTestId('telegram-media-tray')).toBeInTheDocument()
+      expect(screen.getByTestId('telegram-media-thumbnail')).toBeInTheDocument()
+    })
+
+    // Verify additional instructions has received Almaz Kebede
+    const instructionsArea = screen.getByLabelText(
+      /additional details or instructions/i,
+    ) as HTMLTextAreaElement
+    expect(instructionsArea.value).toContain('Almaz Kebede')
+    expect(instructionsArea.value).toContain('ET-AA-481516')
+
+    // Click Insert Image into Page button
+    const insertImageBtn = screen.getByTestId('insert-telegram-image-button')
+    fireEvent.click(insertImageBtn)
+
+    // Verify ImageBlock renders onto the canvas
+    await waitFor(() => {
+      const img = document.querySelector('.doc-pages img.doc-image')
+      expect(img).toBeInTheDocument()
+      expect(img).toHaveAttribute('src', expect.stringContaining('data:image/png;base64'))
+    })
+  })
 })

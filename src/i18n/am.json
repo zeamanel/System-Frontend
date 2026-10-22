@@ -428,5 +428,7 @@
   "wizard.optionalTag": "አስገዳጅ ያልሆነ",
   "editor.orientation": "የገጽ አቀማመጥ",
   "editor.orientationPortrait": "በቁመት (Portrait)",
-  "editor.orientationLandscape": "በወርድ (Landscape)"
+  "editor.orientationLandscape": "በወርድ (Landscape)",
+  "documents.telegramImageReceived": "የቴሌግራም ምስል ደርሷል",
+  "editor.insertTelegramImage": "ምስሉን ወደ ገጽ አስገባ"
 }

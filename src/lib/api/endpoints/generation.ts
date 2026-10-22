@@ -70,6 +70,7 @@ export interface RefineBlockApiInput {
   instruction?: string
   documentLanguage: string
   documentTitle?: string
+  templateId?: string
 }
 
 export interface RefineBlockApiResponse {

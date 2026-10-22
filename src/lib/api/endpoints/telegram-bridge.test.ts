@@ -85,9 +85,35 @@ describe('telegram-bridge endpoint client', () => {
       expect(status.text).toContain('Vehicle Sale Agreement')
     })
 
-    it('supports custom session simulation via __setFixtureSession', async () => {
-      __setFixtureSession('custom_sess_1', {
+    it('simulates multimodal ID card scan with photo and OCR when pinged with 4815', async () => {
+      const session = await createTelegramBridgeSession({}, { dataSource: 'fixtures' })
+
+      const pingRes = await pingTelegramQalId(
+        session.sessionId,
+        { qalId: '4815' },
+        { dataSource: 'fixtures' },
+      )
+      expect(pingRes.ok).toBe(true)
+      expect(pingRes.status).toBe('pinged')
+
+      const status = await getTelegramBridgeSessionStatus(session.sessionId, {
+        dataSource: 'fixtures',
+      })
+      expect(status.status).toBe('completed')
+      expect(status.imageKind).toBe('id_card')
+      expect(status.mimeType).toBe('image/png')
+      expect(status.imageDataUrl).toMatch(/^data:image\/png;base64,/)
+      expect(status.profile?.fullName).toBe('Almaz Kebede')
+      expect(status.profile?.idNumber).toBe('ET-AA-481516')
+      expect(status.text).toContain('ID Card OCR Text')
+    })
+
+    it('supports custom session simulation via __setFixtureSession with image', async () => {
+      __setFixtureSession('custom_sess_img', {
         status: 'completed',
+        imageKind: 'media_photo',
+        mimeType: 'image/jpeg',
+        imageDataUrl: 'data:image/jpeg;base64,1234',
         profile: {
           fullName: 'Chala Dejene',
           phone: '+251922334455',
@@ -96,10 +122,12 @@ describe('telegram-bridge endpoint client', () => {
         text: 'Custom text agreement',
       })
 
-      const status = await getTelegramBridgeSessionStatus('custom_sess_1', {
+      const status = await getTelegramBridgeSessionStatus('custom_sess_img', {
         dataSource: 'fixtures',
       })
       expect(status.status).toBe('completed')
+      expect(status.imageKind).toBe('media_photo')
+      expect(status.imageDataUrl).toBe('data:image/jpeg;base64,1234')
       expect(status.profile?.fullName).toBe('Chala Dejene')
       expect(status.text).toBe('Custom text agreement')
     })
@@ -117,7 +145,10 @@ describe('telegram-bridge endpoint client', () => {
       const mockGet = vi.fn().mockResolvedValue({
         sessionId: 'qal_remote_1',
         pageCode: '1234',
-        status: 'pending',
+        status: 'completed',
+        imageKind: 'id_card',
+        mimeType: 'image/png',
+        imageDataUrl: 'data:image/png;base64,abc',
       })
 
       const client = {
@@ -144,10 +175,12 @@ describe('telegram-bridge endpoint client', () => {
         { auth: 'optional' },
       )
 
-      await getTelegramBridgeSessionStatus('qal_remote_1', { client, dataSource: 'http' })
+      const status = await getTelegramBridgeSessionStatus('qal_remote_1', { client, dataSource: 'http' })
       expect(mockGet).toHaveBeenCalledWith('/telegram-bridge/sessions/qal_remote_1', {
         auth: 'optional',
       })
+      expect(status.imageKind).toBe('id_card')
+      expect(status.imageDataUrl).toBe('data:image/png;base64,abc')
     })
   })
 })

@@ -428,5 +428,7 @@
   "wizard.optionalTag": "Optional",
   "editor.orientation": "Orientation",
   "editor.orientationPortrait": "Portrait",
-  "editor.orientationLandscape": "Landscape"
+  "editor.orientationLandscape": "Landscape",
+  "documents.telegramImageReceived": "Telegram Image Received",
+  "editor.insertTelegramImage": "Insert Image into Page"
 }

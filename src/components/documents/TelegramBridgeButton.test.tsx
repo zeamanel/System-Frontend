@@ -137,4 +137,30 @@ describe('TelegramBridgeButton', () => {
       expect(screen.getByTestId('document-editor-page')).toBeInTheDocument()
     })
   })
+
+  it('receives ID card image with OCR text and passes image data to onApplyTelegramData', async () => {
+    const handleApply = vi.fn()
+    renderComponent(<TelegramBridgeButton onApplyTelegramData={handleApply} />)
+
+    fireEvent.click(screen.getByTestId('telegram-bridge-button'))
+    await screen.findByTestId('telegram-page-code')
+
+    // Type Qal ID 4815 (simulates ID card with image)
+    const qalInput = screen.getByTestId('telegram-qal-id-input')
+    fireEvent.change(qalInput, { target: { value: '4815' } })
+
+    const pingButton = screen.getByTestId('telegram-ping-button')
+    fireEvent.click(pingButton)
+
+    await waitFor(() => {
+      expect(handleApply).toHaveBeenCalledTimes(1)
+    })
+
+    const payload = handleApply.mock.calls[0][0]
+    expect(payload.imageKind).toBe('id_card')
+    expect(payload.mimeType).toBe('image/png')
+    expect(payload.imageDataUrl).toMatch(/^data:image\/png;base64,/)
+    expect(payload.profile?.fullName).toBe('Almaz Kebede')
+    expect(payload.profile?.idNumber).toBe('ET-AA-481516')
+  })
 })

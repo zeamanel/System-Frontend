@@ -33,6 +33,7 @@ export interface RefineBlockInput {
   instruction?: string
   documentLanguage: DocumentLanguage
   documentTitle?: string
+  templateId?: string
   /** Optional client override for testing or custom transport. */
   client?: {
     post: <T>(path: string, body?: unknown) => Promise<T>
@@ -344,6 +345,7 @@ export async function refineBlockContent(input: RefineBlockInput): Promise<strin
         ...(instruction?.trim() ? { instruction: instruction.trim() } : {}),
         documentLanguage,
         ...(documentTitle?.trim() ? { documentTitle: documentTitle.trim() } : {}),
+        ...(input.templateId?.trim() ? { templateId: input.templateId.trim() } : {}),
       }
       const response = await client.post<{ refinedText?: string; text?: string }>(
         '/api/v1/ai/refine-block',

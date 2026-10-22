@@ -6,16 +6,33 @@ import { useI18n } from '../../i18n'
 import { useCreateDocument } from '../../hooks/use-documents'
 import { parseImportedFileContent } from '../../lib/editor/import-file'
 import {
+  createEmptyDocument,
+  createImage,
+  serializeModel,
+} from '../../lib/editor/model'
+import {
   createTelegramBridgeSession,
   getTelegramBridgeSessionStatus,
   pingTelegramQalId,
   type TelegramBridgeSessionRecord,
   type TelegramBridgeStatusRecord,
+  type TelegramImageKind,
   type TelegramProfile,
 } from '../../lib/api/endpoints/telegram-bridge'
 import { ToastContext } from '../ui/toast/ToastContext'
 import { Button, Dialog, Spinner } from '../ui'
 import { ExternalLinkIcon, SmartphoneIcon } from '../icons'
+
+export interface TelegramBridgeTransferPayload {
+  profile?: TelegramProfile | null
+  content?: string
+  title?: string
+  imageDataUrl?: string | null
+  mimeType?: string | null
+  imageKind?: TelegramImageKind | null
+  filename?: string | null
+  text?: string | null
+}
 
 export interface TelegramBridgeButtonProps {
   /**
@@ -25,11 +42,7 @@ export interface TelegramBridgeButtonProps {
   /**
    * If provided, passes both profile and parsed content to the caller (e.g. editor).
    */
-  onApplyTelegramData?: (data: {
-    profile?: TelegramProfile
-    content?: string
-    title?: string
-  }) => void
+  onApplyTelegramData?: (data: TelegramBridgeTransferPayload) => void
   /**
    * Current document ID, if open in the editor.
    */
@@ -98,6 +111,11 @@ function TelegramBridgeButtonInner({
             profile: completedStatus.profile,
             content: parsed?.content,
             title: parsed?.title,
+            imageDataUrl: completedStatus.imageDataUrl,
+            mimeType: completedStatus.mimeType,
+            imageKind: completedStatus.imageKind,
+            filename: completedStatus.filename,
+            text: completedStatus.text,
           })
           toast?.push(t('documents.telegramConnectedSuccess'), { variant: 'success' })
           setIsOpen(false)
@@ -138,10 +156,19 @@ function TelegramBridgeButtonInner({
             }
           }
 
+          let initialContent = parsed?.content
+          if (!initialContent && completedStatus.imageDataUrl) {
+            const emptyDoc = createEmptyDocument(locale)
+            emptyDoc.blocks = [
+              createImage(completedStatus.imageDataUrl, completedStatus.filename || 'Telegram image'),
+            ]
+            initialContent = serializeModel(emptyDoc)
+          }
+
           const created = await createDocument.mutateAsync({
             title: resolvedTitle,
             language: parsed?.detectedLanguage ?? locale,
-            content: parsed?.content,
+            content: initialContent,
             answers,
           })
           toast?.push(t('documents.telegramConnectedSuccess'), { variant: 'success' })
@@ -370,7 +397,26 @@ function TelegramBridgeButtonInner({
                     className="telegram-bridge-status telegram-bridge-status--completed"
                     data-testid="telegram-status-completed"
                   >
-                    {t('documents.telegramConnectedSuccess')}
+                    {statusRecord.imageDataUrl ? (
+                      <div className="telegram-bridge-image-preview-wrapper">
+                        <img
+                          src={statusRecord.imageDataUrl}
+                          alt={statusRecord.filename || 'Telegram image'}
+                          className="telegram-bridge-image-preview"
+                          data-testid="telegram-image-preview"
+                        />
+                        {statusRecord.imageKind ? (
+                          <span className="telegram-bridge-image-kind-tag">
+                            {statusRecord.imageKind === 'id_card'
+                              ? 'ID Card'
+                              : statusRecord.imageKind === 'document_text'
+                                ? 'Document'
+                                : 'Photo'}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div>{t('documents.telegramConnectedSuccess')}</div>
                   </div>
                 ) : null}
               </div>

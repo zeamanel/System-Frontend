@@ -24,6 +24,8 @@ export type TelegramBridgeStatus =
   | 'completed'
   | 'denied'
 
+export type TelegramImageKind = 'id_card' | 'document_text' | 'media_photo'
+
 export interface TelegramProfile {
   fullName?: string
   phone?: string
@@ -40,6 +42,9 @@ export interface TelegramBridgeStatusRecord {
   filename?: string
   text?: string
   completedAt?: string
+  imageDataUrl?: string | null
+  mimeType?: string | null
+  imageKind?: TelegramImageKind | null
 }
 
 export interface PingTelegramQalIdInput {
@@ -71,6 +76,9 @@ interface FixtureSessionState {
   text?: string
   completedAt?: string
   qalId?: string
+  imageDataUrl?: string | null
+  mimeType?: string | null
+  imageKind?: TelegramImageKind | null
 }
 
 const fixtureSessions = new Map<string, FixtureSessionState>()
@@ -213,18 +221,40 @@ export async function getTelegramBridgeSessionStatus(
     // When status was pinged, simulate the user tapping [Allow] and sending data
     if (session.status === 'pinged') {
       session.status = 'completed'
-      session.profile = session.profile ?? {
-        fullName: 'Abebe Bikila',
-        phone: '+251911223344',
-        address: 'Addis Ababa, Kirkos Sub-City, Woreda 03',
-        idNumber: 'ET-AA-2024-98765',
-        extraInfo: 'Authorized representative for property transaction',
+
+      if (session.qalId === '4815') {
+        // ID card / OCR photo simulation
+        session.imageDataUrl =
+          session.imageDataUrl ??
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+        session.mimeType = session.mimeType ?? 'image/png'
+        session.imageKind = session.imageKind ?? 'id_card'
+        session.profile = session.profile ?? {
+          fullName: 'Almaz Kebede',
+          phone: '+251911445566',
+          address: 'Bole Sub-City, Woreda 03',
+          idNumber: 'ET-AA-481516',
+          extraInfo: 'ID Card verified via Telegram OCR',
+        }
+        session.filename = session.filename ?? 'almaz-id-card.png'
+        session.text =
+          session.text ??
+          'ID Card OCR Text: Almaz Kebede, Bole Sub-City, Woreda 03, ID: ET-AA-481516'
+        session.completedAt = session.completedAt ?? new Date().toISOString()
+      } else {
+        session.profile = session.profile ?? {
+          fullName: 'Abebe Bikila',
+          phone: '+251911223344',
+          address: 'Addis Ababa, Kirkos Sub-City, Woreda 03',
+          idNumber: 'ET-AA-2024-98765',
+          extraInfo: 'Authorized representative for property transaction',
+        }
+        session.filename = session.filename ?? 'Vehicle_Sale_Agreement.txt'
+        session.text =
+          session.text ??
+          'Vehicle Sale Agreement\n\nThis agreement is made between Abebe Bikila (Seller) and Kebede Chala (Buyer) for the sale of a 2022 Toyota Corolla for 900,000 Birr.\n\nPayment to be completed in full before vehicle handover.'
+        session.completedAt = session.completedAt ?? new Date().toISOString()
       }
-      session.filename = session.filename ?? 'Vehicle_Sale_Agreement.txt'
-      session.text =
-        session.text ??
-        'Vehicle Sale Agreement\n\nThis agreement is made between Abebe Bikila (Seller) and Kebede Chala (Buyer) for the sale of a 2022 Toyota Corolla for 900,000 Birr.\n\nPayment to be completed in full before vehicle handover.'
-      session.completedAt = session.completedAt ?? new Date().toISOString()
     }
 
     return {
@@ -235,6 +265,9 @@ export async function getTelegramBridgeSessionStatus(
       filename: session.filename,
       text: session.text,
       completedAt: session.completedAt,
+      imageDataUrl: session.imageDataUrl ?? null,
+      mimeType: session.mimeType ?? null,
+      imageKind: session.imageKind ?? null,
     }
   }
 

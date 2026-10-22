@@ -10,6 +10,7 @@ export interface BlockRefinePanelProps {
   block: Block | null
   /** Document language — drives register, expansion language and translate target. */
   documentLanguage: string
+  templateId?: string
   /** Replace exactly one block's inline HTML (surgical, siblings untouched). */
   onApply: (blockId: string, html: string) => void
   /** Insert a newly drafted block onto the canvas when no block was selected. */
@@ -32,6 +33,7 @@ export function BlockRefinePanel({
   onInsertBlock,
   bilingual = false,
   onApplySecondary,
+  templateId,
 }: BlockRefinePanelProps) {
   const { t } = useI18n()
   const [proposal, setProposal] = useState<string | null>(null)
@@ -61,6 +63,7 @@ export function BlockRefinePanel({
         action,
         instruction: customInstruction,
         documentLanguage: language,
+        templateId,
       })
       setProposal(html)
     } catch {
@@ -88,6 +91,7 @@ export function BlockRefinePanel({
         action: 'formalize',
         instruction: instruction.trim(),
         documentLanguage: language,
+        templateId,
       })
       setProposal(html)
     } catch {
@@ -118,6 +122,7 @@ export function BlockRefinePanel({
         block,
         action,
         documentLanguage: language,
+        templateId,
       })
       onApplySecondary(block.id, html)
     } catch {

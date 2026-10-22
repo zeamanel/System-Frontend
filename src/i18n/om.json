@@ -428,5 +428,7 @@
   "wizard.optionalTag": "Dirqama kan hin taane",
   "editor.orientation": "Teessuma fuulaa",
   "editor.orientationPortrait": "Dhaabbataa (Portrait)",
-  "editor.orientationLandscape": "Dalga (Landscape)"
+  "editor.orientationLandscape": "Dalga (Landscape)",
+  "documents.telegramImageReceived": "Suurri Telegram Dhufeera",
+  "editor.insertTelegramImage": "Suuraa Gara Fuulaatti Galchi"
 }
