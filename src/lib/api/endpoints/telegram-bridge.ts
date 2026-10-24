@@ -450,6 +450,54 @@ export async function getTelegramHubMedia(
   })
 }
 
+export interface TelegramVaultProfile {
+  qalId: string
+  accountLabel: string
+  fullName?: string
+  phone?: string
+  address?: string
+  idNumber?: string
+  text?: string
+}
+
+/**
+ * Retrieves connected Telegram profiles from the media vault,
+ * deduplicated by `qalId`, returning their full profile details.
+ */
+export async function listTelegramMediaVault(
+  options?: TelegramBridgeOptions,
+): Promise<TelegramVaultProfile[]> {
+  const hub = await getTelegramHubMedia(undefined, options)
+  const map = new Map<string, TelegramVaultProfile>()
+
+  for (const item of hub.items) {
+    if (!item.qalId) continue
+    const existing = map.get(item.qalId)
+    const profile: TelegramVaultProfile = {
+      qalId: item.qalId,
+      accountLabel: item.accountLabel || `@user_${item.qalId}`,
+      fullName: item.fullName || item.profile?.fullName || existing?.fullName || '',
+      phone: item.profile?.phone || existing?.phone || '',
+      address: item.profile?.address || existing?.address || '',
+      idNumber: item.profile?.idNumber || existing?.idNumber || '',
+      text: item.text || existing?.text || '',
+    }
+    map.set(item.qalId, profile)
+  }
+
+  for (const acc of hub.accounts) {
+    if (!map.has(acc.qalId)) {
+      map.set(acc.qalId, {
+        qalId: acc.qalId,
+        accountLabel: acc.accountLabel,
+        fullName: acc.fullName || '',
+      })
+    }
+  }
+
+  return Array.from(map.values())
+}
+
 /**
  * Dismisses an item from the webpage hub list only (does NOT wipe the user's phone vault).
  * In HTTP mode: DELETE /api/v1/telegram-bridge/media/:id

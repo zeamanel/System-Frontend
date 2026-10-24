@@ -215,6 +215,18 @@ export interface TemplateFixture {
     required: boolean
     type?: string
   }[]
+  requiredFields?: {
+    id: string
+    label: LocalizedText
+    required?: boolean
+    type?: string
+  }[]
+  optionalFields?: {
+    id: string
+    label: LocalizedText
+    required?: boolean
+    type?: string
+  }[]
   createdAt?: string
   updatedAt?: string
 }

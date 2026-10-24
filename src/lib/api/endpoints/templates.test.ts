@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   mapTemplateFieldsToQuestions,
+  mapBackendTemplate,
   resetSearchTrackingCache,
   trackTemplateSearch,
 } from './templates'
+import { LEASE_AGREEMENT_STARTER_TEMPLATE } from '../../fixtures/templates'
 import type { ApiClient } from '../client'
 
 describe('trackTemplateSearch', () => {
@@ -147,5 +149,58 @@ describe('mapTemplateFieldsToQuestions', () => {
     expect(amResult).toHaveLength(2)
     expect(amResult[0]).toEqual({ id: 'q1', label: 'ጥያቄ 1', required: true, type: 'text' })
     expect(amResult[1]).toEqual({ id: 'q2', label: 'Question 2', required: false })
+  })
+})
+
+describe('mapBackendTemplate', () => {
+  it('returns null when dto is null or undefined', () => {
+    expect(mapBackendTemplate(null)).toBeNull()
+    expect(mapBackendTemplate(undefined)).toBeNull()
+  })
+
+  it('maps both dto.requiredFields (required: true) and dto.optionalFields (required: false) into questions', () => {
+    const dto = {
+      id: 'backend-tpl-1',
+      title: 'Commercial Lease',
+      requiredFields: [
+        { id: 'party_one_name', label: { en: 'Lessor Name', am: 'የአከራይ ስም' } },
+        { id: 'party_two_name', label: { en: 'Lessee Name', am: 'የተከራይ ስም' } },
+        { id: 'effective_date', label: { en: 'Date', am: 'ቀን' } },
+      ],
+      optionalFields: [
+        { id: 'property_address', label: { en: 'Property Address', am: 'የንብረቱ አድራሻ' } },
+        { id: 'monthly_rent_etb', label: { en: 'Monthly Rent', am: 'ወርሃዊ ኪራይ' } },
+      ],
+    }
+
+    const mapped = mapBackendTemplate(dto, 'en')
+    expect(mapped).not.toBeNull()
+    expect(mapped?.questions).toHaveLength(5)
+    expect(mapped?.questions[0]).toEqual({ id: 'party_one_name', label: 'Lessor Name', required: true })
+    expect(mapped?.questions[1]).toEqual({ id: 'party_two_name', label: 'Lessee Name', required: true })
+    expect(mapped?.questions[2]).toEqual({ id: 'effective_date', label: 'Date', required: true })
+    expect(mapped?.questions[3]).toEqual({ id: 'property_address', label: 'Property Address', required: false })
+    expect(mapped?.questions[4]).toEqual({ id: 'monthly_rent_etb', label: 'Monthly Rent', required: false })
+  })
+
+  it('verifies starter lease-agreement template fixture contains required and optional fields', () => {
+    expect(LEASE_AGREEMENT_STARTER_TEMPLATE.id).toBe('lease-agreement')
+    expect(LEASE_AGREEMENT_STARTER_TEMPLATE.requiredFields).toHaveLength(3)
+    expect(LEASE_AGREEMENT_STARTER_TEMPLATE.requiredFields?.map((f) => f.id)).toEqual([
+      'party_one_name',
+      'party_two_name',
+      'effective_date',
+    ])
+
+    expect(LEASE_AGREEMENT_STARTER_TEMPLATE.optionalFields).toHaveLength(4)
+    expect(LEASE_AGREEMENT_STARTER_TEMPLATE.optionalFields?.map((f) => f.id)).toEqual([
+      'property_address',
+      'property_type',
+      'monthly_rent_etb',
+      'lease_duration',
+    ])
+
+    // Questions list includes all 7 fields
+    expect(LEASE_AGREEMENT_STARTER_TEMPLATE.questions).toHaveLength(7)
   })
 })

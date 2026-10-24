@@ -105,6 +105,28 @@ export function mapTemplateFieldsToQuestions(
     return label[locale] ?? label.en ?? label.am ?? label.om ?? Object.values(label)[0] ?? ''
   }
 
+  const hasExplicitFields =
+    (Array.isArray(template.requiredFields) && template.requiredFields.length > 0) ||
+    (Array.isArray(template.optionalFields) && template.optionalFields.length > 0)
+
+  if (hasExplicitFields) {
+    const required: MappedTemplateQuestion[] = (template.requiredFields ?? []).map((f) => ({
+      id: f.id,
+      label: resolveLabel(f.label),
+      required: true,
+      ...(f.type ? { type: f.type } : {}),
+    }))
+
+    const optional: MappedTemplateQuestion[] = (template.optionalFields ?? []).map((f) => ({
+      id: f.id,
+      label: resolveLabel(f.label),
+      required: false,
+      ...(f.type ? { type: f.type } : {}),
+    }))
+
+    return [...required, ...optional]
+  }
+
   // If questions is present and already non-empty
   if (Array.isArray(template.questions) && template.questions.length > 0) {
     return template.questions.map((q) => ({
@@ -115,19 +137,21 @@ export function mapTemplateFieldsToQuestions(
     }))
   }
 
-  const required: MappedTemplateQuestion[] = (template.requiredFields ?? []).map((f) => ({
-    id: f.id,
-    label: resolveLabel(f.label),
-    required: true,
-    ...(f.type ? { type: f.type } : {}),
-  }))
+  return []
+}
 
-  const optional: MappedTemplateQuestion[] = (template.optionalFields ?? []).map((f) => ({
-    id: f.id,
-    label: resolveLabel(f.label),
-    required: false,
-    ...(f.type ? { type: f.type } : {}),
-  }))
-
-  return [...required, ...optional]
+/**
+ * Maps a backend template DTO into a client template representation,
+ * ensuring both `dto.requiredFields` (required: true) and `dto.optionalFields` (required: false)
+ * are mapped into `template.questions`.
+ */
+export function mapBackendTemplate<T extends TemplateDetailApiResponse>(
+  dto: T | null | undefined,
+  locale = 'en',
+): (T & { questions: MappedTemplateQuestion[] }) | null {
+  if (!dto) return null
+  return {
+    ...dto,
+    questions: mapTemplateFieldsToQuestions(dto, locale),
+  }
 }

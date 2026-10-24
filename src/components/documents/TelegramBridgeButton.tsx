@@ -118,12 +118,18 @@ function TelegramBridgeButtonInner({
             text: completedStatus.text,
           })
           toast?.push(t('documents.telegramConnectedSuccess'), { variant: 'success' })
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('telegram-session-completed'))
+          }
           setIsOpen(false)
         } else if (onImportIntoCurrent) {
           if (parsed) {
             onImportIntoCurrent(parsed.content, parsed.title)
           }
           toast?.push(t('documents.telegramConnectedSuccess'), { variant: 'success' })
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('telegram-session-completed'))
+          }
           setIsOpen(false)
         } else {
           // Triggered from DashboardPage or DocumentsPage
@@ -172,6 +178,9 @@ function TelegramBridgeButtonInner({
             answers,
           })
           toast?.push(t('documents.telegramConnectedSuccess'), { variant: 'success' })
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('telegram-session-completed'))
+          }
           setIsOpen(false)
           onNavigate?.(`/documents/${created.id}`)
         }

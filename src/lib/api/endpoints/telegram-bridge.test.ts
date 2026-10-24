@@ -8,6 +8,7 @@ import {
   getTelegramBotHealth,
   getTelegramBridgeSessionStatus,
   getTelegramHubMedia,
+  listTelegramMediaVault,
   pingTelegramQalId,
   syncTelegramWebhook,
 } from './telegram-bridge'
@@ -232,6 +233,24 @@ describe('telegram-bridge endpoint client', () => {
       const hubAfter = await getTelegramHubMedia(undefined, { dataSource: 'fixtures' })
       expect(hubAfter.items.length).toBe(1)
       expect(hubAfter.items[0].id).toBe('evt_fixture_2')
+    })
+
+    it('listTelegramMediaVault returns deduplicated connected profiles with full profile details', async () => {
+      const profiles = await listTelegramMediaVault({ dataSource: 'fixtures' })
+      expect(profiles.length).toBe(2)
+
+      const abebe = profiles.find((p) => p.qalId === '7392')
+      expect(abebe).toBeDefined()
+      expect(abebe?.fullName).toBe('Abebe Bikila')
+      expect(abebe?.phone).toBe('+251911223344')
+      expect(abebe?.idNumber).toBe('ET-AA-2024-98765')
+      expect(abebe?.address).toContain('Addis Ababa')
+
+      const almaz = profiles.find((p) => p.qalId === '4815')
+      expect(almaz).toBeDefined()
+      expect(almaz?.fullName).toBe('Almaz Kebede')
+      expect(almaz?.phone).toBe('+251911445566')
+      expect(almaz?.idNumber).toBe('ET-AA-481516')
     })
   })
 })
