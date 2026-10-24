@@ -34,7 +34,7 @@ export const CUSTOM_AI_DOCUMENT_TEMPLATE: TemplateFixture = {
   updatedAt: '2026-10-21T00:00:00Z',
 }
 
-export const GOLD_STANDARD_TEMPLATES: TemplateFixture[] = [
+const RAW_GOLD_STANDARD_TEMPLATES: TemplateFixture[] = [
   // 1. Power of Attorney
   {
     id: 'd7e8f9a0-0009-4000-8000-000000000009',
@@ -918,3 +918,10 @@ export const GOLD_STANDARD_TEMPLATES: TemplateFixture[] = [
     updatedAt: '2026-10-22T00:00:00Z',
   },
 ]
+
+export const GOLD_STANDARD_TEMPLATES: TemplateFixture[] = RAW_GOLD_STANDARD_TEMPLATES.map((t) => ({
+  ...t,
+  requiredFields: t.requiredFields ?? t.questions.filter((q) => q.required),
+  optionalFields: t.optionalFields ?? t.questions.filter((q) => !q.required),
+}))
+

@@ -76,15 +76,23 @@ export function toDetail(
 ): TemplateDetail {
   const effectiveLocale: Locale =
     targetLanguage === 'om' ? 'om' : targetLanguage === 'am' ? 'am' : locale
+  const questionsSource =
+    Array.isArray(fixture.questions) && fixture.questions.length > 0
+      ? fixture.questions
+      : [
+          ...(fixture.requiredFields ?? []).map((f) => ({ ...f, required: true })),
+          ...(fixture.optionalFields ?? []).map((f) => ({ ...f, required: false })),
+        ]
+
   return {
     ...toSummary(fixture, locale, targetLanguage),
-    questions: fixture.questions.map((question) => ({
+    questions: questionsSource.map((question) => ({
       id: question.id,
       label:
         fixture.language === 'om' && question.label.om
           ? question.label.om
           : pickText(question.label, effectiveLocale),
-      required: question.required,
+      required: Boolean(question.required),
       type: question.type,
     })),
   }

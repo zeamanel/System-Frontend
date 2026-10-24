@@ -3,7 +3,7 @@ import {
   TEMPLATE_FIXTURES as BASE_FIXTURES,
   CUSTOM_AI_DOCUMENT_TEMPLATE,
   GOLD_STANDARD_TEMPLATES,
-} from '../repositories/fixtures'
+} from '../repositories/fixtures/index'
 
 export const LEASE_AGREEMENT_STARTER_TEMPLATE: TemplateFixture = {
   id: 'lease-agreement',

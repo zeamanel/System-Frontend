@@ -260,13 +260,34 @@ describe('HttpTemplatesRepository', () => {
         templateRecord('Employment Contract', 95),
       ]),
     )
-    const repos = createHttpRepositories()
+    const repos = createHttpRepositories({ fallbackFixtures: [] })
 
     const all = await repos.templates.list('en')
     expect(all.map((t) => t.title)).toEqual(['Employment Contract', 'Rental Agreement'])
 
     const filtered = await repos.templates.list('en', { search: 'rental' })
     expect(filtered.map((t) => t.title)).toEqual(['Rental Agreement'])
+  })
+
+  it('merges missing fixture templates into catalog and falls back on 404', async () => {
+    fetchMock.mockImplementation(() =>
+      jsonResponse([
+        templateRecord('Custom API Template', 99),
+      ]),
+    )
+    const repos = createHttpRepositories()
+
+    const all = await repos.templates.list('en')
+    // Both API records and missing fixture templates are present
+    expect(all.some((t) => t.title === 'Custom API Template')).toBe(true)
+    expect(all.some((t) => t.slug === 'power-of-attorney')).toBe(true)
+
+    // Falls back to fixture on 404
+    fetchMock.mockResolvedValue(notFound())
+    const detail = await repos.templates.get('power-of-attorney', 'en')
+    expect(detail).not.toBeNull()
+    expect(detail?.slug).toBe('power-of-attorney')
+    expect(detail?.questions.length).toBeGreaterThan(0)
   })
 })
 

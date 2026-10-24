@@ -29,7 +29,8 @@ import {
 } from '../api/auth-store'
 import { getFirebaseAuth } from '../firebase/client'
 import { DocumentConflictError } from './errors'
-import { matchesCategory } from './fixtures/template-filtering'
+import { matchesCategory, toSummary, toDetail } from './fixtures/template-filtering'
+import { FIXTURE_TEMPLATES } from '../fixtures/templates'
 import type {
   AppNotification,
   CreateDocumentPayload,
@@ -50,6 +51,7 @@ import type {
   SessionUser,
   TemplateCategory,
   TemplateDetail,
+  TemplateFixture,
   TemplateListOptions,
   TemplatePreviewInfo,
   TemplateStatus,
@@ -270,14 +272,45 @@ function applyTemplateOptions(
 }
 
 class HttpTemplatesRepository implements TemplatesRepository {
-  constructor(private readonly getFavoriteIds: () => Promise<string[]>) {}
+  constructor(
+    private readonly getFavoriteIds: () => Promise<string[]>,
+    private readonly fallbackFixtures: TemplateFixture[] = FIXTURE_TEMPLATES,
+  ) {}
 
   private async fetchAll(locale: Locale): Promise<TemplateSummary[]> {
-    const records = await apiClient.get<TemplateApiRecord[]>('/templates', {
-      query: { locale },
-      auth: 'optional',
-    })
-    return (Array.isArray(records) ? records : []).map(mapTemplate)
+    let apiTemplates: TemplateSummary[] = []
+    try {
+      const records = await apiClient.get<TemplateApiRecord[]>('/templates', {
+        query: { locale },
+        auth: 'optional',
+      })
+      apiTemplates = (Array.isArray(records) ? records : []).map(mapTemplate)
+    } catch {
+      apiTemplates = []
+    }
+
+    // Merge: backend records take precedence, missing templates supplemented from fallback fixtures
+    const seenSlugs = new Set<string>()
+    const seenIds = new Set<string>()
+    const result: TemplateSummary[] = []
+
+    for (const t of apiTemplates) {
+      if (t.slug) seenSlugs.add(t.slug)
+      if (t.id) seenIds.add(t.id)
+      result.push(t)
+    }
+
+    for (const fixture of this.fallbackFixtures) {
+      const slug = fixture.slug ?? fixture.id
+      if (seenSlugs.has(slug) || seenIds.has(fixture.id)) {
+        continue
+      }
+      seenSlugs.add(slug)
+      seenIds.add(fixture.id)
+      result.push(toSummary(fixture, locale))
+    }
+
+    return result
   }
 
   private async filterAll(
@@ -322,22 +355,36 @@ class HttpTemplatesRepository implements TemplatesRepository {
   }
 
   async get(id: string, locale: Locale): Promise<TemplateDetail | null> {
-    const record = await nullOnNotFound(() =>
-      apiClient.get<TemplateDetailApiRecord>(
-        `/templates/${encodeURIComponent(id)}`,
-        { query: { locale }, auth: 'optional' },
-      ),
+    try {
+      const record = await nullOnNotFound(() =>
+        apiClient.get<TemplateDetailApiRecord>(
+          `/templates/${encodeURIComponent(id)}`,
+          { query: { locale }, auth: 'optional' },
+        ),
+      )
+      if (record) {
+        return {
+          ...mapTemplate(record),
+          questions: (record.questions ?? []).map((question) => ({
+            id: question.id,
+            label: question.label,
+            required: question.required ?? false,
+            type: question.type,
+          })),
+        } satisfies TemplateDetail
+      }
+    } catch {
+      // In case of error, fall through to fixture lookup
+    }
+
+    const fixture = this.fallbackFixtures.find(
+      (f) => f.id === id || f.slug === id || f.documentTypeId === id,
     )
-    if (!record) return null
-    return {
-      ...mapTemplate(record),
-      questions: (record.questions ?? []).map((question) => ({
-        id: question.id,
-        label: question.label,
-        required: question.required ?? false,
-        type: question.type,
-      })),
-    } satisfies TemplateDetail
+    if (fixture) {
+      return toDetail(fixture, locale)
+    }
+
+    return null
   }
 }
 
@@ -856,9 +903,14 @@ class HttpPreferencesRepository implements PreferencesRepository {
 }
 
 /** API-backed repository bundle targeting the live backend. */
-export function createHttpRepositories(): Repositories {
+export function createHttpRepositories(options?: {
+  fallbackFixtures?: TemplateFixture[]
+}): Repositories {
   const favorites = new HttpFavoritesRepository()
-  const templates = new HttpTemplatesRepository(() => favorites.listIds())
+  const templates = new HttpTemplatesRepository(
+    () => favorites.listIds(),
+    options?.fallbackFixtures ?? FIXTURE_TEMPLATES,
+  )
   const documents = new HttpDocumentsRepository()
   const generation = new HttpGenerationRepository()
 
