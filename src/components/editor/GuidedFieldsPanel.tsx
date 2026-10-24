@@ -425,63 +425,81 @@ export function GuidedFieldsPanel({
                       </label>
                     </div>
 
-                    <div className="guided-field__input-with-addon">
-                      {isMultilineQuestion(question) ? (
-                        <Textarea
-                          id={`field-${question.id}`}
-                          bare
-                          rows={3}
-                          value={primaryDisplayValue}
+                    <div className="guided-field__party-row">
+                      <div className="guided-field__input-with-addon">
+                        {isMultilineQuestion(question) ? (
+                          <Textarea
+                            id={`field-${question.id}`}
+                            bare
+                            rows={3}
+                            value={primaryDisplayValue}
+                            onChange={(e) =>
+                              handlePrimaryChange(
+                                fieldKey,
+                                e.target.value,
+                                question.label,
+                                currentValue,
+                              )
+                            }
+                            placeholder={t('editor.fieldPlaceholder')}
+                            aria-invalid={invalid[question.id] ? true : undefined}
+                          />
+                        ) : (
+                          <Input
+                            id={`field-${question.id}`}
+                            bare
+                            value={primaryDisplayValue}
+                            onChange={(e) =>
+                              handlePrimaryChange(
+                                fieldKey,
+                                e.target.value,
+                                question.label,
+                                currentValue,
+                              )
+                            }
+                            placeholder={t('editor.fieldPlaceholder')}
+                            aria-invalid={invalid[question.id] ? true : undefined}
+                          />
+                        )}
+                        <select
+                          data-testid={`party-telegram-select-${fieldKey}-0`}
+                          className="guided-fields-panel__party-select"
+                          value={primarySlot?.profile?.qalId ?? ''}
+                          aria-label={t('editor.fields.mapTelegramId')}
+                          title={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
+                          data-tooltip={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
                           onChange={(e) =>
-                            handlePrimaryChange(
+                            handleTelegramSelect(
                               fieldKey,
+                              0,
                               e.target.value,
                               question.label,
                               currentValue,
                             )
                           }
-                          placeholder={t('editor.fieldPlaceholder')}
-                          aria-invalid={invalid[question.id] ? true : undefined}
-                        />
-                      ) : (
-                        <Input
-                          id={`field-${question.id}`}
-                          bare
-                          value={primaryDisplayValue}
-                          onChange={(e) =>
-                            handlePrimaryChange(
-                              fieldKey,
-                              e.target.value,
-                              question.label,
-                              currentValue,
-                            )
-                          }
-                          placeholder={t('editor.fieldPlaceholder')}
-                          aria-invalid={invalid[question.id] ? true : undefined}
-                        />
-                      )}
-                      <select
-                        data-testid={`party-telegram-select-${fieldKey}-0`}
-                        className="guided-fields-panel__party-select"
-                        value={primarySlot?.profile?.qalId ?? ''}
-                        aria-label={t('editor.fields.mapTelegramId')}
-                        onChange={(e) =>
-                          handleTelegramSelect(
-                            fieldKey,
-                            0,
-                            e.target.value,
-                            question.label,
-                            currentValue,
-                          )
-                        }
-                      >
-                        <option value="">{t('editor.fields.mapTelegramId')}</option>
-                        {telegramProfiles.map((acc) => (
-                          <option key={acc.qalId} value={acc.qalId}>
-                            {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
-                          </option>
-                        ))}
-                      </select>
+                        >
+                          <option value="">{t('editor.fields.mapTelegramId')}</option>
+                          {telegramProfiles.map((acc) => (
+                            <option key={acc.qalId} value={acc.qalId}>
+                              {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {slots.length < 5 ? (
+                        <button
+                          type="button"
+                          className="guided-field__icon-action-btn guided-field__icon-action-btn--add"
+                          data-testid={`add-co-party-btn-${fieldKey}`}
+                          onClick={() => handleAddCoParty(fieldKey, question.label, currentValue)}
+                          title={`${t('editor.fields.addCoParty')} (${question.label})`}
+                          aria-label={t('editor.fields.addCoParty')}
+                          data-tooltip={t('editor.fields.addCoParty')}
+                        >
+                          +
+                        </button>
+                      ) : null}
                     </div>
 
                     {invalid[question.id] ? (
@@ -577,7 +595,7 @@ export function GuidedFieldsPanel({
                             </span>
                           </label>
                         </div>
-                        <div className="guided-fields-panel__co-party-input-wrap">
+                        <div className="guided-field__party-row">
                           <div className="guided-field__input-with-addon">
                             <input
                               id={`co-party-input-${fieldKey}-${idx}`}
@@ -600,6 +618,8 @@ export function GuidedFieldsPanel({
                               className="guided-fields-panel__party-select"
                               value={coSlot.profile?.qalId ?? ''}
                               aria-label={t('editor.fields.mapTelegramId')}
+                              title={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
+                              data-tooltip={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
                               onChange={(e) =>
                                 handleTelegramSelect(
                                   fieldKey,
@@ -620,15 +640,16 @@ export function GuidedFieldsPanel({
                           </div>
                           <button
                             type="button"
-                            className="guided-fields-panel__remove-co-party-btn"
+                            className="guided-field__icon-action-btn guided-field__icon-action-btn--remove"
                             data-testid={`remove-co-party-btn-${fieldKey}-${idx}`}
                             onClick={() =>
                               handleRemoveCoParty(fieldKey, idx, question.label, currentValue)
                             }
                             aria-label={t('editor.fields.removeCoParty')}
-                            title={t('editor.fields.removeCoParty')}
+                            title={`${t('editor.fields.removeCoParty')} (${question.label} #${idx + 1})`}
+                            data-tooltip={t('editor.fields.removeCoParty')}
                           >
-                            {t('editor.fields.removeCoParty')}
+                            −
                           </button>
                         </div>
                         {coSlot.profile ? (
@@ -663,17 +684,6 @@ export function GuidedFieldsPanel({
                     )
                   })}
 
-                {/* [+ Add Party] button */}
-                {isParty && slots.length < 5 ? (
-                  <button
-                    type="button"
-                    className="guided-fields-panel__add-co-party-btn"
-                    data-testid={`add-co-party-btn-${fieldKey}`}
-                    onClick={() => handleAddCoParty(fieldKey, question.label, currentValue)}
-                  >
-                    {t('editor.fields.addCoParty')}
-                  </button>
-                ) : null}
 
                 {suggestion ? (
                   <SmartSuggestionChip
