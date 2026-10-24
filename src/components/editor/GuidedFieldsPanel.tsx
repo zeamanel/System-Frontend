@@ -391,12 +391,6 @@ export function GuidedFieldsPanel({
             ↻
           </button>
         </div>
-
-        {template ? (
-          <p className="editor-panel__hint">{t('editor.fieldsHint')}</p>
-        ) : (
-          <p className="editor-panel__hint">{t('editor.noTemplate')}</p>
-        )}
       </header>
 
       <div className="guided-fields-panel__body" data-testid="guided-fields-body">
@@ -429,6 +423,43 @@ export function GuidedFieldsPanel({
                           <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                         ) : null}
                       </label>
+                    </div>
+
+                    <div className="guided-field__input-with-addon">
+                      {isMultilineQuestion(question) ? (
+                        <Textarea
+                          id={`field-${question.id}`}
+                          bare
+                          rows={3}
+                          value={primaryDisplayValue}
+                          onChange={(e) =>
+                            handlePrimaryChange(
+                              fieldKey,
+                              e.target.value,
+                              question.label,
+                              currentValue,
+                            )
+                          }
+                          placeholder={t('editor.fieldPlaceholder')}
+                          aria-invalid={invalid[question.id] ? true : undefined}
+                        />
+                      ) : (
+                        <Input
+                          id={`field-${question.id}`}
+                          bare
+                          value={primaryDisplayValue}
+                          onChange={(e) =>
+                            handlePrimaryChange(
+                              fieldKey,
+                              e.target.value,
+                              question.label,
+                              currentValue,
+                            )
+                          }
+                          placeholder={t('editor.fieldPlaceholder')}
+                          aria-invalid={invalid[question.id] ? true : undefined}
+                        />
+                      )}
                       <select
                         data-testid={`party-telegram-select-${fieldKey}-0`}
                         className="guided-fields-panel__party-select"
@@ -452,41 +483,6 @@ export function GuidedFieldsPanel({
                         ))}
                       </select>
                     </div>
-
-                    {isMultilineQuestion(question) ? (
-                      <Textarea
-                        id={`field-${question.id}`}
-                        bare
-                        rows={3}
-                        value={primaryDisplayValue}
-                        onChange={(e) =>
-                          handlePrimaryChange(
-                            fieldKey,
-                            e.target.value,
-                            question.label,
-                            currentValue,
-                          )
-                        }
-                        placeholder={t('editor.fieldPlaceholder')}
-                        aria-invalid={invalid[question.id] ? true : undefined}
-                      />
-                    ) : (
-                      <Input
-                        id={`field-${question.id}`}
-                        bare
-                        value={primaryDisplayValue}
-                        onChange={(e) =>
-                          handlePrimaryChange(
-                            fieldKey,
-                            e.target.value,
-                            question.label,
-                            currentValue,
-                          )
-                        }
-                        placeholder={t('editor.fieldPlaceholder')}
-                        aria-invalid={invalid[question.id] ? true : undefined}
-                      />
-                    )}
 
                     {invalid[question.id] ? (
                       <p className="field__error" role="alert">
@@ -579,10 +575,31 @@ export function GuidedFieldsPanel({
                             <span>
                               {question.label} #{idx + 1}
                             </span>
+                          </label>
+                        </div>
+                        <div className="guided-fields-panel__co-party-input-wrap">
+                          <div className="guided-field__input-with-addon">
+                            <input
+                              id={`co-party-input-${fieldKey}-${idx}`}
+                              data-testid={`co-party-input-${fieldKey}-${idx}`}
+                              className="input guided-fields-panel__co-party-input"
+                              value={coSlot.name}
+                              placeholder={t('editor.fieldPlaceholder')}
+                              onChange={(e) =>
+                                handleCoPartyChange(
+                                  fieldKey,
+                                  idx,
+                                  e.target.value,
+                                  question.label,
+                                  currentValue,
+                                )
+                              }
+                            />
                             <select
                               data-testid={`party-telegram-select-${fieldKey}-${idx}`}
                               className="guided-fields-panel__party-select"
                               value={coSlot.profile?.qalId ?? ''}
+                              aria-label={t('editor.fields.mapTelegramId')}
                               onChange={(e) =>
                                 handleTelegramSelect(
                                   fieldKey,
@@ -600,25 +617,7 @@ export function GuidedFieldsPanel({
                                 </option>
                               ))}
                             </select>
-                          </label>
-                        </div>
-                        <div className="guided-fields-panel__co-party-input-wrap">
-                          <input
-                            id={`co-party-input-${fieldKey}-${idx}`}
-                            data-testid={`co-party-input-${fieldKey}-${idx}`}
-                            className="input guided-fields-panel__co-party-input"
-                            value={coSlot.name}
-                            placeholder={t('editor.fieldPlaceholder')}
-                            onChange={(e) =>
-                              handleCoPartyChange(
-                                fieldKey,
-                                idx,
-                                e.target.value,
-                                question.label,
-                                currentValue,
-                              )
-                            }
-                          />
+                          </div>
                           <button
                             type="button"
                             className="guided-fields-panel__remove-co-party-btn"

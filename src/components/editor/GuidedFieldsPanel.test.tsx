@@ -308,4 +308,20 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
       }),
     )
   })
+
+  it('renders a compact single-line header without hint and edge Map dropdown inside input container', async () => {
+    renderPanel()
+
+    // Header has title and refresh button, but no subtitle hint
+    const header = screen.getByTestId('guided-fields-header')
+    expect(header).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /document fields/i })).toBeInTheDocument()
+    expect(screen.getByTestId('refresh-telegram-vault-btn')).toBeInTheDocument()
+    expect(screen.queryByText(/answers drive generation/i)).toBeNull()
+
+    // Select dropdown is positioned inside input container with 'Map' placeholder
+    const select = await screen.findByTestId('party-telegram-select-tenant_name-0')
+    expect(select.closest('.guided-field__input-with-addon')).not.toBeNull()
+    expect(select).toHaveTextContent(/Map/i)
+  })
 })

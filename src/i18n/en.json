@@ -256,7 +256,7 @@
   "editor.fieldsHint": "Answers drive generation and are kept when you regenerate.",
   "editor.fieldsRequired": "Required",
   "editor.fieldsOptional": "Optional",
-  "editor.fields.mapTelegramId": "✈️ Map Telegram ID...",
+  "editor.fields.mapTelegramId": "Map",
   "editor.fields.addCoParty": "+ Add another party",
   "editor.fields.removeCoParty": "Remove party",
   "editor.fields.linkedTelegramBadge": "Linked Telegram ID",

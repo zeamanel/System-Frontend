@@ -256,7 +256,7 @@
   "editor.fieldsHint": "መልሶችዎ መፍጠሪያን ይመራሉ፤ በድጋሚ ሲፈጠር ይጠበቃሉ።",
   "editor.fieldsRequired": "አስፈላጊ",
   "editor.fieldsOptional": "አማራጭ",
-  "editor.fields.mapTelegramId": "✈️ ከቴሌግራም መረጃ ምረጥ...",
+  "editor.fields.mapTelegramId": "አያይዝ",
   "editor.fields.addCoParty": "+ ተጨማሪ ተዋዋይ/አካል ጨምር",
   "editor.fields.removeCoParty": "አካል አስወግድ",
   "editor.fields.linkedTelegramBadge": "ከቴሌግራም የተያያዘ",
