@@ -1,0 +1,326 @@
+/* ============================================================
+   EditorTelegramVaultDrawer: In-Editor Telegram Vault Drawer
+   ============================================================ */
+
+.editor-toolbar__vault-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: var(--radius-sm, 6px);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text, #374151);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease-in-out;
+}
+
+.editor-toolbar__vault-btn:hover {
+  background-color: var(--color-surface-hover, #f3f4f6);
+  border-color: var(--color-primary, #1a73e8);
+  color: var(--color-primary, #1a73e8);
+}
+
+.editor-toolbar__vault-btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.editor-toolbar__vault-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary, #1a73e8);
+  margin-left: 2px;
+}
+
+/* Slide-over Overlay & Backdrop */
+.editor-telegram-vault-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.editor-telegram-vault-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(17, 24, 39, 0.45);
+  backdrop-filter: blur(2px);
+  animation: vaultFadeIn 0.2s ease-out;
+}
+
+.editor-telegram-vault-drawer {
+  position: relative;
+  width: 440px;
+  max-width: 92vw;
+  height: 100vh;
+  background-color: var(--color-surface, #ffffff);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
+  animation: vaultSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes vaultFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vaultSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Header */
+.editor-telegram-vault-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border-subtle, #e5e7eb);
+  background-color: var(--color-surface, #ffffff);
+  flex-shrink: 0;
+}
+
+.editor-telegram-vault-drawer__header-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-telegram-vault-drawer__icon {
+  font-size: 18px;
+}
+
+.editor-telegram-vault-drawer__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text, #111827);
+}
+
+.editor-telegram-vault-drawer__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-telegram-vault-drawer__btn {
+  background: transparent;
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-text-muted, #6b7280);
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease-in-out;
+}
+
+.editor-telegram-vault-drawer__btn:hover {
+  background-color: var(--color-surface-hover, #f3f4f6);
+  color: var(--color-text, #111827);
+  border-color: var(--color-border, #d1d5db);
+}
+
+.editor-telegram-vault-drawer__btn--close:hover {
+  color: var(--color-danger, #dc2626);
+  border-color: var(--color-danger, #dc2626);
+}
+
+/* Toast Feedback */
+.editor-telegram-vault-drawer__feedback {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border-bottom: 1px solid #a7f3d0;
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  animation: vaultFadeIn 0.15s ease-out;
+}
+
+/* Account Filter Pills */
+.editor-telegram-vault-drawer__filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--color-border-subtle, #e5e7eb);
+  overflow-x: auto;
+  background-color: var(--color-surface-subtle, #f9fafb);
+  flex-shrink: 0;
+}
+
+.editor-telegram-vault-drawer__filter-pill {
+  border: 1px solid var(--color-border, #d1d5db);
+  background-color: #ffffff;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #4b5563);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease-in-out;
+}
+
+.editor-telegram-vault-drawer__filter-pill:hover {
+  border-color: var(--color-primary, #1a73e8);
+  color: var(--color-primary, #1a73e8);
+}
+
+.editor-telegram-vault-drawer__filter-pill--active {
+  background-color: var(--color-primary, #1a73e8);
+  color: #ffffff;
+  border-color: var(--color-primary, #1a73e8);
+}
+
+.editor-telegram-vault-drawer__filter-pill--active:hover {
+  background-color: #1765c9;
+  color: #ffffff;
+}
+
+/* Body / List */
+.editor-telegram-vault-drawer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px;
+}
+
+.editor-telegram-vault-drawer__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.editor-telegram-vault-drawer__empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.editor-telegram-vault-drawer__empty-icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.editor-telegram-vault-drawer__empty p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.editor-telegram-vault-drawer__list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Card */
+.editor-telegram-vault-drawer__card {
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: var(--radius-md, 8px);
+  background-color: #ffffff;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.editor-telegram-vault-drawer__card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.editor-telegram-vault-drawer__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.editor-telegram-vault-drawer__card-sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text, #111827);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Thumbnail */
+.editor-telegram-vault-drawer__card-thumbnail-wrap {
+  width: 100%;
+  max-height: 160px;
+  border-radius: var(--radius-sm, 6px);
+  overflow: hidden;
+  background-color: #f3f4f6;
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-telegram-vault-drawer__card-thumbnail {
+  max-width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+}
+
+/* Snippet */
+.editor-telegram-vault-drawer__card-snippet {
+  background-color: var(--color-surface-subtle, #f9fafb);
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text, #374151);
+}
+
+.editor-telegram-vault-drawer__card-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.editor-telegram-vault-drawer__card-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--color-text-secondary, #4b5563);
+}
+
+/* Card Actions */
+.editor-telegram-vault-drawer__card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}

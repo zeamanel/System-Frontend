@@ -28,6 +28,7 @@ export {
   createTelegramBridgeSession,
   pingTelegramQalId,
   getTelegramBridgeSessionStatus,
+  getTelegramHubMedia,
   listTelegramMediaVault,
   type CreateTelegramSessionInput,
   type TelegramBridgeSessionRecord,
@@ -38,4 +39,7 @@ export {
   type TelegramBridgeStatusRecord,
   type PingTelegramQalIdInput,
   type PingTelegramQalIdResponse,
+  type TelegramHubItem,
+  type TelegramHubAccount,
+  type TelegramHubMediaResponse,
 } from './endpoints/telegram-bridge'

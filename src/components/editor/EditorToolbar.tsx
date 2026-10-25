@@ -3,6 +3,7 @@ import type { SaveStatus } from './useDocumentEditor'
 import { Badge, Button, Popover } from '../ui'
 import { OpenLocalFileButton } from '../documents/OpenLocalFileButton'
 import { TelegramBridgeButton, type TelegramBridgeTransferPayload } from '../documents/TelegramBridgeButton'
+import { EditorTelegramVaultDrawer } from './EditorTelegramVaultDrawer'
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -35,6 +36,9 @@ export interface EditorToolbarProps {
   onBack: () => void
   onImportFile?: (content: string, title: string) => void
   onApplyTelegramData?: (data: TelegramBridgeTransferPayload) => void
+  onAppendToCanvas?: (text: string) => void
+  onAppendToPrompt?: (text: string) => void
+  onInsertImage?: (imageDataUrl: string, caption?: string) => void
   documentId?: string
 }
 
@@ -73,6 +77,9 @@ export function EditorToolbar({
   onBack,
   onImportFile,
   onApplyTelegramData,
+  onAppendToCanvas,
+  onAppendToPrompt,
+  onInsertImage,
   documentId,
 }: EditorToolbarProps) {
   const { t } = useI18n()
@@ -162,6 +169,9 @@ export function EditorToolbar({
         status,
         onImportFile,
         onApplyTelegramData,
+        onAppendToCanvas,
+        onAppendToPrompt,
+        onInsertImage,
         documentId,
         t,
       })}
@@ -182,6 +192,9 @@ function renderToolbarEnd(props: {
   status: SaveStatus
   onImportFile?: (content: string, title: string) => void
   onApplyTelegramData?: (data: TelegramBridgeTransferPayload) => void
+  onAppendToCanvas?: (text: string) => void
+  onAppendToPrompt?: (text: string) => void
+  onInsertImage?: (imageDataUrl: string, caption?: string) => void
   documentId?: string
   t: T
 }) {
@@ -196,6 +209,11 @@ function renderToolbarEnd(props: {
             onImportIntoCurrent={props.onImportFile}
             onApplyTelegramData={props.onApplyTelegramData}
             compact
+          />
+          <EditorTelegramVaultDrawer
+            onAppendToCanvas={props.onAppendToCanvas}
+            onAppendToPrompt={props.onAppendToPrompt}
+            onInsertImage={props.onInsertImage}
           />
         </>
       ) : null}

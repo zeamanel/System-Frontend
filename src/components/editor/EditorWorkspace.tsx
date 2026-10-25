@@ -578,6 +578,37 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
     [editor, template, handleImportFile, updateModel],
   )
 
+  const handleAppendToCanvas = useCallback(
+    (text: string) => {
+      if (!text.trim()) return
+      const newBlock = createParagraph(text.trim())
+      updateModel((current) => insertBlocksAfter(current, null, [newBlock]))
+      toast.push(t('editor.telegramVault.insertToCanvas') + ' ✓')
+    },
+    [updateModel, toast, t],
+  )
+
+  const handleAppendToPrompt = useCallback(
+    (text: string) => {
+      if (!text.trim()) return
+      const prev = editor.answers.additional_instructions?.trim()
+      const updated = prev ? `${prev}\n\n${text.trim()}` : text.trim()
+      editor.setAnswer('additional_instructions', updated)
+      toast.push(t('editor.telegramVault.appendToPrompt') + ' ✓')
+    },
+    [editor, toast, t],
+  )
+
+  const handleInsertVaultImage = useCallback(
+    (imageDataUrl: string, caption?: string) => {
+      if (!imageDataUrl) return
+      const imgBlock = createImage(imageDataUrl, caption || 'Telegram Image')
+      updateModel((current) => insertBlocksAfter(current, null, [imgBlock]))
+      toast.push(t('editor.telegramVault.insertImage') + ' ✓')
+    },
+    [updateModel, toast, t],
+  )
+
   const handlePrint = useCallback((): void => {
     void editor.flush()
     triggerPrint()
@@ -783,6 +814,9 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
         onBack={onBack}
         onImportFile={handleImportFile}
         onApplyTelegramData={handleApplyTelegramData}
+        onAppendToCanvas={handleAppendToCanvas}
+        onAppendToPrompt={handleAppendToPrompt}
+        onInsertImage={handleInsertVaultImage}
         documentId={doc.id}
       />
 
