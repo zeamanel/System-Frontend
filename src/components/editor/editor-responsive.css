@@ -1,0 +1,274 @@
+/* ---------- Editor on tablets and phones (≤960px) ----------
+   The A4 page is the main view. Fields, Assistant and Format open as
+   sheets over it (one at a time) from a bottom action bar, with a scrim
+   and a "back to page" control, so the page is always one tap away. */
+
+.editor-mobile-bar,
+.editor-scrim,
+.editor-side__sheet-bar {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .editor-workspace {
+    --editor-mobile-bar-height: 60px;
+  }
+
+  /* Dynamic viewport units: mobile browser chrome never hides content. */
+  .editor-workspace,
+  .editor-workspace:not(.editor-workspace--left-open),
+  .editor-workspace:not(.editor-workspace--right-open),
+  .editor-workspace:not(.editor-workspace--left-open):not(.editor-workspace--right-open) {
+    height: calc(
+      100dvh - var(--header-height, var(--topbar-height, 56px)) - var(--editor-mobile-bar-height) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    max-height: calc(
+      100dvh - var(--header-height, var(--topbar-height, 56px)) - var(--editor-mobile-bar-height) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    gap: 0;
+  }
+
+  /* Panel toggles move to the bottom bar. */
+  .editor-toolbar .editor-icon-btn[aria-label][aria-pressed] {
+    display: none;
+  }
+
+  .editor-toolbar {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .editor-toolbar__group--start {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .editor-toolbar__title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Secondary actions: one row that scrolls sideways instead of wrapping. */
+  .editor-toolbar__group--end {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+
+  .editor-toolbar__group--end::-webkit-scrollbar {
+    display: none;
+  }
+
+  .editor-toolbar__group--end > * {
+    flex-shrink: 0;
+  }
+
+  /* Print and Save first: the most-used actions never scroll out of view. */
+  .editor-toolbar__group--end > .editor-toolbar__print {
+    order: -2;
+  }
+
+  .editor-toolbar__group--end > .editor-toolbar__save {
+    order: -1;
+  }
+
+  /* Sheets: below the top bar, above the action bar. */
+  .editor-workspace--left-open .editor-side--left,
+  .editor-workspace--right-open .editor-side--right {
+    position: fixed;
+    z-index: 65;
+    top: var(--header-height, var(--topbar-height, 56px));
+    bottom: calc(var(--editor-mobile-bar-height) + env(safe-area-inset-bottom, 0px));
+    height: auto;
+    max-height: none;
+    width: min(420px, 100vw);
+    box-shadow: var(--shadow-md);
+  }
+
+  .editor-workspace--left-open .editor-side--left {
+    left: 0;
+    border-right: 1px solid var(--color-border);
+  }
+
+  .editor-workspace--right-open .editor-side--right {
+    right: 0;
+    border-left: 1px solid var(--color-border);
+  }
+
+  .editor-side__sheet-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    flex-shrink: 0;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border-subtle);
+    background-color: var(--color-surface);
+  }
+
+  .editor-side--right .editor-side__sheet-bar {
+    margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) 0;
+  }
+
+  .editor-side__sheet-title {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+  }
+
+  .editor-side__sheet-close {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .editor-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 62;
+    background-color: var(--color-overlay);
+  }
+
+  .editor-mobile-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    height: calc(var(--editor-mobile-bar-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--color-border-subtle);
+    background-color: var(--color-surface);
+    box-shadow: 0 -2px 12px rgb(13 13 16 / 0.06);
+  }
+
+  .editor-mobile-bar__btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: none;
+    background: none;
+    color: var(--color-text-tertiary);
+    font: inherit;
+    font-size: 11px;
+    font-weight: var(--weight-medium);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .editor-mobile-bar__btn[aria-pressed='true'] {
+    color: var(--color-text);
+  }
+
+  .editor-mobile-bar__btn[aria-pressed='true'] svg {
+    color: var(--color-action-primary);
+  }
+
+  .editor-mobile-bar__btn:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: -2px;
+  }
+
+  .editor-mobile-bar__badge {
+    position: absolute;
+    top: 6px;
+    left: calc(50% + 6px);
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: var(--radius-round);
+    background-color: var(--color-action-primary);
+    color: var(--color-on-action-primary);
+    font-size: 10px;
+    line-height: 16px;
+  }
+
+  /* The thread can use the whole sheet height on small screens. */
+  .assistant-thread {
+    max-height: none;
+    flex: 1;
+  }
+
+  .editor-side--right .editor-side-tabs {
+    display: none;
+  }
+}
+
+/* Phones: full-width sheets, icon-only secondary toolbar actions. */
+@media (max-width: 640px) {
+  .editor-workspace--left-open .editor-side--left,
+  .editor-workspace--right-open .editor-side--right {
+    width: 100vw;
+    border-left: none;
+    border-right: none;
+  }
+
+  .editor-toolbar__label {
+    display: none;
+  }
+
+  .editor-toolbar__back,
+  .editor-toolbar__group--end .btn {
+    padding-inline: var(--space-2);
+  }
+
+  /* Global search is not needed inside the editor on phones. */
+  .app-shell--editor .topbar__search {
+    display: none;
+  }
+}
+
+@media print {
+  .editor-mobile-bar,
+  .editor-scrim,
+  .editor-side__sheet-bar {
+    display: none !important;
+  }
+}
+
+/* Short screens (phones in landscape): give the page the height. The
+   global top bar is hidden inside the editor (the editor toolbar has its
+   own Back control) and the action bar becomes a slim icon row. */
+@media (max-width: 960px) and (max-height: 500px) {
+  .app-shell--editor {
+    --header-height: 0px;
+  }
+
+  .app-shell--editor .topbar {
+    display: none;
+  }
+
+  .editor-workspace {
+    --editor-mobile-bar-height: 44px;
+  }
+
+  .editor-mobile-bar__btn {
+    flex-direction: row;
+    gap: var(--space-2);
+  }
+
+  .editor-toolbar {
+    padding-block: var(--space-1);
+  }
+}

@@ -14,10 +14,12 @@ import { RegionMenu } from './RegionMenu'
 export interface TopBarProps {
   /** Opens the mobile navigation drawer. */
   onOpenMenu: () => void
+  /** Whether the mobile drawer is open (for aria-expanded). */
+  menuOpen?: boolean
 }
 
 /** Global top bar: menu trigger, logo, search, region, notifications, profile. */
-export function TopBar({ onOpenMenu }: TopBarProps) {
+export function TopBar({ onOpenMenu, menuOpen = false }: TopBarProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -37,6 +39,8 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
           type="button"
           className="topbar__menu-btn"
           aria-label={t('topbar.menu')}
+          aria-expanded={menuOpen}
+          aria-controls="primary-navigation"
           onClick={onOpenMenu}
         >
           <MenuIcon size={18} />
@@ -59,8 +63,9 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
             className="topbar__create"
             icon={<PlusIcon size={15} />}
             onClick={() => setCreateOpen(true)}
+            aria-label={t('topbar.newDocument')}
           >
-            {t('topbar.newDocument')}
+            <span className="topbar__create-label">{t('topbar.newDocument')}</span>
           </Button>
           <RegionMenu />
           <NotificationsMenu />

@@ -1,5 +1,6 @@
 import './Sidebar.css'
 
+import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n'
@@ -14,10 +15,12 @@ import {
   StarIcon,
   TemplateIcon,
   UserIcon,
+  XIcon,
 } from '../icons'
 import type { IconProps } from '../icons'
 import type { ComponentType } from 'react'
 import { Badge } from '../ui'
+import { Logo } from './Logo'
 
 interface NavItem {
   to: string
@@ -48,6 +51,8 @@ export interface SidebarProps {
   mobileOpen?: boolean
   /** Called after any navigation so the mobile drawer closes. */
   onNavigate?: () => void
+  /** Closes the mobile drawer (its close button). */
+  onClose?: () => void
   /** Collapse to a narrow icon rail (desktop editor routes). */
   rail?: boolean
 }
@@ -59,8 +64,15 @@ export interface SidebarProps {
  * horizontal space; text labels become hover tooltips and each link keeps
  * an `aria-label` so its accessible name is unchanged.
  */
-export function Sidebar({ mobileOpen = false, onNavigate, rail = false }: SidebarProps) {
+export function Sidebar({ mobileOpen = false, onNavigate, onClose, rail = false }: SidebarProps) {
   const { t } = useI18n()
+  const closeRef = useRef<HTMLButtonElement | null>(null)
+
+  // Opening the drawer moves focus into it, so keyboard and screen-reader
+  // users land on the navigation instead of the page underneath.
+  useEffect(() => {
+    if (mobileOpen) closeRef.current?.focus()
+  }, [mobileOpen])
   const { user, isAdmin } = useSession()
   const isUserAdmin = user ? user.role === 'admin' : Boolean(isAdmin)
 
@@ -82,7 +94,20 @@ export function Sidebar({ mobileOpen = false, onNavigate, rail = false }: Sideba
         .filter(Boolean)
         .join(' ')}
       aria-label={t('nav.primary')}
+      id="primary-navigation"
     >
+      <div className="sidebar__drawer-header">
+        <Logo />
+        <button
+          ref={closeRef}
+          type="button"
+          className="sidebar__close"
+          aria-label={t('nav.closeMenu')}
+          onClick={onClose}
+        >
+          <XIcon size={18} />
+        </button>
+      </div>
       {groups.map((group) => (
         <div key={group.labelKey} className="sidebar__group">
           <h2 className="sidebar__group-title">{t(group.labelKey)}</h2>

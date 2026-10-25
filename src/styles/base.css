@@ -151,3 +151,30 @@ hr {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Touch devices ----------
+   16px form text stops iOS Safari from zooming into a field on focus;
+   small buttons grow to a comfortable tap size. Document text on the A4
+   canvas is untouched (it is not a form control). */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+
+  .btn--sm {
+    height: 36px;
+  }
+
+  .btn--md {
+    height: 42px;
+  }
+}
+
+/* Tap highlight is replaced by our own :active / focus styles. */
+button,
+a,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n'
@@ -6,6 +6,7 @@ import { SessionContext } from '../../session/context'
 import type { SessionContextValue } from '../../session/context'
 import type { SessionUser } from '../../lib/repositories'
 import { Sidebar } from './Sidebar'
+import { BottomNav } from './BottomNav'
 
 const adminUser: SessionUser = {
   id: 'u1',
@@ -21,7 +22,7 @@ const regularUser: SessionUser = {
   role: 'user',
 }
 
-function renderSidebar(user: SessionUser) {
+function renderSidebar(user: SessionUser, props: Partial<Parameters<typeof Sidebar>[0]> = {}) {
   const value: SessionContextValue = {
     state: { status: 'authenticated', user },
     user,
@@ -33,7 +34,7 @@ function renderSidebar(user: SessionUser) {
     <I18nProvider>
       <SessionContext.Provider value={value}>
         <MemoryRouter>
-          <Sidebar />
+          <Sidebar {...props} />
         </MemoryRouter>
       </SessionContext.Provider>
     </I18nProvider>,
@@ -57,5 +58,31 @@ describe('Sidebar', () => {
 
     renderSidebar(adminUser)
     expect(screen.getByRole('link', { name: 'Administration' })).toBeInTheDocument()
+  })
+
+  it('mobile drawer moves focus to its close button and closes from it', () => {
+    const onClose = vi.fn()
+    renderSidebar(regularUser, { mobileOpen: true, onClose })
+    const close = screen.getByRole('button', { name: /close navigation menu/i })
+    expect(close).toHaveFocus()
+    fireEvent.click(close)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('BottomNav', () => {
+  it('links the main destinations', () => {
+    render(
+      <I18nProvider>
+        <MemoryRouter>
+          <BottomNav />
+        </MemoryRouter>
+      </I18nProvider>,
+    )
+    const nav = screen.getByRole('navigation', { name: /quick navigation/i })
+    expect(nav).toBeInTheDocument()
+    for (const name of ['Home', 'Templates', 'Documents', 'Telegram', 'Favorites']) {
+      expect(screen.getByRole('link', { name })).toBeInTheDocument()
+    }
   })
 })

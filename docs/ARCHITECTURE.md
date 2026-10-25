@@ -158,6 +158,22 @@ unrecoverable 401s sign the user out with a "session expired" toast
 (`SessionExpiredNotifier`). Role checks in the client are display-only — the
 backend re-verifies every ID token.
 
+## Responsive layout
+
+Breakpoints (CSS and `hooks/use-media-query.ts` agree):
+
+| Width | Navigation | Editor |
+| --- | --- | --- |
+| > 960px | Sidebar (icon rail on editor routes) | Three panels side by side |
+| ≤ 960px (tablet) | Slide-in drawer from the ☰ button | Page first; Fields / Assistant / Format open as sheets from a bottom action bar (one at a time, scrim + "Back to page") |
+| ≤ 640px (phone) | Drawer + bottom tab bar | Full-width sheets; icon-only secondary actions; Print and Save first |
+| height ≤ 500px (landscape phone) | — | Global top bar hidden in the editor; slim action bar |
+
+Touch devices get 16px form text (prevents iOS zoom-on-focus) and larger
+buttons; dialogs become bottom sheets on phones; safe-area insets are
+respected (`viewport-fit=cover`). The app ships a web manifest and touch
+icons so it can be added to a phone's home screen.
+
 ## Document assistant
 
 The editor's right panel has two tabs: **Format** (default) and **Assistant**.

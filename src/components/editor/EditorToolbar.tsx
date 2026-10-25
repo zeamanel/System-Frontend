@@ -87,8 +87,14 @@ export function EditorToolbar({
   return (
     <header className="editor-toolbar" data-testid="editor-toolbar">
       <div className="editor-toolbar__group editor-toolbar__group--start">
-        <Button variant="ghost" icon={<ArrowLeftIcon size={16} />} onClick={onBack}>
-          {t('editor.back')}
+        <Button
+          variant="ghost"
+          icon={<ArrowLeftIcon size={16} />}
+          onClick={onBack}
+          aria-label={t('editor.back')}
+          className="editor-toolbar__back"
+        >
+          <span className="editor-toolbar__label">{t('editor.back')}</span>
         </Button>
 
         <span className="editor-toolbar__divider" aria-hidden="true" />
@@ -222,11 +228,19 @@ function renderToolbarEnd(props: {
         icon={<EyeIcon size={16} />}
         aria-pressed={props.previewMode}
         onClick={props.onTogglePreview}
+        aria-label={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
       >
-        {props.previewMode ? t('editor.previewOff') : t('editor.preview')}
+        <span className="editor-toolbar__label">
+          {props.previewMode ? t('editor.previewOff') : t('editor.preview')}
+        </span>
       </Button>
 
-      <Button variant="secondary" onClick={props.onSave} disabled={props.status === 'saving'}>
+      <Button
+        variant="secondary"
+        onClick={props.onSave}
+        disabled={props.status === 'saving'}
+        className="editor-toolbar__save"
+      >
         {t('common.save')}
       </Button>
 
@@ -234,7 +248,7 @@ function renderToolbarEnd(props: {
         label={
           <>
             <DownloadIcon size={15} />
-            <span>{t('editor.export')}</span>
+            <span className="editor-toolbar__label">{t('editor.export')}</span>
           </>
         }
         ariaLabel={t('editor.export')}
@@ -286,7 +300,12 @@ function renderToolbarEnd(props: {
         )}
       </Popover>
 
-      <Button variant="primary" icon={<PrinterIcon size={16} />} onClick={props.onPrint}>
+      <Button
+        variant="primary"
+        icon={<PrinterIcon size={16} />}
+        onClick={props.onPrint}
+        className="editor-toolbar__print"
+      >
         {t('common.print')}
       </Button>
     </div>

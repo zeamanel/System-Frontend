@@ -71,7 +71,10 @@ import { AssistantPanel } from './AssistantPanel'
 import { useAssistant } from './useAssistant'
 import { consumePendingNotes } from '../../lib/assistant/pending-notes'
 import { blockPlainText } from '../../lib/assistant/context'
+import { COMPACT_LAYOUT_QUERY, useMediaQuery } from '../../hooks/use-media-query'
+import { ChatIcon, DocumentIcon, PanelLeftIcon, SlidersIcon, XIcon } from '../icons'
 import './editor.css'
+import './editor-responsive.css'
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
@@ -132,19 +135,58 @@ export function EditorWorkspace({
   const pendingFocusRef = useRef<{ ref: EditableRef; position: 'start' | 'end' } | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
-  const [leftOpen, setLeftOpen] = useState(
-    () =>
-      Boolean(template || doc.templateId) ||
-      typeof window === 'undefined' ||
-      window.innerWidth >= 1180,
-  )
-  const [rightOpen, setRightOpen] = useState(
-    () => typeof window === 'undefined' || window.innerWidth >= 1540,
-  )
-  const [ethiopicSupport] = useState(() => probeEthiopicSupport())
   // Format stays the default tab; the panel switches to the assistant when
   // it has something to say after a generation.
   const [rightTab, setRightTab] = useState<'assistant' | 'format'>('format')
+  // Tablets and phones: panels are sheets over the page, one at a time.
+  const compact = useMediaQuery(COMPACT_LAYOUT_QUERY)
+  const [leftOpen, setLeftOpen] = useState(() => {
+    if (typeof window === 'undefined') return true
+    if (window.innerWidth <= 960) {
+      // Start on the fields only while the document is still empty.
+      return !editor.model.blocks.some(
+        (block) => (block.type === 'paragraph' || block.type === 'heading') && block.html.trim() !== '',
+      )
+    }
+    return Boolean(template || doc.templateId) || window.innerWidth >= 1180
+  })
+  const [rightOpen, setRightOpen] = useState(
+    () => typeof window === 'undefined' || window.innerWidth >= 1540,
+  )
+  const toggleLeft = useCallback((): void => {
+    setLeftOpen((current) => {
+      if (!current && compact) setRightOpen(false)
+      return !current
+    })
+  }, [compact])
+  const toggleRight = useCallback((): void => {
+    setRightOpen((current) => {
+      if (!current && compact) setLeftOpen(false)
+      return !current
+    })
+  }, [compact])
+  const closePanels = useCallback((): void => {
+    setLeftOpen(false)
+    setRightOpen(false)
+  }, [])
+  const showRightTab = useCallback(
+    (tab: 'assistant' | 'format'): void => {
+      setRightTab(tab)
+      setRightOpen(true)
+      if (compact) setLeftOpen(false)
+    },
+    [compact],
+  )
+  // Escape closes a sheet on small screens.
+  useEffect(() => {
+    if (!compact || !(leftOpen || rightOpen)) return
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') closePanels()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [closePanels, compact, leftOpen, rightOpen])
+  const [ethiopicSupport] = useState(() => probeEthiopicSupport())
 
   const hasContent = useMemo(
     () =>
@@ -233,10 +275,7 @@ export function EditorWorkspace({
   })
   fieldSyncHandlerRef.current = assistant.postFieldSync
 
-  const openAssistant = useCallback((): void => {
-    setRightOpen(true)
-    setRightTab('assistant')
-  }, [])
+  const openAssistant = useCallback((): void => showRightTab('assistant'), [showRightTab])
 
   const { postGenerationNotes } = assistant
   const showGenerationNotes = useCallback((): void => {
@@ -942,8 +981,8 @@ export function EditorWorkspace({
         exportError={exportError}
         leftPanelOpen={leftOpen}
         rightPanelOpen={rightOpen}
-        onToggleLeftPanel={() => setLeftOpen((current) => !current)}
-        onToggleRightPanel={() => setRightOpen((current) => !current)}
+        onToggleLeftPanel={toggleLeft}
+        onToggleRightPanel={toggleRight}
         onBack={onBack}
         onImportFile={handleImportFile}
         onApplyTelegramData={handleApplyTelegramData}
@@ -960,6 +999,13 @@ export function EditorWorkspace({
       ) : null}
 
       <aside className="editor-side editor-side--left" aria-hidden={!leftOpen}>
+        <div className="editor-side__sheet-bar">
+          <span className="editor-side__sheet-title">{t('editor.panelFields')}</span>
+          <button type="button" className="editor-side__sheet-close" onClick={closePanels}>
+            <XIcon size={16} />
+            <span>{t('editor.mobile.backToPage')}</span>
+          </button>
+        </div>
         <GuidedFieldsPanel
           template={template ?? null}
           answers={editor.answers}
@@ -1059,11 +1105,22 @@ export function EditorWorkspace({
         pageAriaLabel={t('editor.pageAriaLabel')}
         zoomLabel={t('editor.zoomLabel')}
         fitLabel={t('editor.zoomFit')}
-        pagesLabel={(count) => t('editor.pagesCount', { count: String(count) })}
+        pagesLabel={(count) =>
+          count === 1 ? t('editor.pagesCountOne') : t('editor.pagesCount', { count: String(count) })
+        }
         focusRef={focusRef}
       />
 
       <aside className="editor-side editor-side--right" aria-hidden={!rightOpen}>
+        <div className="editor-side__sheet-bar">
+          <span className="editor-side__sheet-title">
+            {rightTab === 'assistant' ? t('assistant.tabAssistant') : t('assistant.tabFormat')}
+          </span>
+          <button type="button" className="editor-side__sheet-close" onClick={closePanels}>
+            <XIcon size={16} />
+            <span>{t('editor.mobile.backToPage')}</span>
+          </button>
+        </div>
         <div className="editor-side-tabs" role="tablist" aria-label={t('assistant.tabsLabel')}>
           <button
             type="button"
@@ -1118,6 +1175,56 @@ export function EditorWorkspace({
           </div>
         )}
       </aside>
+
+      {compact && (leftOpen || rightOpen) ? (
+        <div className="editor-scrim" onClick={closePanels} aria-hidden="true" />
+      ) : null}
+
+      <nav className="editor-mobile-bar" aria-label={t('editor.mobile.bar')}>
+        <button
+          type="button"
+          className="editor-mobile-bar__btn"
+          aria-pressed={leftOpen}
+          onClick={toggleLeft}
+        >
+          <PanelLeftIcon size={20} />
+          <span>{t('editor.mobile.fields')}</span>
+        </button>
+        <button
+          type="button"
+          className="editor-mobile-bar__btn"
+          aria-pressed={!leftOpen && !rightOpen}
+          onClick={closePanels}
+        >
+          <DocumentIcon size={20} />
+          <span>{t('editor.mobile.page')}</span>
+        </button>
+        <button
+          type="button"
+          className="editor-mobile-bar__btn"
+          aria-pressed={rightOpen && rightTab === 'assistant'}
+          onClick={() =>
+            rightOpen && rightTab === 'assistant' ? setRightOpen(false) : showRightTab('assistant')
+          }
+        >
+          <ChatIcon size={20} />
+          <span>{t('assistant.tabAssistant')}</span>
+          {assistant.unread > 0 && !(rightOpen && rightTab === 'assistant') ? (
+            <span className="editor-mobile-bar__badge">{assistant.unread}</span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          className="editor-mobile-bar__btn"
+          aria-pressed={rightOpen && rightTab === 'format'}
+          onClick={() =>
+            rightOpen && rightTab === 'format' ? setRightOpen(false) : showRightTab('format')
+          }
+        >
+          <SlidersIcon size={20} />
+          <span>{t('assistant.tabFormat')}</span>
+        </button>
+      </nav>
     </div>
   )
 }

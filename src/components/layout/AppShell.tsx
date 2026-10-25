@@ -5,6 +5,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { BottomNav } from './BottomNav'
 
 /** Document-editor routes — the sidebar collapses to an icon rail on desktop. */
 const EDITOR_ROUTE_PATTERN = /^\/documents\/[^/]+\/?$/
@@ -45,13 +46,19 @@ export function AppShell() {
       <a className="skip-link" href="#main-content">
         {t('nav.skipToContent')}
       </a>
-      <TopBar onOpenMenu={() => setNavOpen(true)} />
+      <TopBar onOpenMenu={() => setNavOpen(true)} menuOpen={navOpen} />
       <div className={['app-shell__body', isEditorRoute ? 'app-shell__body--editor' : null].filter(Boolean).join(' ')}>
-        <Sidebar mobileOpen={navOpen} onNavigate={() => setNavOpen(false)} rail={isEditorRoute} />
+        <Sidebar
+          mobileOpen={navOpen}
+          onNavigate={() => setNavOpen(false)}
+          onClose={() => setNavOpen(false)}
+          rail={isEditorRoute}
+        />
         <main id="main-content" className={['app-shell__main', isEditorRoute ? 'app-shell__main--editor' : null].filter(Boolean).join(' ')} tabIndex={-1}>
           <Outlet />
         </main>
       </div>
+      {isEditorRoute ? null : <BottomNav />}
       <div
         className={['app-shell__scrim', navOpen ? 'app-shell__scrim--open' : null]
           .filter(Boolean)

@@ -11,6 +11,7 @@ import {
   type TelegramVaultProfile,
 } from '../../lib/api'
 import { Badge, Button, Spinner } from '../ui'
+import { FolderIcon, ImagePlusIcon, PaperclipIcon, PlusIcon, XIcon } from '../icons'
 
 export interface EditorTelegramVaultDrawerProps {
   isOpen?: boolean
@@ -227,7 +228,7 @@ export function EditorTelegramVaultDrawer({
           title={t('editor.telegramVault.title')}
           aria-label={t('editor.telegramVault.buttonLabel')}
         >
-          <span className="editor-toolbar__vault-btn-icon">📂</span>
+          <FolderIcon size={16} className="editor-toolbar__vault-btn-icon" />
           <span className="editor-toolbar__vault-btn-label">
             {t('editor.telegramVault.buttonLabel')}
           </span>
@@ -259,7 +260,7 @@ export function EditorTelegramVaultDrawer({
             {/* Header */}
             <header className="editor-telegram-vault-drawer__header">
               <div className="editor-telegram-vault-drawer__header-title-wrap">
-                <span className="editor-telegram-vault-drawer__icon">📂</span>
+                <FolderIcon size={18} className="editor-telegram-vault-drawer__icon" />
                 <h2 className="editor-telegram-vault-drawer__title">
                   {t('editor.telegramVault.title')}
                 </h2>
@@ -280,10 +281,10 @@ export function EditorTelegramVaultDrawer({
                   className="editor-telegram-vault-drawer__btn editor-telegram-vault-drawer__btn--close"
                   data-testid="vault-drawer-close-btn"
                   onClick={handleClose}
-                  title="Close"
-                  aria-label="Close Telegram Vault"
+                  title={t('common.close')}
+                  aria-label={t('common.close')}
                 >
-                  ✕
+                  <XIcon size={16} />
                 </button>
               </div>
             </header>
@@ -406,8 +407,9 @@ export function EditorTelegramVaultDrawer({
                             data-testid={`vault-insert-canvas-${item.id}`}
                             onClick={() => handleAppendCanvasClick(item)}
                             title={t('editor.telegramVault.insertToCanvas')}
+                            icon={<PlusIcon size={14} />}
                           >
-                            ➕ {t('editor.telegramVault.insertToCanvas')}
+                            {t('editor.telegramVault.insertToCanvas')}
                           </Button>
 
                           <Button
@@ -416,8 +418,9 @@ export function EditorTelegramVaultDrawer({
                             data-testid={`vault-append-prompt-${item.id}`}
                             onClick={() => handleAppendPromptClick(item)}
                             title={t('editor.telegramVault.appendToPrompt')}
+                            icon={<PaperclipIcon size={14} />}
                           >
-                            📎 {t('editor.telegramVault.appendToPrompt')}
+                            {t('editor.telegramVault.appendToPrompt')}
                           </Button>
 
                           {item.imageDataUrl ? (
@@ -427,8 +430,9 @@ export function EditorTelegramVaultDrawer({
                               data-testid={`vault-insert-image-${item.id}`}
                               onClick={() => handleInsertImageClick(item)}
                               title={t('editor.telegramVault.insertImage')}
+                              icon={<ImagePlusIcon size={14} />}
                             >
-                              🖼️ {t('editor.telegramVault.insertImage')}
+                              {t('editor.telegramVault.insertImage')}
                             </Button>
                           ) : null}
                         </div>

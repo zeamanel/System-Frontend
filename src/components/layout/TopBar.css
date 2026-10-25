@@ -241,8 +241,13 @@
 }
 
 @media (max-width: 780px) {
-  .topbar__create {
+  /* Keep "New document" reachable on phones as an icon-only button. */
+  .topbar__create-label {
     display: none;
+  }
+
+  .topbar__create {
+    padding-inline: var(--space-2);
   }
 
   .profile-menu__name {
@@ -251,6 +256,20 @@
 }
 
 @media (max-width: 640px) {
+  .topbar__inner {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .topbar__menu-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .topbar__actions {
+    gap: var(--space-1);
+  }
+
   .topbar__control-label {
     display: none;
   }
@@ -262,3 +281,10 @@
   }
 }
 
+
+/* Very narrow phones (≈320px): keep everything on one row. */
+@media (max-width: 360px) {
+  .topbar .logo__word {
+    display: none;
+  }
+}

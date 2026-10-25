@@ -1,13 +1,27 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n'
 import { ToastProvider } from '../components/ui'
 import TelegramFilesPage from './TelegramFilesPage'
 import { __resetTelegramBridgeFixtures } from '../lib/api/endpoints/telegram-bridge'
+import { SessionContext } from '../session/context'
+import type { SessionContextValue } from '../session/context'
+import type { SessionUser } from '../lib/repositories'
 
-function renderPage() {
+function sessionValue(role: SessionUser['role']): SessionContextValue {
+  const user: SessionUser = { id: 'u1', name: 'Test User', email: 'test@example.com', role }
+  return {
+    state: { status: 'authenticated', user },
+    user,
+    isAdmin: role === 'admin',
+    signIn: vi.fn(async () => user),
+    signOut: vi.fn(async () => undefined),
+  }
+}
+
+function renderPage(role: SessionUser['role'] = 'admin') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -16,9 +30,11 @@ function renderPage() {
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <ToastProvider>
-          <MemoryRouter>
-            <TelegramFilesPage />
-          </MemoryRouter>
+          <SessionContext.Provider value={sessionValue(role)}>
+            <MemoryRouter>
+              <TelegramFilesPage />
+            </MemoryRouter>
+          </SessionContext.Provider>
         </ToastProvider>
       </I18nProvider>
     </QueryClientProvider>,
@@ -93,5 +109,15 @@ describe('TelegramFilesPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/File removed from view/i)).toBeInTheDocument()
     })
+  })
+
+  it('shows the webhook sync control only to administrators', async () => {
+    const { unmount } = renderPage('user')
+    await screen.findByText('Telegram Media & Files')
+    expect(screen.queryByRole('button', { name: /sync webhook/i })).not.toBeInTheDocument()
+    unmount()
+
+    renderPage('admin')
+    expect(await screen.findByRole('button', { name: /sync webhook/i })).toBeInTheDocument()
   })
 })

@@ -3,6 +3,7 @@ import './TelegramFilesPage.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
+import { useSession } from '../session'
 import {
   dismissTelegramHubItem,
   getTelegramBotHealth,
@@ -22,6 +23,8 @@ export default function TelegramFilesPage() {
 
   const [items, setItems] = useState<TelegramHubItem[]>([])
   const [accounts, setAccounts] = useState<TelegramHubAccount[]>([])
+  const { user, isAdmin } = useSession()
+  const isUserAdmin = user ? user.role === 'admin' : Boolean(isAdmin)
   const [selectedAccount, setSelectedAccount] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -126,14 +129,18 @@ export default function TelegramFilesPage() {
             </div>
           )}
 
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleSyncWebhook}
-            disabled={syncingWebhook}
-          >
-            {syncingWebhook ? 'Syncing…' : t('telegramFiles.syncWebhook')}
-          </Button>
+          {/* Re-pointing the bot webhook is an admin operation (backend enforces it). */}
+          {isUserAdmin ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSyncWebhook}
+              disabled={syncingWebhook}
+              loading={syncingWebhook}
+            >
+              {t('telegramFiles.syncWebhook')}
+            </Button>
+          ) : null}
 
           <TelegramBridgeButton
             compact

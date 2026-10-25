@@ -13,7 +13,7 @@ import type { TemplateCategory, TemplateSortBy } from '../lib/repositories'
 import { TemplateCard } from '../components/templates/TemplateCard'
 import { TemplatePreviewDialog } from '../components/templates/TemplatePreviewDialog'
 import { trackTemplateSearch } from '../lib/api'
-import { StarIcon } from '../components/icons'
+import { SlidersIcon, StarIcon } from '../components/icons'
 import { COUNTRIES, type CountryCode } from '../preferences'
 import { regionsForCountry, regionDisplayName } from '../lib/geo'
 import {
@@ -41,28 +41,30 @@ const CATEGORIES: { value: CategoryFilter; key: MessageKey }[] = [
 ]
 
 const DOC_TYPES = [
-  { value: 'all', label: 'All Document Types' },
-  { value: 'letter', label: 'Letter' },
-  { value: 'contract', label: 'Contract & Agreement' },
-  { value: 'application', label: 'Application' },
-  { value: 'request', label: 'Request' },
-  { value: 'certificate', label: 'Certificate' },
-  { value: 'invoice', label: 'Invoice' },
-  { value: 'receipt', label: 'Receipt' },
-  { value: 'minutes', label: 'Minutes' },
-  { value: 'affidavit', label: 'Affidavit' },
-  { value: 'cv', label: 'CV / Resume' },
-]
+  'all',
+  'letter',
+  'contract',
+  'application',
+  'request',
+  'certificate',
+  'invoice',
+  'receipt',
+  'minutes',
+  'affidavit',
+  'cv',
+] as const
 
 const INSTITUTIONS = [
-  { value: 'all', label: 'All Institutions' },
-  { value: 'ministries', label: 'Ministries' },
-  { value: 'municipal', label: 'Municipal' },
-  { value: 'revenue_customs', label: 'Revenue & Customs' },
-  { value: 'judicial', label: 'Judicial & Courts' },
-  { value: 'academic', label: 'Academic & Universities' },
-  { value: 'banking', label: 'Banking & Finance' },
-]
+  'all',
+  'ministries',
+  'municipal',
+  'revenue_customs',
+  'judicial',
+  'academic',
+  'banking',
+] as const
+
+const SORT_OPTIONS = ['relevance', 'popularity', 'recent', 'name'] as const
 
 export default function TemplatesPage() {
   const { t, locale } = useI18n()
@@ -126,6 +128,18 @@ export default function TemplatesPage() {
     setPage(1)
   }
 
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const activeFilterCount = [
+    category !== 'all',
+    documentType !== 'all',
+    language !== 'all',
+    country !== 'all',
+    region !== 'all',
+    institution !== 'all',
+    favoritesOnly,
+    sortBy !== 'relevance',
+  ].filter(Boolean).length
+
   const hasActiveFilters =
     search.trim() !== '' ||
     category !== 'all' ||
@@ -166,8 +180,8 @@ export default function TemplatesPage() {
       </div>
 
 
-      <div className="toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-        <div className="toolbar__search" style={{ minWidth: '220px', flex: '1 1 240px' }}>
+      <div className="toolbar templates-toolbar">
+        <div className="toolbar__search templates-toolbar__search">
           <SearchInput
             value={search}
             onChange={setSearch}
@@ -178,7 +192,28 @@ export default function TemplatesPage() {
           />
         </div>
 
-        <div className="toolbar__filter" style={{ minWidth: '150px' }}>
+        {/* Phones: filters collapse behind one button. */}
+        <button
+          type="button"
+          className="templates-toolbar__filters-toggle"
+          aria-expanded={filtersOpen}
+          aria-controls="templates-filters"
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
+          <SlidersIcon size={16} />
+          {activeFilterCount > 0
+            ? t('templates.filtersActive', { count: String(activeFilterCount) })
+            : t('templates.filters')}
+        </button>
+
+        <div
+          id="templates-filters"
+          className={['templates-filters', filtersOpen ? 'templates-filters--open' : null]
+            .filter(Boolean)
+            .join(' ')}
+        >
+
+        <div className="toolbar__filter">
           <Select
             bare
             id="templates-category"
@@ -187,30 +222,25 @@ export default function TemplatesPage() {
             onChange={(event) =>
               setCategory(event.target.value as CategoryFilter)
             }
-            options={[
-              { value: 'all', label: t('templates.allCategories') },
-              { value: 'business_finance', label: t('category.business') },
-              { value: 'personal_social', label: t('category.personal') },
-              { value: 'government_administrative', label: t('category.official') },
-              { value: 'employment_hr', label: 'Employment & HR' },
-              { value: 'legal_property', label: 'Legal & Property' },
-              { value: 'education', label: 'Education' },
-            ]}
+            options={CATEGORIES.map((cat) => ({ value: cat.value, label: t(cat.key) }))}
           />
         </div>
 
-        <div className="toolbar__filter" style={{ minWidth: '150px' }}>
+        <div className="toolbar__filter">
           <Select
             bare
             id="templates-doctype"
             aria-label={t('templates.docTypeFilter')}
             value={documentType}
             onChange={(event) => setDocumentType(event.target.value)}
-            options={DOC_TYPES}
+            options={DOC_TYPES.map((value) => ({
+              value,
+              label: t(`templates.docType.${value}` as MessageKey),
+            }))}
           />
         </div>
 
-        <div className="toolbar__filter" style={{ minWidth: '140px' }}>
+        <div className="toolbar__filter">
           <Select
             bare
             id="templates-language"
@@ -226,7 +256,7 @@ export default function TemplatesPage() {
           />
         </div>
 
-        <div className="toolbar__filter" style={{ minWidth: '130px' }}>
+        <div className="toolbar__filter">
           <Select
             bare
             id="templates-country"
@@ -249,7 +279,7 @@ export default function TemplatesPage() {
         </div>
 
         {availableRegions.length > 0 ? (
-          <div className="toolbar__filter" style={{ minWidth: '140px' }}>
+          <div className="toolbar__filter">
             <Select
               bare
               id="templates-region"
@@ -267,23 +297,21 @@ export default function TemplatesPage() {
           </div>
         ) : null}
 
-        <div className="toolbar__filter" style={{ minWidth: '140px' }}>
+        <div className="toolbar__filter">
           <Select
             bare
             id="templates-sort"
             aria-label={t('templates.sortBy')}
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value as TemplateSortBy)}
-            options={[
-              { value: 'relevance', label: 'Sort: Relevance' },
-              { value: 'popularity', label: 'Sort: Popularity' },
-              { value: 'recent', label: 'Sort: Most Recent' },
-              { value: 'name', label: 'Sort: Name' },
-            ]}
+            options={SORT_OPTIONS.map((value) => ({
+              value,
+              label: t(`templates.sort.${value}` as MessageKey),
+            }))}
           />
         </div>
 
-        <div className="toolbar__filter" style={{ minWidth: '150px' }}>
+        <div className="toolbar__filter">
           <Select
             bare
             id="templates-institution"
@@ -293,7 +321,10 @@ export default function TemplatesPage() {
               setInstitution(event.target.value)
               setPage(1)
             }}
-            options={INSTITUTIONS}
+            options={INSTITUTIONS.map((value) => ({
+              value,
+              label: t(`templates.institution.${value}` as MessageKey),
+            }))}
           />
         </div>
 
@@ -320,6 +351,7 @@ export default function TemplatesPage() {
             {t('templates.resetFilters')}
           </button>
         ) : null}
+        </div>
       </div>
 
       {templates.isPending ? (

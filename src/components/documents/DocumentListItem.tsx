@@ -5,7 +5,7 @@ import type { MessageKey } from '../../i18n'
 import { useI18n } from '../../i18n'
 import { formatRelativeTime } from '../../lib/datetime'
 import type { DocumentRecord } from '../../lib/repositories'
-import { DocumentIcon } from '../icons'
+import { CopyIcon, DocumentIcon, TrashIcon } from '../icons'
 import { Badge } from '../ui'
 import type { BadgeVariant } from '../ui'
 
@@ -65,7 +65,7 @@ export function DocumentListItem({ document, onDuplicate, onDelete }: DocumentLi
               title={t('documents.actions.duplicate')}
               aria-label={t('documents.actions.duplicate')}
             >
-              📋
+              <CopyIcon size={16} />
             </button>
           )}
           {onDelete && (
@@ -81,7 +81,7 @@ export function DocumentListItem({ document, onDuplicate, onDelete }: DocumentLi
               title={t('documents.actions.delete')}
               aria-label={t('documents.actions.delete')}
             >
-              🗑️
+              <TrashIcon size={16} />
             </button>
           )}
         </div>

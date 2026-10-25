@@ -37,6 +37,13 @@
   .app-shell__main {
     padding: var(--space-5) var(--space-4);
   }
+}
+
+/* Phones: room for the fixed bottom tab bar (non-editor routes). */
+@media (max-width: 640px) {
+  .app-shell:not(.app-shell--editor) .app-shell__main {
+    padding-bottom: calc(var(--space-5) + 64px + env(safe-area-inset-bottom, 0px));
+  }
 
   .app-shell__scrim {
     display: block;
