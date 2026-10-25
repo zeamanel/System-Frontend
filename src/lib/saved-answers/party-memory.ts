@@ -127,3 +127,47 @@ export function clearSavedAnswers(): void {
     // Non-fatal
   }
 }
+
+/**
+ * Wipe all customer-specific local buffers for shared-PC / cybercafe privacy (SEC-12).
+ * Clears:
+ * - docuA4.editor.buffer.* (in-flight document edits & party names)
+ * - docuA4.partyMemory.* (recent party autocomplete chips)
+ * - sessionStorage items related to generation or wizard state
+ */
+export function clearAllCustomerLocalData(): void {
+  try {
+    if (typeof globalThis.localStorage !== 'undefined' && globalThis.localStorage) {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < globalThis.localStorage.length; i++) {
+        const key = globalThis.localStorage.key(i)
+        if (
+          key &&
+          (key.startsWith('docuA4.editor.buffer.') ||
+            key.startsWith('docuA4.partyMemory') ||
+            key.startsWith('docua4_party_memory') ||
+            key.startsWith('docuA4.guided.'))
+        ) {
+          keysToRemove.push(key)
+        }
+      }
+      for (const key of keysToRemove) {
+        globalThis.localStorage.removeItem(key)
+      }
+    }
+    if (typeof globalThis.sessionStorage !== 'undefined' && globalThis.sessionStorage) {
+      const sessionKeysToRemove: string[] = []
+      for (let i = 0; i < globalThis.sessionStorage.length; i++) {
+        const key = globalThis.sessionStorage.key(i)
+        if (key && (key.startsWith('docuA4.') || key.startsWith('docua4.'))) {
+          sessionKeysToRemove.push(key)
+        }
+      }
+      for (const key of sessionKeysToRemove) {
+        globalThis.sessionStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // Non-fatal
+  }
+}

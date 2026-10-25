@@ -151,14 +151,18 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
       // Instant field-to-canvas sync: when the previous answer already
       // appears in the document blocks, fix it in place in the same React
       // batch — no AI regeneration round-trip needed.
+      const otherAnswerValues = Object.entries(answers)
+        .filter(([k, v]) => k !== questionId && typeof v === 'string' && v.trim().length > 0)
+        .map(([, v]) => v)
+
       const isEthDate = /ዓ\.ም\.?$/.test(value.trim())
       if (
         questionId !== 'additional_instructions' &&
         prevValue !== value &&
         value.trim().length >= 1 &&
-        (prevValue.trim().length >= 2 || isEthDate)
+        (prevValue.trim().length >= 3 || isEthDate)
       ) {
-        const result = replaceTextInModel(model, prevValue, value)
+        const result = replaceTextInModel(model, prevValue, value, { otherAnswerValues })
         if (result.replaced) setModelState(result.model)
       }
       setAnswersState((current) => ({ ...current, [questionId]: value }))

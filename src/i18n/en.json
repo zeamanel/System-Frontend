@@ -465,5 +465,9 @@
   "telegramFiles.botReady": "Connected & Listening",
   "telegramFiles.botMissingToken": "Bot Token Not Configured",
   "telegramFiles.syncWebhook": "Sync Webhook",
-  "telegramFiles.safetyNote": "Phone-Owner Privacy: The Telegram user can remotely revoke access to any shared item anytime from their phone using /revoke or the in-chat button."
+  "telegramFiles.safetyNote": "Phone-Owner Privacy: The Telegram user can remotely revoke access to any shared item anytime from their phone using /revoke or the in-chat button.",
+  "editor.fields.newCustomerReset": "New Customer (Clear Form)",
+  "documents.actions.duplicate": "Duplicate Document",
+  "documents.actions.delete": "Delete Document",
+  "documents.confirmDelete": "Are you sure you want to delete this document?"
 }

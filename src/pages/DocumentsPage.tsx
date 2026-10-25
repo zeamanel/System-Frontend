@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { useDebouncedValue } from '../hooks/use-debounced-value'
-import { useDocumentsList } from '../hooks/use-documents'
+import { useDeleteDocument, useDocumentsList, useDuplicateDocument } from '../hooks/use-documents'
 import { DocumentListItem } from '../components/documents/DocumentListItem'
 import { OpenLocalFileButton } from '../components/documents/OpenLocalFileButton'
 import { TelegramBridgeButton } from '../components/documents/TelegramBridgeButton'
@@ -25,7 +25,30 @@ export default function DocumentsPage() {
   const debouncedSearch = useDebouncedValue(search, 250)
 
   const documents = useDocumentsList(debouncedSearch.trim() || undefined)
+  const duplicateMutation = useDuplicateDocument()
+  const deleteMutation = useDeleteDocument()
   const items = documents.data ?? []
+
+  const handleDuplicate = async (id: string) => {
+    try {
+      const copy = await duplicateMutation.mutateAsync(id)
+      if (copy?.id) {
+        navigate(`/documents/${encodeURIComponent(copy.id)}`)
+      }
+    } catch {
+      // Ignored
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm(t('documents.confirmDelete') || 'Delete this document?')) {
+      try {
+        await deleteMutation.mutateAsync(id)
+      } catch {
+        // Ignored
+      }
+    }
+  }
 
   return (
     <div className="page">
@@ -83,7 +106,11 @@ export default function DocumentsPage() {
         <ul className="document-list document-list--panel">
           {items.map((document) => (
             <li key={document.id}>
-              <DocumentListItem document={document} />
+              <DocumentListItem
+                document={document}
+                onDuplicate={handleDuplicate}
+                onDelete={handleDelete}
+              />
             </li>
           ))}
         </ul>

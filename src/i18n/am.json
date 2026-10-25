@@ -465,5 +465,9 @@
   "telegramFiles.botReady": "የተገናኘ እና ዝግጁ",
   "telegramFiles.botMissingToken": "የቦት ቶከን አልተዋቀረም",
   "telegramFiles.syncWebhook": "ዌብሁክ አስተካክል",
-  "telegramFiles.safetyNote": "የስልክ ባለቤት ግላዊነት፦ የቴሌግራም ተጠቃሚው /revoke በማለት ወይም በቻቱ አዝራር በማንኛውም ጊዜ የተጋራውን መረጃ ከዚህ ድረ-ገጽ ላይ ማጥፋት ይችላል።"
+  "telegramFiles.safetyNote": "የስልክ ባለቤት ግላዊነት፦ የቴሌግራም ተጠቃሚው /revoke በማለት ወይም በቻቱ አዝራር በማንኛውም ጊዜ የተጋራውን መረጃ ከዚህ ድረ-ገጽ ላይ ማጥፋት ይችላል።",
+  "editor.fields.newCustomerReset": "አዲስ ደንበኛ (ቅጹን አጽዳ)",
+  "documents.actions.duplicate": "ሰነዱን አባዛ",
+  "documents.actions.delete": "ሰነዱን ሰርዝ",
+  "documents.confirmDelete": "እርግጠኛ ነዎት ይህን ሰነድ መሰረዝ ይፈልጋሉ?"
 }

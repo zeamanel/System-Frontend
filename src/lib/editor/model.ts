@@ -187,17 +187,48 @@ export function withBlocks(
 export const ETHIOPIAN_DATE_PATTERN =
   /(?:መስከረም|ጥቅምት|ኅዳር|ህዳር|ታኅሣሥ|ታህሳስ|ጥር|የካቲት|መጋቢት|ሚያዝያ|ግንቦት|ሰኔ|ሐምሌ|ነሐሴ|ጳጉሜን|ጳጉሜ)\s+[\d፩-፼]+\s+ቀን\s+[\d፩-፼]+\s*ዓ\.ም\.?/g
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export interface ReplaceTextOptions {
+  /** Other non-empty sibling answer values to protect from unintended replacement. */
+  otherAnswerValues?: string[]
+}
+
 export function replaceTextInModel(
   model: DocumentModel,
   oldText: string,
   newText: string,
+  options?: ReplaceTextOptions,
 ): { model: DocumentModel; replaced: boolean } {
   const isEthDate = /ዓ\.ም\.?$/.test(newText.trim())
-  if ((oldText.trim().length < 2 && !isEthDate) || oldText === newText) {
+  if ((oldText.trim().length < 3 && !isEthDate) || oldText === newText) {
     return { model, replaced: false }
   }
   const oldEscaped = escapePlainText(oldText)
   const newEscaped = escapePlainText(newText)
+
+  // Protect longer sibling answer values (e.g. "Abebe Kebede" when replacing "Abebe")
+  const protectedSiblings = (options?.otherAnswerValues ?? [])
+    .filter(
+      (sibling): sibling is string =>
+        typeof sibling === 'string' &&
+        sibling.trim().length > oldText.trim().length &&
+        sibling.includes(oldText),
+    )
+    .sort((a, b) => b.length - a.length)
+    .map((sibling, idx) => ({
+      token: `\uE000__DOCUA4_PROTECTED_SIBLING_${idx}__\uE000`,
+      value: escapePlainText(sibling),
+    }))
+
+  // Unicode-aware word boundary matching
+  const startsWord = /^[\p{L}\p{N}]/u.test(oldEscaped)
+  const endsWord = /[\p{L}\p{N}]$/u.test(oldEscaped)
+  const prefix = startsWord ? '(?<![\\p{L}\\p{N}])' : ''
+  const suffix = endsWord ? '(?![\\p{L}\\p{N}])' : ''
+  const pattern = new RegExp(`${prefix}${escapeRegExp(oldEscaped)}${suffix}`, 'gu')
 
   /** Replace only in text segments, never inside `<...>` tag markup. */
   const replaceOutsideTags = (html: string): string | null => {
@@ -206,8 +237,33 @@ export function replaceTextInModel(
       .split(/(<[^>]*>)/)
       .map((segment) => {
         if (segment.startsWith('<') || !segment.includes(oldEscaped)) return segment
-        changed = true
-        return segment.split(oldEscaped).join(newEscaped)
+
+        let textSegment = segment
+        // 1. Mask longer sibling answer values before replacing
+        for (const { token, value } of protectedSiblings) {
+          if (textSegment.includes(value)) {
+            textSegment = textSegment.split(value).join(token)
+          }
+        }
+
+        // 2. Perform word-bounded replacement
+        pattern.lastIndex = 0
+        if (pattern.test(textSegment)) {
+          pattern.lastIndex = 0
+          textSegment = textSegment.replace(pattern, () => {
+            changed = true
+            return newEscaped
+          })
+        }
+
+        // 3. Unmask protected siblings
+        for (const { token, value } of protectedSiblings) {
+          if (textSegment.includes(token)) {
+            textSegment = textSegment.split(token).join(value)
+          }
+        }
+
+        return textSegment
       })
       .join('')
     return changed ? result : null
@@ -216,7 +272,7 @@ export function replaceTextInModel(
   let replaced = false
   let blocks = model.blocks
 
-  if (oldText.trim().length >= 2) {
+  if (oldText.trim().length >= 3 || isEthDate) {
     blocks = model.blocks.map((block) => {
       if (block.type === 'paragraph' || block.type === 'heading') {
         const html = replaceOutsideTags(block.html)

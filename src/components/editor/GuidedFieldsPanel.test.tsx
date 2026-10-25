@@ -367,4 +367,27 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
     expect(select.closest('.guided-field__input-with-addon')).not.toBeNull()
     expect(select).toHaveTextContent(/Map/i)
   })
+
+  it('SEC-12: clicking new-customer-reset-btn clears current answers and party context', async () => {
+    const onAnswerChange = vi.fn()
+    const { user } = renderPanel({
+      answers: {
+        tenant_name: 'Abebe Bikila',
+        rent_amount: '5000',
+        [ADDITIONAL_INSTRUCTIONS_FIELD_ID]: 'Add stamp',
+      },
+      onAnswerChange,
+    })
+
+    const resetBtn = screen.getByTestId('new-customer-reset-btn')
+    expect(resetBtn).toBeInTheDocument()
+
+    await user.click(resetBtn)
+
+    expect(onAnswerChange).toHaveBeenCalledWith('tenant_name', '')
+    expect(onAnswerChange).toHaveBeenCalledWith('rent_amount', '')
+    expect(onAnswerChange).toHaveBeenCalledWith('special_terms', '')
+    expect(onAnswerChange).toHaveBeenCalledWith('__party_context', '')
+    expect(onAnswerChange).toHaveBeenCalledWith(ADDITIONAL_INSTRUCTIONS_FIELD_ID, '')
+  })
 })

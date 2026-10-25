@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { getRepositories } from '../lib/repositories'
 import type { SessionRepository, SessionUser } from '../lib/repositories'
+import { clearAllCustomerLocalData } from '../lib/saved-answers/party-memory'
 import { SessionContext } from './context'
 import type { SessionState } from './context'
 
@@ -78,6 +79,7 @@ export function SessionProvider({
         try {
           await (repository ?? getRepositories().session).signOut()
         } finally {
+          clearAllCustomerLocalData()
           setState({ status: 'anonymous' })
         }
       },

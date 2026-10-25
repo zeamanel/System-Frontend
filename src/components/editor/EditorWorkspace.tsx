@@ -49,6 +49,7 @@ import {
   withBlocks,
 } from '../../lib/editor/model'
 import { execInlineCommand, type InlineCommand } from '../../lib/editor/commands'
+import { compressImageDataUrl } from '../../lib/editor/image'
 import { isSafeUrl } from '../../lib/editor/sanitize'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
 import { triggerPrint } from '../../lib/editor/a4'
@@ -425,13 +426,14 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
         return
       }
       const reader = new FileReader()
-      reader.onload = () => {
+      reader.onload = async () => {
         const dataUrl = typeof reader.result === 'string' ? reader.result : ''
         if (!isSafeUrl(dataUrl)) {
           setImageError(t('editor.imageTooLarge'))
           return
         }
-        insertAfterActive(() => createImage(dataUrl, file.name.replace(/\.[^.]+$/, '')))
+        const compressed = await compressImageDataUrl(dataUrl)
+        insertAfterActive(() => createImage(compressed, file.name.replace(/\.[^.]+$/, '')))
       }
       reader.onerror = () => setImageError(t('editor.imageTooLarge'))
       reader.readAsDataURL(file)
@@ -600,9 +602,10 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
   )
 
   const handleInsertVaultImage = useCallback(
-    (imageDataUrl: string, caption?: string) => {
+    async (imageDataUrl: string, caption?: string) => {
       if (!imageDataUrl) return
-      const imgBlock = createImage(imageDataUrl, caption || 'Telegram Image')
+      const compressed = await compressImageDataUrl(imageDataUrl)
+      const imgBlock = createImage(compressed, caption || 'Telegram Image')
       updateModel((current) => insertBlocksAfter(current, null, [imgBlock]))
       toast.push(t('editor.telegramVault.insertImage') + ' ✓')
     },

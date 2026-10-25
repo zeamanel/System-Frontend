@@ -62,6 +62,17 @@ export function useCreateExportRequest() {
   })
 }
 
+export function useDuplicateDocument() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (documentId: string) =>
+      getRepositories().documents.duplicate(documentId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
+    },
+  })
+}
+
 export function useDeleteDocument() {
   const queryClient = useQueryClient()
   return useMutation({

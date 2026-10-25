@@ -21,31 +21,71 @@ const STATUS_BADGE: Record<
 
 export interface DocumentListItemProps {
   document: DocumentRecord
+  onDuplicate?: (id: string) => void
+  onDelete?: (id: string) => void
 }
 
 /** Clickable document row: navigates to the document (editor route). */
-export function DocumentListItem({ document }: DocumentListItemProps) {
+export function DocumentListItem({ document, onDuplicate, onDelete }: DocumentListItemProps) {
   const { t, locale } = useI18n()
   const status = STATUS_BADGE[document.status]
 
   return (
-    <Link
-      to={`/documents/${encodeURIComponent(document.id)}`}
-      className="document-item"
-    >
-      <span className="document-item__icon">
-        <DocumentIcon size={17} />
-      </span>
-      <span className="document-item__content">
-        <span className="document-item__title">{document.title}</span>
-        <span className="document-item__meta">
-          {document.templateTitle} ·{' '}
-          <time dateTime={document.updatedAt}>
-            {formatRelativeTime(document.updatedAt, locale)}
-          </time>
+    <div className="document-item-wrap">
+      <Link
+        to={`/documents/${encodeURIComponent(document.id)}`}
+        className="document-item"
+      >
+        <span className="document-item__icon">
+          <DocumentIcon size={17} />
         </span>
-      </span>
-      <Badge variant={status.variant}>{t(status.labelKey)}</Badge>
-    </Link>
+        <span className="document-item__content">
+          <span className="document-item__title">{document.title}</span>
+          <span className="document-item__meta">
+            {document.templateTitle} ·{' '}
+            <time dateTime={document.updatedAt}>
+              {formatRelativeTime(document.updatedAt, locale)}
+            </time>
+          </span>
+        </span>
+        <Badge variant={status.variant}>{t(status.labelKey)}</Badge>
+      </Link>
+      {(onDuplicate || onDelete) && (
+        <div className="document-item__actions">
+          {onDuplicate && (
+            <button
+              type="button"
+              className="document-item__action-btn"
+              data-testid={`duplicate-doc-${document.id}`}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onDuplicate(document.id)
+              }}
+              title={t('documents.actions.duplicate')}
+              aria-label={t('documents.actions.duplicate')}
+            >
+              📋
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              className="document-item__action-btn document-item__action-btn--danger"
+              data-testid={`delete-doc-${document.id}`}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onDelete(document.id)
+              }}
+              title={t('documents.actions.delete')}
+              aria-label={t('documents.actions.delete')}
+            >
+              🗑️
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

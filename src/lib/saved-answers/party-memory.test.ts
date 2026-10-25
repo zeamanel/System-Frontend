@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  clearAllCustomerLocalData,
   clearSavedAnswers,
   getSavedSuggestionsForField,
   saveReusableAnswers,
@@ -69,5 +70,21 @@ describe('party memory', () => {
     saveReusableAnswers({ employer: 'Sunshine PLC' })
     clearSavedAnswers()
     expect(getSavedSuggestionsForField('employer')).toEqual([])
+  })
+
+  it('SEC-12: clearAllCustomerLocalData removes editor buffer and party memory keys from localStorage and sessionStorage', () => {
+    window.localStorage.setItem('docuA4.editor.buffer.doc-123', '{"answers":{"name":"Abebe"}}')
+    window.localStorage.setItem('docuA4.partyMemory.v1', '{"employer":["Sunshine PLC"]}')
+    window.localStorage.setItem('docua4_party_memory', '{"test":"val"}')
+    window.localStorage.setItem('docuA4.preferences', '{"theme":"dark"}') // preserved
+    window.sessionStorage.setItem('docuA4.wizard.activeStep', '2')
+
+    clearAllCustomerLocalData()
+
+    expect(window.localStorage.getItem('docuA4.editor.buffer.doc-123')).toBeNull()
+    expect(window.localStorage.getItem('docuA4.partyMemory.v1')).toBeNull()
+    expect(window.localStorage.getItem('docua4_party_memory')).toBeNull()
+    expect(window.localStorage.getItem('docuA4.preferences')).toBe('{"theme":"dark"}')
+    expect(window.sessionStorage.getItem('docuA4.wizard.activeStep')).toBeNull()
   })
 })

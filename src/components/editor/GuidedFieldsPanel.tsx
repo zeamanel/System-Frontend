@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useI18n } from '../../i18n'
 import { DOCUMENT_LANGUAGES, LANGUAGES } from '../../lib/languages'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
-import { getSavedSuggestionsForField } from '../../lib/saved-answers/party-memory'
+import { clearSavedAnswers, getSavedSuggestionsForField } from '../../lib/saved-answers/party-memory'
 import { listTelegramMediaVault, type TelegramVaultProfile } from '../../lib/api'
 import { SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
@@ -413,6 +413,21 @@ export function GuidedFieldsPanel({
     onGenerate(getPayloadAnswers())
   }
 
+  const handleNewCustomerReset = (): void => {
+    for (const q of questions) {
+      onAnswerChange(q.id, '')
+      const qKey = (q as { key?: string; id: string }).key
+      if (qKey && qKey !== q.id) {
+        onAnswerChange(qKey, '')
+      }
+    }
+    onAnswerChange('__party_context', '')
+    onAnswerChange(ADDITIONAL_INSTRUCTIONS_FIELD_ID, '')
+    setPartySlots({})
+    setInvalid({})
+    clearSavedAnswers()
+  }
+
   return (
     <section
       className="editor-panel__section guided-fields-panel"
@@ -472,6 +487,17 @@ export function GuidedFieldsPanel({
                 ) : null}
               </div>
             ) : null}
+
+            <button
+              type="button"
+              className="guided-fields-panel__reset-btn"
+              data-testid="new-customer-reset-btn"
+              onClick={handleNewCustomerReset}
+              title={t('editor.fields.newCustomerReset')}
+              aria-label={t('editor.fields.newCustomerReset')}
+            >
+              🧹 Clear
+            </button>
 
             <button
               type="button"

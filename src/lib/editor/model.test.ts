@@ -445,6 +445,49 @@ describe('replaceTextInModel', () => {
       html: 'ይህ ውል በዛሬው ቀን፡ ጥቅምት 6 ቀን 2019 ዓ.ም. ተፈርሟል።',
     })
   })
+
+  it('DOC-02: does not replace 1- or 2-char numbers or partial numbers (e.g. 10 inside 2010)', () => {
+    const model = modelWith(createParagraph('In year 2010, the rent was 100 ETB.'))
+    // Replacing '10' is ignored (length < 3)
+    const resultShort = replaceTextInModel(model, '10', '12')
+    expect(resultShort.replaced).toBe(false)
+    expect(resultShort.model.blocks[0]).toMatchObject({
+      html: 'In year 2010, the rent was 100 ETB.',
+    })
+
+    // Replacing '100' uses word boundaries and does not touch other numbers
+    const result100 = replaceTextInModel(model, '100', '150')
+    expect(result100.replaced).toBe(true)
+    expect(result100.model.blocks[0]).toMatchObject({
+      html: 'In year 2010, the rent was 150 ETB.',
+    })
+  })
+
+  it('DOC-02: protects longer sibling answer values (e.g. Abebe Kebede when editing Abebe)', () => {
+    const model = modelWith(
+      createParagraph('Landlord is Abebe. Tenant is Abebe Kebede.'),
+    )
+    const result = replaceTextInModel(model, 'Abebe', 'Chala', {
+      otherAnswerValues: ['Abebe Kebede'],
+    })
+    expect(result.replaced).toBe(true)
+    expect(result.model.blocks[0]).toMatchObject({
+      html: 'Landlord is Chala. Tenant is Abebe Kebede.',
+    })
+  })
+
+  it('DOC-02: protects Amharic sibling party names from partial substring corruption', () => {
+    const model = modelWith(
+      createParagraph('አከራይ አበበ ሲሆኑ ተከራይ አበበ ከበደ ናቸው።'),
+    )
+    const result = replaceTextInModel(model, 'አበበ', 'ጫላ', {
+      otherAnswerValues: ['አበበ ከበደ'],
+    })
+    expect(result.replaced).toBe(true)
+    expect(result.model.blocks[0]).toMatchObject({
+      html: 'አከራይ ጫላ ሲሆኑ ተከራይ አበበ ከበደ ናቸው።',
+    })
+  })
 })
 
 describe('applyDocumentPreset', () => {

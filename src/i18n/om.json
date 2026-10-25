@@ -465,5 +465,9 @@
   "telegramFiles.botReady": "Walqabateera fi Qophiidha",
   "telegramFiles.botMissingToken": "Tookaniin Bootii Hin Qophoofne",
   "telegramFiles.syncWebhook": "Webhuukii Qindeessi",
-  "telegramFiles.safetyNote": "Iccitii Abbaa Bilbilaa: Fayyadamaan Telegiraamii yeroo kamiyyuu /revoke fayyadamuun ykn furtuu chaatii keessaan odeeffannoo qoodame fuula kana irraa balleessuu danda'a."
+  "telegramFiles.safetyNote": "Iccitii Abbaa Bilbilaa: Fayyadamaan Telegiraamii yeroo kamiyyuu /revoke fayyadamuun ykn furtuu chaatii keessaan odeeffannoo qoodame fuula kana irraa balleessuu danda'a.",
+  "editor.fields.newCustomerReset": "Maamila Haaraa (Unka Qulqulleessi)",
+  "documents.actions.duplicate": "Sanada Baay'isi",
+  "documents.actions.delete": "Sanada Haqii",
+  "documents.confirmDelete": "Dhuguma sanada kana haquu barbaaddaa?"
 }

@@ -73,6 +73,28 @@
   margin-bottom: 0;
 }
 
+.guided-fields-panel__reset-btn {
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  transition: all 0.15s ease-in-out;
+}
+
+.guided-fields-panel__reset-btn:hover {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--color-danger);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
 .guided-fields-panel__refresh-btn {
   background: transparent;
   border: 1px solid var(--color-border-subtle);
