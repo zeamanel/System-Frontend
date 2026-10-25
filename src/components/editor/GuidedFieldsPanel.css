@@ -200,52 +200,87 @@
   background: rgba(220, 38, 38, 0.1);
 }
 
-.guided-field__party-row {
+.guided-fields-panel__header-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
+  gap: var(--space-2);
 }
 
-.guided-field__party-row .guided-field__input-with-addon {
-  flex: 1 1 auto;
-  min-width: 0;
+.guided-fields-panel__add-party-wrapper {
+  position: relative;
 }
 
-.guided-field__icon-action-btn {
-  width: 34px;
-  height: 36px;
-  flex-shrink: 0;
+.guided-fields-panel__header-add-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm, 6px);
-  border: 1px solid var(--color-border, #d1d5db);
-  background-color: var(--color-surface, #ffffff);
-  font-size: 18px;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1;
+  color: var(--color-primary);
   cursor: pointer;
-  position: relative;
+  white-space: nowrap;
   transition: all 0.15s ease-in-out;
-  color: var(--color-text, #374151);
-  padding: 0;
 }
 
-.guided-field__icon-action-btn--add:hover {
-  background-color: var(--color-primary-subtle, rgba(26, 115, 232, 0.08));
-  border-color: var(--color-primary, #1a73e8);
-  color: var(--color-primary, #1a73e8);
+.guided-fields-panel__header-add-btn:hover {
+  background-color: var(--color-primary-subtle);
+  border-color: var(--color-primary);
 }
 
-.guided-field__icon-action-btn--remove {
-  color: var(--color-danger, #dc2626);
+.guided-fields-panel__caret {
+  font-size: 10px;
+  margin-left: 2px;
+  color: var(--color-text-muted);
 }
 
-.guided-field__icon-action-btn--remove:hover {
-  background-color: rgba(220, 38, 38, 0.08);
-  border-color: var(--color-danger, #dc2626);
-  color: var(--color-danger, #dc2626);
+.guided-fields-panel__add-party-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  min-width: 170px;
+  max-width: 260px;
+  padding: 4px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.guided-fields-panel__add-party-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.guided-fields-panel__add-party-menu-item:hover:not(:disabled) {
+  background-color: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+
+.guided-fields-panel__add-party-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Tooltip styling for elements with data-tooltip */
@@ -286,17 +321,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  margin-bottom: 2px;
 }
 
 .guided-fields-panel__co-party-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-secondary, #4b5563);
-  margin-bottom: 4px;
+  color: var(--color-text-secondary);
+  margin-bottom: 0;
 }
 
 .guided-fields-panel__co-party-input-wrap {
@@ -311,14 +346,18 @@
 
 .guided-fields-panel__remove-co-party-btn {
   background: transparent;
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid rgba(220, 38, 38, 0.25);
   color: var(--color-danger);
-  padding: 4px 8px;
+  padding: 2px 7px;
   font-size: 11px;
+  font-weight: 500;
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: all 0.15s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .guided-fields-panel__remove-co-party-btn:hover {

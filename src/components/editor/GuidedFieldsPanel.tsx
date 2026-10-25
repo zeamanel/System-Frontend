@@ -1,6 +1,6 @@
 import './GuidedFieldsPanel.css'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useI18n } from '../../i18n'
 import { DOCUMENT_LANGUAGES, LANGUAGES } from '../../lib/languages'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
@@ -150,6 +150,31 @@ export function GuidedFieldsPanel({
   const [partySlots, setPartySlots] = useState<Record<string, PartySlotState[]>>({})
 
   const questions = useMemo(() => template?.questions ?? [], [template?.questions])
+  const partyQuestions = useMemo(
+    () =>
+      questions.filter((q) =>
+        isPartyFieldKey((q as { key?: string; id: string }).key ?? q.id),
+      ),
+    [questions],
+  )
+  const [addPartyMenuOpen, setAddPartyMenuOpen] = useState(false)
+  const addPartyMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!addPartyMenuOpen) return
+    const handlePointerDown = (e: MouseEvent) => {
+      if (
+        addPartyMenuRef.current &&
+        !addPartyMenuRef.current.contains(e.target as Node)
+      ) {
+        setAddPartyMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+    }
+  }, [addPartyMenuOpen])
   const isPromptOnly = questions.length === 0
   const missingRequiredIds = questions
     .filter((q) => q.required && !(answers[q.id] ?? '').trim())
@@ -315,6 +340,25 @@ export function GuidedFieldsPanel({
     syncSlotsAndAnswers(fieldKey, currentSlots, roleLabel)
   }
 
+  const handleHeaderAddParty = () => {
+    if (partyQuestions.length === 0) return
+    if (partyQuestions.length === 1) {
+      const q = partyQuestions[0]
+      const fieldKey = (q as { key?: string; id: string }).key ?? q.id
+      const currentValue = answers[q.id] ?? ''
+      handleAddCoParty(fieldKey, q.label, currentValue)
+      return
+    }
+    setAddPartyMenuOpen((prev) => !prev)
+  }
+
+  const handleSelectRoleToAdd = (q: (typeof questions)[0]) => {
+    const fieldKey = (q as { key?: string; id: string }).key ?? q.id
+    const currentValue = answers[q.id] ?? ''
+    handleAddCoParty(fieldKey, q.label, currentValue)
+    setAddPartyMenuOpen(false)
+  }
+
   const handleRemoveCoParty = (
     fieldKey: string,
     slotIdx: number,
@@ -380,16 +424,66 @@ export function GuidedFieldsPanel({
           <h2 id="editor-fields-title" className="editor-panel__title">
             {t('editor.panelFields')}
           </h2>
-          <button
-            type="button"
-            className="guided-fields-panel__refresh-btn"
-            data-testid="refresh-telegram-vault-btn"
-            onClick={() => void loadTelegramProfiles()}
-            title="Refresh Telegram profiles"
-            aria-label="Refresh Telegram profiles"
-          >
-            ↻
-          </button>
+          <div className="guided-fields-panel__header-actions">
+            {partyQuestions.length > 0 ? (
+              <div className="guided-fields-panel__add-party-wrapper" ref={addPartyMenuRef}>
+                <button
+                  type="button"
+                  className="guided-fields-panel__header-add-btn"
+                  data-testid="header-add-party-btn"
+                  onClick={handleHeaderAddParty}
+                  title={t('editor.fields.addCoParty')}
+                  aria-label={t('editor.fields.addCoParty')}
+                  aria-expanded={partyQuestions.length > 1 ? addPartyMenuOpen : undefined}
+                >
+                  <span className="guided-fields-panel__header-add-label">
+                    {t('editor.fields.addCoParty')}
+                  </span>
+                  {partyQuestions.length > 1 ? (
+                    <span className="guided-fields-panel__caret">▾</span>
+                  ) : null}
+                </button>
+
+                {partyQuestions.length > 1 && addPartyMenuOpen ? (
+                  <div
+                    className="guided-fields-panel__add-party-menu"
+                    data-testid="header-add-party-menu"
+                    role="menu"
+                  >
+                    {partyQuestions.map((pq) => {
+                      const pqKey = (pq as { key?: string; id: string }).key ?? pq.id
+                      const pqSlots = getSlots(pqKey, answers[pq.id] ?? '')
+                      const isMax = pqSlots.length >= 5
+                      return (
+                        <button
+                          key={pq.id}
+                          type="button"
+                          role="menuitem"
+                          className="guided-fields-panel__add-party-menu-item"
+                          data-testid={`add-co-party-btn-${pqKey}`}
+                          disabled={isMax}
+                          onClick={() => handleSelectRoleToAdd(pq)}
+                        >
+                          + {pq.label} {isMax ? '(Max 5)' : ''}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              className="guided-fields-panel__refresh-btn"
+              data-testid="refresh-telegram-vault-btn"
+              onClick={() => void loadTelegramProfiles()}
+              title="Refresh Telegram profiles"
+              aria-label="Refresh Telegram profiles"
+            >
+              ↻
+            </button>
+          </div>
         </div>
       </header>
 
@@ -425,81 +519,65 @@ export function GuidedFieldsPanel({
                       </label>
                     </div>
 
-                    <div className="guided-field__party-row">
-                      <div className="guided-field__input-with-addon">
-                        {isMultilineQuestion(question) ? (
-                          <Textarea
-                            id={`field-${question.id}`}
-                            bare
-                            rows={3}
-                            value={primaryDisplayValue}
-                            onChange={(e) =>
-                              handlePrimaryChange(
-                                fieldKey,
-                                e.target.value,
-                                question.label,
-                                currentValue,
-                              )
-                            }
-                            placeholder={t('editor.fieldPlaceholder')}
-                            aria-invalid={invalid[question.id] ? true : undefined}
-                          />
-                        ) : (
-                          <Input
-                            id={`field-${question.id}`}
-                            bare
-                            value={primaryDisplayValue}
-                            onChange={(e) =>
-                              handlePrimaryChange(
-                                fieldKey,
-                                e.target.value,
-                                question.label,
-                                currentValue,
-                              )
-                            }
-                            placeholder={t('editor.fieldPlaceholder')}
-                            aria-invalid={invalid[question.id] ? true : undefined}
-                          />
-                        )}
-                        <select
-                          data-testid={`party-telegram-select-${fieldKey}-0`}
-                          className="guided-fields-panel__party-select"
-                          value={primarySlot?.profile?.qalId ?? ''}
-                          aria-label={t('editor.fields.mapTelegramId')}
-                          title={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
-                          data-tooltip={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
+                    <div className="guided-field__input-with-addon">
+                      {isMultilineQuestion(question) ? (
+                        <Textarea
+                          id={`field-${question.id}`}
+                          bare
+                          rows={3}
+                          value={primaryDisplayValue}
                           onChange={(e) =>
-                            handleTelegramSelect(
+                            handlePrimaryChange(
                               fieldKey,
-                              0,
                               e.target.value,
                               question.label,
                               currentValue,
                             )
                           }
-                        >
-                          <option value="">{t('editor.fields.mapTelegramId')}</option>
-                          {telegramProfiles.map((acc) => (
-                            <option key={acc.qalId} value={acc.qalId}>
-                              {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {slots.length < 5 ? (
-                        <button
-                          type="button"
-                          className="guided-field__icon-action-btn guided-field__icon-action-btn--add"
-                          data-testid={`add-co-party-btn-${fieldKey}`}
-                          onClick={() => handleAddCoParty(fieldKey, question.label, currentValue)}
-                          title={`${t('editor.fields.addCoParty')} (${question.label})`}
-                          aria-label={t('editor.fields.addCoParty')}
-                          data-tooltip={t('editor.fields.addCoParty')}
-                        >
-                          +
-                        </button>
-                      ) : null}
+                          placeholder={t('editor.fieldPlaceholder')}
+                          aria-invalid={invalid[question.id] ? true : undefined}
+                        />
+                      ) : (
+                        <Input
+                          id={`field-${question.id}`}
+                          bare
+                          value={primaryDisplayValue}
+                          onChange={(e) =>
+                            handlePrimaryChange(
+                              fieldKey,
+                              e.target.value,
+                              question.label,
+                              currentValue,
+                            )
+                          }
+                          placeholder={t('editor.fieldPlaceholder')}
+                          aria-invalid={invalid[question.id] ? true : undefined}
+                        />
+                      )}
+                      <select
+                        data-testid={`party-telegram-select-${fieldKey}-0`}
+                        className="guided-fields-panel__party-select"
+                        value={primarySlot?.profile?.qalId ?? ''}
+                        aria-label={t('editor.fields.mapTelegramId')}
+                        title={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
+                        data-tooltip={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
+                        onChange={(e) =>
+                          handleTelegramSelect(
+                            fieldKey,
+                            0,
+                            e.target.value,
+                            question.label,
+                            currentValue,
+                          )
+                        }
+                      >
+                        <option value="">{t('editor.fields.mapTelegramId')}</option>
+                        {telegramProfiles.map((acc) => (
+                          <option key={acc.qalId} value={acc.qalId}>
+                            {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     {invalid[question.id] ? (
@@ -594,63 +672,60 @@ export function GuidedFieldsPanel({
                               {question.label} #{idx + 1}
                             </span>
                           </label>
-                        </div>
-                        <div className="guided-field__party-row">
-                          <div className="guided-field__input-with-addon">
-                            <input
-                              id={`co-party-input-${fieldKey}-${idx}`}
-                              data-testid={`co-party-input-${fieldKey}-${idx}`}
-                              className="input guided-fields-panel__co-party-input"
-                              value={coSlot.name}
-                              placeholder={t('editor.fieldPlaceholder')}
-                              onChange={(e) =>
-                                handleCoPartyChange(
-                                  fieldKey,
-                                  idx,
-                                  e.target.value,
-                                  question.label,
-                                  currentValue,
-                                )
-                              }
-                            />
-                            <select
-                              data-testid={`party-telegram-select-${fieldKey}-${idx}`}
-                              className="guided-fields-panel__party-select"
-                              value={coSlot.profile?.qalId ?? ''}
-                              aria-label={t('editor.fields.mapTelegramId')}
-                              title={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
-                              data-tooltip={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
-                              onChange={(e) =>
-                                handleTelegramSelect(
-                                  fieldKey,
-                                  idx,
-                                  e.target.value,
-                                  question.label,
-                                  currentValue,
-                                )
-                              }
-                            >
-                              <option value="">{t('editor.fields.mapTelegramId')}</option>
-                              {telegramProfiles.map((acc) => (
-                                <option key={acc.qalId} value={acc.qalId}>
-                                  {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
                           <button
                             type="button"
-                            className="guided-field__icon-action-btn guided-field__icon-action-btn--remove"
+                            className="guided-fields-panel__remove-co-party-btn"
                             data-testid={`remove-co-party-btn-${fieldKey}-${idx}`}
                             onClick={() =>
                               handleRemoveCoParty(fieldKey, idx, question.label, currentValue)
                             }
                             aria-label={t('editor.fields.removeCoParty')}
                             title={`${t('editor.fields.removeCoParty')} (${question.label} #${idx + 1})`}
-                            data-tooltip={t('editor.fields.removeCoParty')}
                           >
-                            −
+                            ✕ {t('editor.fields.removeCoParty')}
                           </button>
+                        </div>
+                        <div className="guided-field__input-with-addon">
+                          <input
+                            id={`co-party-input-${fieldKey}-${idx}`}
+                            data-testid={`co-party-input-${fieldKey}-${idx}`}
+                            className="input guided-fields-panel__co-party-input"
+                            value={coSlot.name}
+                            placeholder={t('editor.fieldPlaceholder')}
+                            onChange={(e) =>
+                              handleCoPartyChange(
+                                fieldKey,
+                                idx,
+                                e.target.value,
+                                question.label,
+                                currentValue,
+                              )
+                            }
+                          />
+                          <select
+                            data-testid={`party-telegram-select-${fieldKey}-${idx}`}
+                            className="guided-fields-panel__party-select"
+                            value={coSlot.profile?.qalId ?? ''}
+                            aria-label={t('editor.fields.mapTelegramId')}
+                            title={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
+                            data-tooltip={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
+                            onChange={(e) =>
+                              handleTelegramSelect(
+                                fieldKey,
+                                idx,
+                                e.target.value,
+                                question.label,
+                                currentValue,
+                              )
+                            }
+                          >
+                            <option value="">{t('editor.fields.mapTelegramId')}</option>
+                            {telegramProfiles.map((acc) => (
+                              <option key={acc.qalId} value={acc.qalId}>
+                                {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         {coSlot.profile ? (
                           <div

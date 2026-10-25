@@ -66,9 +66,6 @@ export function TemplateCard({
       </Link>
 
       <div className="template-card__footer">
-        <span className="template-card__footer-info">
-          {template.questionCount} fields · v{template.version}
-        </span>
         <div className="template-card__actions">
           {onPreview ? (
             <Button

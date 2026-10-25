@@ -260,8 +260,8 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
       onAnswerChange,
     })
 
-    // Click [+ Add another party]
-    const addBtn = screen.getByTestId('add-co-party-btn-tenant_name')
+    // Click [+ Add Party] in header
+    const addBtn = screen.getByTestId('header-add-party-btn')
     await user.click(addBtn)
 
     // Co-party row #2 appears
@@ -281,6 +281,49 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
 
     expect(screen.queryByTestId('co-party-input-tenant_name-1')).toBeNull()
     expect(onAnswerChange).toHaveBeenCalledWith('tenant_name', 'Abebe Bikila')
+  })
+
+  it('toggles role dropdown menu on header add party button when multiple party roles exist', async () => {
+    const multiPartyTemplate: TemplateDetail = {
+      ...mockTemplate,
+      id: 'multi-party-template',
+      questions: [
+        { id: 'seller_name', label: 'Seller Full Name', type: 'text', required: true },
+        { id: 'buyer_name', label: 'Buyer Full Name', type: 'text', required: true },
+        { id: 'price_amount', label: 'Total Price', type: 'text', required: false },
+      ],
+    }
+
+    const onAnswerChange = vi.fn()
+    const { user } = renderPanel({
+      template: multiPartyTemplate,
+      answers: { seller_name: 'Abebe Bikila', buyer_name: 'Chala Desta' },
+      onAnswerChange,
+    })
+
+    const headerAddBtn = screen.getByTestId('header-add-party-btn')
+    expect(headerAddBtn).toBeInTheDocument()
+
+    // Dropdown is not visible initially
+    expect(screen.queryByTestId('header-add-party-menu')).toBeNull()
+
+    // Click header add button to open dropdown
+    await user.click(headerAddBtn)
+
+    const menu = screen.getByTestId('header-add-party-menu')
+    expect(menu).toBeInTheDocument()
+
+    // Select Seller from dropdown
+    const addSellerBtn = screen.getByTestId('add-co-party-btn-seller_name')
+    expect(addSellerBtn).toHaveTextContent(/Seller Full Name/i)
+    await user.click(addSellerBtn)
+
+    // Co-seller row #2 appears
+    expect(screen.getByText(/Seller Full Name #2/i)).toBeInTheDocument()
+    expect(screen.getByTestId('co-party-input-seller_name-1')).toBeInTheDocument()
+
+    // Menu closes after selection
+    expect(screen.queryByTestId('header-add-party-menu')).toBeNull()
   })
 
   it('serializes bound party profiles into __party_context when submitting onGenerate', async () => {
