@@ -3,6 +3,7 @@ import { createHttpRepositories } from './http-repositories'
 import { createFixtureRepositories } from './fixture-repositories'
 import { DocumentConflictError } from './errors'
 import { env } from '../../config/env'
+import { consumePendingNotes } from '../assistant/pending-notes'
 
 /**
  * Integration-style tests for the API-backed repositories. Firebase auth is
@@ -229,6 +230,31 @@ describe('HttpGenerationRepository', () => {
 
     expect(job.documentId).toBe('existing-doc')
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands the assistant notes to the editor once per job', async () => {
+    window.sessionStorage.setItem(
+      'docuA4.generation.context.job-3',
+      JSON.stringify({ templateId: 't', language: 'en', answers: {}, inputDocumentId: 'doc-3' }),
+    )
+    const assistantNotes = {
+      summary: 'Drafted.',
+      questions: [{ question: 'What is the deadline?' }],
+      assumptions: [],
+      warnings: [],
+    }
+    fetchMock.mockImplementation(async () =>
+      jsonResponse({ id: 'job-3', status: 'completed', content: '{"blocks":[]}', assistantNotes }),
+    )
+    const repos = createHttpRepositories()
+
+    const job = await repos.generation.getRequest('job-3')
+    expect(job.assistantNotes).toEqual(assistantNotes)
+    expect(consumePendingNotes('doc-3')?.notes.summary).toBe('Drafted.')
+
+    // Re-polling the same completed job does not hand the notes over again.
+    await repos.generation.getRequest('job-3')
+    expect(consumePendingNotes('doc-3')).toBeNull()
   })
 })
 

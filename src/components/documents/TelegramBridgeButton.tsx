@@ -58,6 +58,11 @@ interface TelegramBridgeButtonInnerProps extends TelegramBridgeButtonProps {
   onNavigate?: (path: string) => void
 }
 
+/** Statuses after which the session can no longer change. */
+function isTerminalBridgeStatus(status: string): boolean {
+  return status === 'denied' || status === 'expired' || status === 'revoked' || status === 'dismissed'
+}
+
 function formatPageCode(code: string): string {
   return code.split('').join(' ')
 }
@@ -207,7 +212,7 @@ function TelegramBridgeButtonInner({
             isCompletedHandledRef.current = true
             stopPolling()
             await handleApplyCompletedData(res)
-          } else if (res.status === 'denied') {
+          } else if (isTerminalBridgeStatus(res.status)) {
             stopPolling()
           }
         } catch (err) {
@@ -272,13 +277,16 @@ function TelegramBridgeButtonInner({
         isCompletedHandledRef.current = true
         stopPolling()
         await handleApplyCompletedData(res)
-      } else if (res.status === 'denied') {
+      } else if (isTerminalBridgeStatus(res.status)) {
         stopPolling()
       }
     } catch (err: unknown) {
       const status = (err as { status?: number })?.status
       if (status === 404) {
         setPingError(t('documents.telegramUserNotFound'))
+      } else if (status === 410) {
+        stopPolling()
+        setStatusRecord((prev) => (prev ? { ...prev, status: 'expired' } : prev))
       } else {
         setPingError(
           err instanceof Error ? err.message : t('documents.telegramBridgeError'),
@@ -400,6 +408,18 @@ function TelegramBridgeButtonInner({
                     data-testid="telegram-status-denied"
                   >
                     {t('documents.telegramDenied')}
+                  </div>
+                ) : statusRecord?.status === 'expired' || statusRecord?.status === 'revoked' ? (
+                  <div
+                    className="telegram-bridge-status telegram-bridge-status--denied"
+                    data-testid="telegram-status-expired"
+                  >
+                    {statusRecord.status === 'expired'
+                      ? t('documents.telegramExpired')
+                      : t('documents.telegramRevoked')}{' '}
+                    <Button variant="ghost" size="sm" onClick={() => void handleOpenModal()}>
+                      {t('documents.telegramNewCode')}
+                    </Button>
                   </div>
                 ) : statusRecord?.status === 'completed' ? (
                   <div

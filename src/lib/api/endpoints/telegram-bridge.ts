@@ -23,6 +23,9 @@ export type TelegramBridgeStatus =
   | 'awaiting_file'
   | 'completed'
   | 'denied'
+  | 'expired'
+  | 'revoked'
+  | 'dismissed'
 
 export type TelegramImageKind = 'id_card' | 'document_text' | 'media_photo'
 

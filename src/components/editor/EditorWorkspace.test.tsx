@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n'
@@ -217,7 +217,8 @@ describe('EditorWorkspace', () => {
     await screen.findByTestId('editor-title-input')
 
     fireEvent.click(screen.getByRole('button', { name: /print/i }))
-    expect(printSpy).toHaveBeenCalled()
+    // Print waits one tick so pending field edits render first.
+    await waitFor(() => expect(printSpy).toHaveBeenCalled())
   })
 
   it('reports server PDF export honestly when the backend is missing', async () => {
@@ -267,7 +268,7 @@ describe('EditorWorkspace', () => {
     expect(screen.getByRole('toolbar', { name: 'Zoom' })).toBeInTheDocument()
   })
 
-  it('syncs an edited guided-field answer onto the A4 canvas immediately', async () => {
+  it('syncs an edited guided-field answer onto the A4 canvas once typing pauses, with Undo', async () => {
     const created = await repos.documents.create({
       title: 'Party fix',
       templateId: 'rental-agreement',
@@ -286,9 +287,44 @@ describe('EditorWorkspace', () => {
       target: { value: 'Bole Tower flat 5C' },
     })
 
-    // Same-tick canvas update — no "Regenerate content" click involved.
-    expect(screen.getAllByText(/Bole Tower flat 5C/).length).toBeGreaterThan(0)
+    // Carried into the text after the typing pause — no regeneration involved.
+    await waitFor(() => expect(screen.getAllByText(/Bole Tower flat 5C/).length).toBeGreaterThan(0), {
+      timeout: 3000,
+    })
     expect(screen.queryByText(/Bole Tower apartment 4B/)).not.toBeInTheDocument()
+
+    // The change is reported in the assistant panel and can be undone.
+    fireEvent.click(screen.getByTestId('editor-tab-assistant'))
+    const report = await screen.findByTestId('assistant-field-sync')
+    expect(report).toHaveTextContent('in 1 place')
+    fireEvent.click(within(report).getByRole('button', { name: /undo/i }))
+    await waitFor(() =>
+      expect(screen.getAllByText(/Bole Tower apartment 4B/).length).toBeGreaterThan(0),
+    )
+  })
+
+  it('select-all-and-retype replaces the whole previous value, not a fragment', async () => {
+    const created = await repos.documents.create({
+      title: 'Retype',
+      templateId: 'rental-agreement',
+      language: 'en',
+      answers: { property: 'Bole Tower apartment 4B' },
+      content: 'The premises known as Bole Tower apartment 4B are rented.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+    const field = screen.getByLabelText(/which property is rented/i)
+
+    // Keystroke by keystroke, as a typist would after selecting the old text.
+    for (const value of ['K', 'Ka', 'Kaz', 'Kazanchis house 12']) {
+      fireEvent.change(field, { target: { value } })
+    }
+
+    await waitFor(() => expect(screen.getAllByText(/Kazanchis house 12/).length).toBeGreaterThan(0), {
+      timeout: 3000,
+    })
+    expect(screen.queryByText(/premises known as K are/)).not.toBeInTheDocument()
   })
 
   it('offers and applies a legal Ethiopian date suggestion chip', async () => {

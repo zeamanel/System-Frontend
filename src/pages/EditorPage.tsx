@@ -6,7 +6,8 @@ import { useI18n } from '../i18n'
 import { useDocument } from '../hooks/use-documents'
 import { useTemplateDetail } from '../hooks/use-templates'
 import { Button, EmptyState, LoadingState, PanelError } from '../components/ui'
-import { EditorWorkspace } from '../components/editor/EditorWorkspace'
+import { EditorWorkspace, type NewCustomerDocumentInput } from '../components/editor/EditorWorkspace'
+import { useStartTemplateDocument } from '../hooks/use-start-template-document'
 
 /**
  * Document editor route: loads the document (and its template schema for the
@@ -25,6 +26,17 @@ export default function EditorPage() {
     const result = await docQuery.refetch()
     return result.data ?? null
   }, [docQuery])
+
+  const { startTemplateDocument } = useStartTemplateDocument()
+  const handleNewCustomer = useCallback(
+    async (input: NewCustomerDocumentInput): Promise<void> => {
+      await startTemplateDocument(
+        { id: input.templateId, title: input.title, documentTypeId: input.documentTypeId },
+        input.language,
+      )
+    },
+    [startTemplateDocument],
+  )
 
   if (docQuery.isPending) {
     return <LoadingState full label={t('common.loading')} />
@@ -72,10 +84,14 @@ export default function EditorPage() {
 
   return (
     <EditorWorkspace
+      // Remount per document so editor state can never carry over from the
+      // previous document (e.g. after "New customer").
+      key={doc.id}
       document={doc}
       template={templateQuery.data ?? null}
       onBack={() => navigate('/documents')}
       refresh={refresh}
+      onNewCustomer={handleNewCustomer}
     />
   )
 }

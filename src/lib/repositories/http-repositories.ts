@@ -71,6 +71,7 @@ import type {
 } from '../../types/api'
 import type { CountryCode } from '../geo'
 import type { DocumentLanguage } from '../languages'
+import { stashPendingNotes } from '../assistant/pending-notes'
 
 /**
  * API-backed repositories over the live Cloud Run backend
@@ -699,6 +700,8 @@ interface GenerationJobContext {
   answers: Record<string, string>
   inputDocumentId?: string
   createdDocumentId?: string
+  /** Assistant notes already handed to the editor (avoid repeats on re-poll). */
+  notesHandedOff?: boolean
 }
 
 const GENERATION_CONTEXT_PREFIX = 'docuA4.generation.context.'
@@ -752,6 +755,7 @@ class HttpGenerationRepository implements GenerationRepository {
       status: job.status,
       error: job.error ? (job.error.message ?? job.error.code) : undefined,
       content: job.content,
+      assistantNotes: job.assistantNotes,
     }
     if (job.status !== 'completed') return result
 
@@ -759,6 +763,11 @@ class HttpGenerationRepository implements GenerationRepository {
     if (!context) return result
     if (context.inputDocumentId) {
       result.documentId = context.inputDocumentId
+      if (!context.notesHandedOff && job.assistantNotes) {
+        stashPendingNotes(context.inputDocumentId, id, job.assistantNotes)
+        context.notesHandedOff = true
+        writeJobContext(id, context)
+      }
       return result
     }
     if (!context.createdDocumentId) {
@@ -773,6 +782,10 @@ class HttpGenerationRepository implements GenerationRepository {
         generationDocumentKey(id),
       )
       context.createdDocumentId = document.id
+      if (job.assistantNotes) {
+        stashPendingNotes(document.id, id, job.assistantNotes)
+        context.notesHandedOff = true
+      }
       writeJobContext(id, context)
     }
     result.documentId = context.createdDocumentId

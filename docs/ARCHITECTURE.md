@@ -158,6 +158,32 @@ unrecoverable 401s sign the user out with a "session expired" toast
 (`SessionExpiredNotifier`). Role checks in the client are display-only — the
 backend re-verifies every ID token.
 
+## Document assistant
+
+The editor's right panel has two tabs: **Format** (default) and **Assistant**.
+
+- **After generation** the backend returns `assistantNotes` (summary,
+  questions for facts the model did not invent, assumptions, warnings). The
+  generation repository hands them to the editor
+  (`lib/assistant/pending-notes.ts`), which posts them into the thread and
+  opens the Assistant tab.
+- **Chat** (`POST /ai/assistant`) sends the editor's *current* blocks as
+  plain text (`lib/assistant/context.ts`), the selected block id, field
+  answers and the last few turns. The assistant only **proposes**
+  block-scoped changes; `useAssistant` applies a proposal when the user
+  presses Apply, through `useDocumentEditor.applyTrackedChange`, so every
+  change can be undone (`lib/editor/tracked-change.ts`). A proposal for a
+  paragraph edited after the suggestion needs "Apply anyway".
+- **Honest status**: "Applied and saved" is shown only after a save that
+  started after the change succeeded. When the AI cannot be reached (demo
+  mode, network, quota, rate limit) the reply says so, changes nothing, and
+  shows a local check (empty required fields, placeholders).
+- **Guided-field sync** runs once per typing pause, comparing the value the
+  text last reflected with the new one (select-all-and-retype safe; clearing
+  a field never deletes text). Each sync is reported in the thread with Undo.
+- The thread lives in `sessionStorage` (`docuA4.assistant.thread.<docId>`),
+  wiped on sign-out. Drafting help, not legal advice — the panel says so.
+
 ## Phased roadmap (proposal)
 
 1. **Phase 1 — foundation** (done): shell, tokens, primitives, routing,

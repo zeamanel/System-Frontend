@@ -66,7 +66,11 @@ import { GuidedFieldsPanel, SectionsOutline } from './GuidedFieldsPanel'
 import type { BlockLabels } from './blocks/BlockView'
 import { findEditable, focusEditable, type EditableRef } from './caret'
 import type { EditorApi } from './editor-api'
-import { useDocumentEditor } from './useDocumentEditor'
+import { useDocumentEditor, type FieldSyncEvent } from './useDocumentEditor'
+import { AssistantPanel } from './AssistantPanel'
+import { useAssistant } from './useAssistant'
+import { consumePendingNotes } from '../../lib/assistant/pending-notes'
+import { blockPlainText } from '../../lib/assistant/context'
 import './editor.css'
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
@@ -77,6 +81,18 @@ export interface EditorWorkspaceProps {
   template: TemplateDetail | null | undefined
   onBack: () => void
   refresh: () => Promise<DocumentDetailRecord | null>
+  /**
+   * Opens a fresh document from the same template for the next customer
+   * (the route owns navigation). The open document is never modified.
+   */
+  onNewCustomer?: (input: NewCustomerDocumentInput) => Promise<void>
+}
+
+export interface NewCustomerDocumentInput {
+  templateId: string
+  title: string
+  documentTypeId?: string
+  language: string
 }
 
 /**
@@ -84,11 +100,23 @@ export interface EditorWorkspaceProps {
  * canvas (centre) + formatting controls (right). Owns selection/focus state
  * and wires every block interaction to pure model operations.
  */
-export function EditorWorkspace({ document: doc, template, onBack, refresh }: EditorWorkspaceProps) {
+export function EditorWorkspace({
+  document: doc,
+  template,
+  onBack,
+  refresh,
+  onNewCustomer,
+}: EditorWorkspaceProps) {
   const { t } = useI18n()
   const toast = useToast()
 
-  const editor = useDocumentEditor({ document: doc, refresh })
+  // Field-sync reports go to the assistant thread (created below).
+  const fieldSyncHandlerRef = useRef<((event: FieldSyncEvent) => void) | null>(null)
+  const editor = useDocumentEditor({
+    document: doc,
+    refresh,
+    onFieldSynced: (event) => fieldSyncHandlerRef.current?.(event),
+  })
   const { model, updateModel } = editor
 
   // Document-scoped translator: labels rendered inside the A4 paper
@@ -114,6 +142,9 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
     () => typeof window === 'undefined' || window.innerWidth >= 1540,
   )
   const [ethiopicSupport] = useState(() => probeEthiopicSupport())
+  // Format stays the default tab; the panel switches to the assistant when
+  // it has something to say after a generation.
+  const [rightTab, setRightTab] = useState<'assistant' | 'format'>('format')
 
   const hasContent = useMemo(
     () =>
@@ -177,6 +208,101 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
   )
 
   const outline = useMemo(() => documentOutline(model), [model])
+
+  // ---- assistant ----
+  const assistantQuestions = useMemo(
+    () => (template?.questions ?? []).map((q) => ({ id: q.id, label: q.label, required: q.required })),
+    [template?.questions],
+  )
+  const questionLabels = useMemo(
+    () => Object.fromEntries(assistantQuestions.map((q) => [q.id, q.label])),
+    [assistantQuestions],
+  )
+  const assistant = useAssistant({
+    documentId: doc.id,
+    editor,
+    questions: assistantQuestions,
+    selectedBlockId: activeRef?.blockId ?? null,
+    onNotice: (text) => toast.push(text),
+    labels: {
+      blockGone: t('assistant.blockGone'),
+      keptEditedBlocks: (count) => t('assistant.keptEdited', { count: String(count) }),
+      requestFailed: t('assistant.requestFailed'),
+      answerMessage: (question, answer) => t('assistant.answerMessage', { question, answer }),
+    },
+  })
+  fieldSyncHandlerRef.current = assistant.postFieldSync
+
+  const openAssistant = useCallback((): void => {
+    setRightOpen(true)
+    setRightTab('assistant')
+  }, [])
+
+  const { postGenerationNotes } = assistant
+  const showGenerationNotes = useCallback((): void => {
+    const pending = consumePendingNotes(doc.id)
+    if (!pending) return
+    postGenerationNotes(pending.notes)
+    openAssistant()
+  }, [doc.id, openAssistant, postGenerationNotes])
+
+  // Notes from a generation that finished before this editor opened (guided flow).
+  useEffect(() => {
+    showGenerationNotes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Reading the panel clears its unread badge.
+  const assistantVisible = rightOpen && rightTab === 'assistant'
+  const { unread: assistantUnread, markRead: markAssistantRead } = assistant
+  useEffect(() => {
+    if (assistantVisible && assistantUnread > 0) markAssistantRead()
+  }, [assistantVisible, assistantUnread, markAssistantRead])
+
+  const highlightTimerRef = useRef<number | null>(null)
+  const handleShowBlock = useCallback((blockId: string): void => {
+    if (!blockId) return
+    const element = Array.from(document.querySelectorAll<HTMLElement>('[data-block-id]')).find(
+      (node) => node.getAttribute('data-block-id') === blockId,
+    )
+    if (!element) return
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    document
+      .querySelectorAll('.doc-block--assistant-focus')
+      .forEach((node) => node.classList.remove('doc-block--assistant-focus'))
+    element.classList.add('doc-block--assistant-focus')
+    if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current)
+    highlightTimerRef.current = window.setTimeout(() => {
+      element.classList.remove('doc-block--assistant-focus')
+    }, 2500)
+  }, [])
+
+  const selectedText = useMemo(() => {
+    if (!activeBlock) return null
+    const text = blockPlainText(activeBlock).trim()
+    return text || null
+  }, [activeBlock])
+
+  // ---- new customer: a fresh document, never a cleared copy of this one ----
+  const startingNewCustomerRef = useRef(false)
+  const handleNewCustomer = useCallback(async (): Promise<void> => {
+    if (!onNewCustomer || startingNewCustomerRef.current) return
+    if (!window.confirm(t('editor.newCustomerConfirm'))) return
+    startingNewCustomerRef.current = true
+    try {
+      await editor.flush()
+      await onNewCustomer({
+        templateId: template?.id ?? editor.templateId,
+        title: template?.title ?? doc.title,
+        documentTypeId: template?.documentTypeId,
+        language: editor.language,
+      })
+    } catch {
+      toast.push(t('editor.newCustomerFailed'))
+    } finally {
+      startingNewCustomerRef.current = false
+    }
+  }, [doc.title, editor, onNewCustomer, t, template, toast])
 
   const setActiveRef = useCallback((ref: EditableRef | null): void => {
     setActiveRefState(ref)
@@ -472,6 +598,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
       if (!cancelled && fresh) {
         editor.adoptSnapshot(fresh)
         toast.push(t('editor.regenerated'))
+        showGenerationNotes()
       }
     })()
     return () => {
@@ -613,8 +740,11 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
   )
 
   const handlePrint = useCallback((): void => {
+    // Carry pending field edits into the text and let React render them
+    // before the browser snapshots the page.
+    editor.flushFieldSync()
     void editor.flush()
-    triggerPrint()
+    window.setTimeout(triggerPrint, 50)
   }, [editor])
 
   const handleExportServerPdf = useCallback(async (): Promise<void> => {
@@ -842,6 +972,7 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
           onGenerate={(answers) => void handleGenerate(answers)}
           outline={outline}
           onOutlineSelect={handleOutlineSelect}
+          onNewCustomer={onNewCustomer ? () => void handleNewCustomer() : undefined}
         >
         {telegramMedia ? (
           <div className="telegram-media-tray" data-testid="telegram-media-tray">
@@ -933,13 +1064,59 @@ export function EditorWorkspace({ document: doc, template, onBack, refresh }: Ed
       />
 
       <aside className="editor-side editor-side--right" aria-hidden={!rightOpen}>
-        <FormatPanel
-          model={model}
-          activeBlock={activeBlock}
-          ethiopicSupport={ethiopicSupport}
-          imageError={imageError}
-          callbacks={formatCallbacks}
-        />
+        <div className="editor-side-tabs" role="tablist" aria-label={t('assistant.tabsLabel')}>
+          <button
+            type="button"
+            role="tab"
+            id="editor-tab-assistant"
+            aria-selected={rightTab === 'assistant'}
+            aria-controls="editor-tabpanel-assistant"
+            className="editor-side-tabs__tab"
+            onClick={() => setRightTab('assistant')}
+            data-testid="editor-tab-assistant"
+          >
+            {t('assistant.tabAssistant')}
+            {assistant.unread > 0 && rightTab !== 'assistant' ? (
+              <span className="editor-side-tabs__badge" aria-label={t('assistant.unread', { count: String(assistant.unread) })}>
+                {assistant.unread}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="editor-tab-format"
+            aria-selected={rightTab === 'format'}
+            aria-controls="editor-tabpanel-format"
+            className="editor-side-tabs__tab"
+            onClick={() => setRightTab('format')}
+            data-testid="editor-tab-format"
+          >
+            {t('assistant.tabFormat')}
+          </button>
+        </div>
+        {rightTab === 'assistant' ? (
+          <div role="tabpanel" id="editor-tabpanel-assistant" aria-labelledby="editor-tab-assistant" className="editor-side-tabpanel">
+            <AssistantPanel
+              assistant={assistant}
+              selectedText={selectedText}
+              saveStatus={editor.status}
+              lastSavedAt={editor.lastSavedAt}
+              questionLabels={questionLabels}
+              onShowBlock={handleShowBlock}
+            />
+          </div>
+        ) : (
+          <div role="tabpanel" id="editor-tabpanel-format" aria-labelledby="editor-tab-format" className="editor-side-tabpanel">
+            <FormatPanel
+              model={model}
+              activeBlock={activeBlock}
+              ethiopicSupport={ethiopicSupport}
+              imageError={imageError}
+              callbacks={formatCallbacks}
+            />
+          </div>
+        )}
       </aside>
     </div>
   )

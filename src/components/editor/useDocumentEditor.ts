@@ -32,6 +32,9 @@ import {
   serializeModel,
 } from '../../lib/editor/model'
 import type { DocumentModel } from '../../lib/editor/types'
+import { diffBlocks, sameBlock, type TrackedChange, type RevertResult } from '../../lib/editor/tracked-change'
+
+export type { TrackedChange, RevertResult }
 import type { DocumentDetailRecord } from '../../lib/repositories'
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'conflict'
@@ -91,7 +94,21 @@ export interface UseDocumentEditorOptions {
   document: DocumentDetailRecord
   /** Refetch the authoritative document (conflict resolution / regeneration). */
   refresh: () => Promise<DocumentDetailRecord | null>
+  /** Called after a guided-field edit was carried into the document text. */
+  onFieldSynced?: (event: FieldSyncEvent) => void
 }
+
+export interface FieldSyncEvent {
+  questionId: string
+  from: string
+  to: string
+  change: TrackedChange
+}
+
+/** Pause after the last keystroke before a field edit is synced into the text. */
+export const FIELD_SYNC_DELAY_MS = 700
+
+const NON_SYNCED_FIELDS = new Set(['additional_instructions', 'title', 'subject'])
 
 /**
  * Owns the editable document state and its save lifecycle.
@@ -103,7 +120,7 @@ export interface UseDocumentEditorOptions {
  * - Conflicts (changed elsewhere, HTTP 409) surface as an explicit state the
  *   user resolves by reloading the latest version or overwriting it.
  */
-export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorOptions) {
+export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: UseDocumentEditorOptions) {
   const [model, setModelState] = useState<DocumentModel>(
     () => parseDocumentContent(doc.content, doc.language) ?? createEmptyDocument(doc.language),
   )
@@ -115,11 +132,27 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
   // Backend version guard (If-Match); undefined until an API document has one.
   const [savedVersion, setSavedVersion] = useState<number | undefined>(doc.version)
   const [recovered, setRecovered] = useState(false)
+  /** Client time when the last successful save started: every change made
+   * before it is persisted (honest "saved" reporting). */
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
 
   const dirtyRef = useRef(false)
   const savingRef = useRef(false)
   const queuedRef = useRef(false)
   const saveRef = useRef<(force?: boolean) => Promise<void>>(async () => {})
+
+  // Latest model/answers for synchronous, non-closure reads (field sync,
+  // tracked changes). Updated on every render and on every tracked write.
+  const modelRef = useRef(model)
+  modelRef.current = model
+  const answersRef = useRef(answers)
+  answersRef.current = answers
+  const onFieldSyncedRef = useRef(onFieldSynced)
+  onFieldSyncedRef.current = onFieldSynced
+  /** Per field: the value the document text currently reflects. */
+  const syncBaselineRef = useRef<Record<string, string>>({ ...(doc.answers ?? {}) })
+  const pendingSyncRef = useRef<Set<string>>(new Set())
+  const syncTimerRef = useRef<number | null>(null)
 
   const updateMutation = useUpdateDocument()
   const queryClient = useQueryClient()
@@ -145,30 +178,106 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
     [markDirty],
   )
 
+  /**
+   * Carry pending guided-field edits into the document text. Runs once per
+   * pause in typing (not per keystroke) and compares the value the document
+   * last reflected with the new value, so select-all-and-retype or
+   * clear-and-retype replace the whole old value. Clearing a field never
+   * deletes text. Every sync is reported as an undoable TrackedChange.
+   */
+  const runFieldSync = useCallback((): void => {
+    if (syncTimerRef.current !== null) {
+      window.clearTimeout(syncTimerRef.current)
+      syncTimerRef.current = null
+    }
+    const pending = [...pendingSyncRef.current]
+    pendingSyncRef.current.clear()
+    for (const questionId of pending) {
+      const from = syncBaselineRef.current[questionId] ?? ''
+      const to = answersRef.current[questionId] ?? ''
+      if (from === to) continue
+      if (to.trim() === '') continue // keep baseline: retyping replaces the old value
+      const otherAnswerValues = Object.entries(answersRef.current)
+        .filter(([k, v]) => k !== questionId && !k.startsWith('__') && typeof v === 'string' && v.trim() !== '')
+        .map(([, v]) => v)
+      const before = modelRef.current
+      const result = replaceTextInModel(before, from, to, { otherAnswerValues })
+      syncBaselineRef.current[questionId] = to
+      if (!result.replaced) continue
+      const change = diffBlocks(before, result.model)
+      modelRef.current = result.model
+      setModelState(result.model)
+      dirtyRef.current = true
+      setStatus('unsaved')
+      if (change) onFieldSyncedRef.current?.({ questionId, from, to, change })
+    }
+  }, [])
+
   const setAnswer = useCallback(
     (questionId: string, value: string): void => {
-      const prevValue = answers[questionId] ?? ''
-      // Instant field-to-canvas sync: when the previous answer already
-      // appears in the document blocks, fix it in place in the same React
-      // batch — no AI regeneration round-trip needed.
-      const otherAnswerValues = Object.entries(answers)
-        .filter(([k, v]) => k !== questionId && typeof v === 'string' && v.trim().length > 0)
-        .map(([, v]) => v)
-
-      const isEthDate = /ዓ\.ም\.?$/.test(value.trim())
-      if (
-        questionId !== 'additional_instructions' &&
-        prevValue !== value &&
-        value.trim().length >= 1 &&
-        (prevValue.trim().length >= 3 || isEthDate)
-      ) {
-        const result = replaceTextInModel(model, prevValue, value, { otherAnswerValues })
-        if (result.replaced) setModelState(result.model)
-      }
+      answersRef.current = { ...answersRef.current, [questionId]: value }
       setAnswersState((current) => ({ ...current, [questionId]: value }))
       markDirty()
+      if (NON_SYNCED_FIELDS.has(questionId) || questionId.startsWith('__')) return
+      pendingSyncRef.current.add(questionId)
+      if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current)
+      syncTimerRef.current = window.setTimeout(runFieldSync, FIELD_SYNC_DELAY_MS)
     },
-    [answers, markDirty, model],
+    [markDirty, runFieldSync],
+  )
+
+  /** Apply a model change on the user's behalf and return it for Undo. */
+  const applyTrackedChange = useCallback(
+    (updater: (current: DocumentModel) => DocumentModel): TrackedChange | null => {
+      const before = modelRef.current
+      const after = updater(before)
+      const change = diffBlocks(before, after)
+      if (!change) return null
+      modelRef.current = after
+      setModelState(after)
+      markDirty()
+      return change
+    },
+    [markDirty],
+  )
+
+  /**
+   * Undo a tracked change: restores each affected block that still looks
+   * exactly as the change left it; blocks edited since are skipped.
+   */
+  const revertChange = useCallback(
+    (change: TrackedChange): RevertResult => {
+      let reverted = 0
+      let skipped = 0
+      const current = modelRef.current
+      const blocks = current.blocks.map((block) => {
+        const after = change.after[block.id]
+        const before = change.before[block.id]
+        if (!after || !before) return block
+        if (sameBlock(block, after)) {
+          reverted += 1
+          return before
+        }
+        skipped += 1
+        return block
+      })
+      if (reverted > 0) {
+        const next = { ...current, blocks }
+        modelRef.current = next
+        setModelState(next)
+        markDirty()
+      }
+      return { reverted, skipped }
+    },
+    [markDirty],
+  )
+
+  // Never leave a pending sync timer behind.
+  useEffect(
+    () => () => {
+      if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current)
+    },
+    [],
   )
 
   const setLanguage = useCallback(
@@ -182,6 +291,8 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
 
   const adoptSnapshot = useCallback((snapshot: DocumentDetailRecord): void => {
     dirtyRef.current = false
+    pendingSyncRef.current.clear()
+    syncBaselineRef.current = { ...(snapshot.answers ?? {}) }
     setModelState(
       parseDocumentContent(snapshot.content, snapshot.language) ??
         createEmptyDocument(snapshot.language),
@@ -202,20 +313,24 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
         return
       }
       savingRef.current = true
+      // Everything changed before this moment is in this save's payload.
+      const saveStartedAt = Date.now()
       setStatus('saving')
       try {
         const result = await updateMutation.mutateAsync({
           id: doc.id,
           payload: {
             title,
-            content: serializeModel(model),
+            // Refs, not closure state: flush() may have just synced fields.
+            content: serializeModel(modelRef.current),
             language,
-            answers,
+            answers: answersRef.current,
             baseUpdatedAt: force ? undefined : savedAt,
             baseVersion: force ? undefined : savedVersion,
           },
         })
         dirtyRef.current = false
+        setLastSavedAt(saveStartedAt)
         setSavedAt(result.updatedAt)
         setSavedVersion(result.version)
         setStatus('saved')
@@ -239,7 +354,7 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
         }
       }
     },
-    [answers, doc.id, language, markDirty, model, queryClient, savedAt, savedVersion, title, updateMutation],
+    [doc.id, language, markDirty, queryClient, savedAt, savedVersion, title, updateMutation],
   )
 
   saveRef.current = save
@@ -256,6 +371,8 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
     setModelState(snapshot.model)
     setTitleState(snapshot.title)
     setAnswersState(snapshot.answers)
+    // The recovered text reflects the recovered answers.
+    syncBaselineRef.current = { ...snapshot.answers }
     setLanguageState(snapshot.language)
     dirtyRef.current = true
     setStatus('unsaved')
@@ -306,10 +423,11 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
   }, [])
 
   const flush = useCallback(async (): Promise<void> => {
+    runFieldSync()
     if (dirtyRef.current || savingRef.current) {
       await saveRef.current()
     }
-  }, [])
+  }, [runFieldSync])
 
   const saveNow = useCallback((): Promise<void> => saveRef.current(), [])
 
@@ -320,10 +438,14 @@ export function useDocumentEditor({ document: doc, refresh }: UseDocumentEditorO
     language,
     status,
     savedAt,
+    lastSavedAt,
     recovered,
     updateModel,
     setTitle,
     setAnswer,
+    flushFieldSync: runFieldSync,
+    applyTrackedChange,
+    revertChange,
     setLanguage,
     save: saveNow,
     reloadLatest,

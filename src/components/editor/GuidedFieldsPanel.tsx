@@ -27,6 +27,11 @@ export interface GuidedFieldsPanelProps {
   onGenerate: (answers: Record<string, string>) => void
   outline: OutlineEntry[]
   onOutlineSelect: (blockId: string) => void
+  /**
+   * "New customer": starts a fresh document for the next walk-in customer.
+   * The open document is never modified (its saved answers stay intact).
+   */
+  onNewCustomer?: () => void
   children?: React.ReactNode
 }
 
@@ -141,6 +146,7 @@ export function GuidedFieldsPanel({
   generationPending,
   generationFailed,
   onGenerate,
+  onNewCustomer,
   children,
 }: GuidedFieldsPanelProps) {
   const { t } = useI18n()
@@ -413,19 +419,14 @@ export function GuidedFieldsPanel({
     onGenerate(getPayloadAnswers())
   }
 
-  const handleNewCustomerReset = (): void => {
-    for (const q of questions) {
-      onAnswerChange(q.id, '')
-      const qKey = (q as { key?: string; id: string }).key
-      if (qKey && qKey !== q.id) {
-        onAnswerChange(qKey, '')
-      }
-    }
-    onAnswerChange('__party_context', '')
-    onAnswerChange(ADDITIONAL_INSTRUCTIONS_FIELD_ID, '')
+  const handleNewCustomer = (): void => {
+    // Forget the previous customer's autocomplete suggestions on this PC,
+    // then let the workspace open a new document. Answers of the open
+    // document are deliberately left untouched.
+    clearSavedAnswers()
     setPartySlots({})
     setInvalid({})
-    clearSavedAnswers()
+    onNewCustomer?.()
   }
 
   return (
@@ -492,11 +493,12 @@ export function GuidedFieldsPanel({
               type="button"
               className="guided-fields-panel__reset-btn"
               data-testid="new-customer-reset-btn"
-              onClick={handleNewCustomerReset}
+              onClick={handleNewCustomer}
+              disabled={!onNewCustomer}
               title={t('editor.fields.newCustomerReset')}
               aria-label={t('editor.fields.newCustomerReset')}
             >
-              🧹 Clear
+              {t('editor.fields.newCustomerShort')}
             </button>
 
             <button

@@ -9,6 +9,7 @@ import {
 import { env } from '../../config/env'
 import { getFirebaseAuth } from '../firebase/client'
 import { clearSyncedUserCache } from './sync-user'
+import { clearAllCustomerLocalData } from '../saved-answers/party-memory'
 
 /**
  * Firebase-backed authentication state for the live backend
@@ -116,6 +117,8 @@ function notifySessionExpired(): void {
 export async function handleSessionExpired(): Promise<void> {
   notifySessionExpired()
   clearSyncedUserCache()
+  // Shared-PC privacy (SEC-12): an expired session wipes customer data too.
+  clearAllCustomerLocalData()
   if (!isApiMode()) return
   try {
     await firebaseSignOut(getFirebaseAuth())

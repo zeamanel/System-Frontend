@@ -1,5 +1,6 @@
 import { apiClient } from '../client'
 import type { GenerationStatus } from '../../../types/api'
+import type { AssistantNotes } from '../../assistant/types'
 
 /**
  * AI generation endpoints of the live backend (docs/API.md §5).
@@ -25,6 +26,8 @@ export interface GenerationJobApiRecord {
   /** Serialized generated content (JSON blocks string) once completed. */
   content?: string
   error?: { code?: string; message?: string }
+  /** What the assistant says about the draft (completed jobs only). */
+  assistantNotes?: AssistantNotes
   createdAt?: string
   updatedAt?: string
 }

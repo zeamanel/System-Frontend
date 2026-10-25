@@ -56,6 +56,10 @@ export async function compressImageDataUrl(
             return
           }
 
+          // JPEG has no alpha channel: paint the page colour first so
+          // transparent stamps/signatures stay on white instead of black.
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, width, height)
           ctx.drawImage(img, 0, 0, width, height)
           const compressed = canvas.toDataURL('image/jpeg', quality)
           resolve(compressed.length < dataUrl.length ? compressed : dataUrl)

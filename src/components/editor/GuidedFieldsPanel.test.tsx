@@ -368,8 +368,10 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
     expect(select).toHaveTextContent(/Map/i)
   })
 
-  it('SEC-12: clicking new-customer-reset-btn clears current answers and party context', async () => {
+  it('SEC-12: New customer starts a fresh document and never clears the open one', async () => {
     const onAnswerChange = vi.fn()
+    const onNewCustomer = vi.fn()
+    window.localStorage.setItem('docuA4.partyMemory.v1', '{"employer":["Previous Customer PLC"]}')
     const { user } = renderPanel({
       answers: {
         tenant_name: 'Abebe Bikila',
@@ -377,17 +379,15 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
         [ADDITIONAL_INSTRUCTIONS_FIELD_ID]: 'Add stamp',
       },
       onAnswerChange,
+      onNewCustomer,
     })
 
-    const resetBtn = screen.getByTestId('new-customer-reset-btn')
-    expect(resetBtn).toBeInTheDocument()
+    await user.click(screen.getByTestId('new-customer-reset-btn'))
 
-    await user.click(resetBtn)
-
-    expect(onAnswerChange).toHaveBeenCalledWith('tenant_name', '')
-    expect(onAnswerChange).toHaveBeenCalledWith('rent_amount', '')
-    expect(onAnswerChange).toHaveBeenCalledWith('special_terms', '')
-    expect(onAnswerChange).toHaveBeenCalledWith('__party_context', '')
-    expect(onAnswerChange).toHaveBeenCalledWith(ADDITIONAL_INSTRUCTIONS_FIELD_ID, '')
+    expect(onNewCustomer).toHaveBeenCalledTimes(1)
+    // The open (saved) document's answers are left intact.
+    expect(onAnswerChange).not.toHaveBeenCalled()
+    // Previous customer's autocomplete suggestions are forgotten.
+    expect(window.localStorage.getItem('docuA4.partyMemory.v1')).toBeNull()
   })
 })

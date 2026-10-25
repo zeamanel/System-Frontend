@@ -6,6 +6,8 @@
  * request/response shapes on the frontend.
  */
 
+import type { AssistantNotes } from '../lib/assistant/types'
+
 // ---------- Identity ----------
 
 export interface User {
@@ -100,6 +102,8 @@ export interface GenerationRequest {
    */
   content?: string
   error?: string
+  /** Assistant summary, questions, assumptions and warnings for the draft. */
+  assistantNotes?: AssistantNotes
 }
 
 /** Generation usage and quotas (GET /api/v1/ai/usage). */
