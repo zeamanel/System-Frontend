@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHttpRepositories } from './http-repositories'
 import { createFixtureRepositories } from './fixture-repositories'
-import { DocumentConflictError } from './errors'
+import { DocumentConflictError, ExportUnavailableError } from './errors'
 import { env } from '../../config/env'
 import { consumePendingNotes } from '../assistant/pending-notes'
 
@@ -300,6 +300,27 @@ const templateRecord = (title: string, popularity: number) => ({
   popularity,
   createdAt: '2026-10-13T16:55:14.525Z',
   updatedAt: '2026-10-13T16:55:14.525Z',
+})
+
+describe('HttpExportsRepository', () => {
+  it('returns the export link and maps an unsupported format or missing service to ExportUnavailableError', async () => {
+    const repos = createHttpRepositories()
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ id: 'e1', status: 'completed', path: '/exports/e1/download?token=t' }, { status: 201 }),
+    )
+    expect(await repos.exports.createRequest({ documentId: 'd1', format: 'pdf' })).toMatchObject({ path: '/exports/e1/download?token=t' })
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: { code: 'UNPROCESSABLE_ENTITY', message: 'Only PDF' } }, { status: 422 }))
+    await expect(repos.exports.createRequest({ documentId: 'd1', format: 'docx' })).rejects.toBeInstanceOf(ExportUnavailableError)
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: { code: 'NOT_FOUND', message: 'Route POST /api/v1/exports not found' } }, { status: 404 }),
+    )
+    await expect(repos.exports.createRequest({ documentId: 'd1', format: 'pdf' })).rejects.toBeInstanceOf(ExportUnavailableError)
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: { code: 'NOT_FOUND', message: 'Document d1 not found' } }, { status: 404 }))
+    await expect(repos.exports.createRequest({ documentId: 'd1', format: 'pdf' })).rejects.not.toBeInstanceOf(ExportUnavailableError)
+  })
 })
 
 describe('HttpOrganizationRepository', () => {

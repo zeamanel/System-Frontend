@@ -222,12 +222,12 @@
   "editor.export": "ላክ",
   "editor.exportPrintPdf": "አትም / እንደ PDF አስቀምጥ",
   "editor.exportPrintPdfHint": "የአሳሹን የህትመት መገናኛ ይከፍታል — “Save as PDF” ይምረጡ።",
-  "editor.exportPdfServer": "PDF (በኋላ-መጨረሻ)",
-  "editor.exportPdfServerHint": "ከፍተኛ ጥራት ያለው PDF በDocuA4 ኋላ-መጨረሻ ይቀርባል።",
+  "editor.exportPdfServer": "PDF አውርድ",
+  "editor.exportPdfServerHint": "በሁሉም መሣሪያ ላይ ተመሳሳይ ቅርጽ፤ የአማርኛ ፊደላት ተካትተዋል።",
   "editor.exportDocx": "DOCX (Word)",
-  "editor.exportDocxHint": "የDocuA4 ኋላ-መጨረሻ አገልግሎት ያስፈልገዋል።",
-  "editor.exportStarted": "ወደ መላክ በማዘጋጀት ላይ…",
-  "editor.exportFailed": "መላክ አልተሳካም።",
+  "editor.exportDocxHint": "ገና አልተዘጋጀም።",
+  "editor.exportStarted": "PDF በማዘጋጀት ላይ…",
+  "editor.exportFailed": "PDF ሊዘጋጅ አልቻለም። እንደገና ይሞክሩ፣ ወይም አትም / እንደ PDF አስቀምጥ ይጠቀሙ።",
   "editor.toggleFieldsPanel": "የሰነድ መስኮች ክፍልን አሳይ/ደብቅ",
   "editor.toggleFormatPanel": "የረዳት እና የቅርጸት ፓነልን ቀያይር",
   "editor.panelFields": "የሰነድ መስኮች",
@@ -629,5 +629,9 @@
   "organization.fromOrg": "ከድርጅትዎ",
   "editor.useLetterhead": "የድርጅት ራስጌ ተጠቀም",
   "editor.letterheadApplied": "የድርጅቱ ራስጌ በገጹ ላይ ተጨምሯል።",
-  "editor.letterheadMissing": "መጀመሪያ በድርጅት ገጽ ላይ ራስጌ ይጨምሩ።"
+  "editor.letterheadMissing": "መጀመሪያ በድርጅት ገጽ ላይ ራስጌ ይጨምሩ።",
+  "editor.exportNeedsSave": "መጀመሪያ ሰነዱን ያስቀምጡ፦ PDF የሚዘጋጀው ከተቀመጠው ቅጂ ነው።",
+  "editor.exportDownloaded": "PDF ወርዷል።",
+  "editor.exportUnavailable": "PDF ለማውረድ የDocuA4 አገልጋይ ያስፈልጋል። በምትኩ አትም / እንደ PDF አስቀምጥ ይጠቀሙ።",
+  "editor.exportExpired": "የማውረጃ ሊንኩ ጊዜው አልፏል። PDF አውርድን እንደገና ይምረጡ።"
 }

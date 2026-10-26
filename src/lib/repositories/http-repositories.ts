@@ -28,7 +28,7 @@ import {
   waitForAuthState,
 } from '../api/auth-store'
 import { getFirebaseAuth } from '../firebase/client'
-import { DocumentConflictError } from './errors'
+import { DocumentConflictError, ExportUnavailableError } from './errors'
 import { matchesCategory, toSummary, toDetail } from './fixtures/template-filtering'
 import { FIXTURE_TEMPLATES } from '../fixtures/templates'
 import type {
@@ -518,7 +518,16 @@ class HttpDocumentsRepository implements DocumentsRepository {
  */
 class HttpExportsRepository implements ExportsRepository {
   async createRequest(input: ExportRequestInput): Promise<ExportRequest> {
-    return apiClient.post<ExportRequest>('/exports', input, { auth: 'required' })
+    try {
+      return await apiClient.post<ExportRequest>('/exports', input, { auth: 'required' })
+    } catch (error) {
+      // 422: format not offered. A 404 for the route itself: no export service on this backend.
+      if (error instanceof ApiError && error.status === 422) throw new ExportUnavailableError(error.message)
+      if (error instanceof ApiError && error.status === 404 && error.message.startsWith('Route ')) {
+        throw new ExportUnavailableError()
+      }
+      throw error
+    }
   }
 }
 

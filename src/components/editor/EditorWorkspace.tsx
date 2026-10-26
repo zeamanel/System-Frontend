@@ -53,6 +53,7 @@ import { compressImageDataUrl } from '../../lib/editor/image'
 import { isSafeUrl } from '../../lib/editor/sanitize'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
 import { triggerPrint } from '../../lib/editor/a4'
+import { downloadPdf, ExportDownloadError, exportDownloadUrl, pdfFileName } from '../../lib/export/download'
 import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { newId } from '../../lib/editor/ids'
 import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
@@ -829,20 +830,27 @@ export function EditorWorkspace({
 
   const handleExportServerPdf = useCallback(async (): Promise<void> => {
     setExportError(null)
-    await editor.flush()
+    // The PDF is rendered from the saved document: never export stale content.
+    if (!(await editor.flush())) {
+      setExportError(t('editor.exportNeedsSave'))
+      return
+    }
     try {
       const result = await exportMutation.mutateAsync({ documentId: doc.id, format: 'pdf' })
-      if (result.url && typeof window !== 'undefined') {
-        window.open(result.url, '_blank', 'noopener')
-      }
+      const url = exportDownloadUrl(result)
+      if (!url) throw new Error('missing download link')
+      await downloadPdf(url, pdfFileName(editor.title))
+      toast.push(t('editor.exportDownloaded'), { variant: 'success' })
     } catch (error) {
       setExportError(
-        error instanceof ExportUnavailableError || error instanceof Error
-          ? error.message
-          : t('editor.exportFailed'),
+        error instanceof ExportUnavailableError
+          ? t('editor.exportUnavailable')
+          : error instanceof ExportDownloadError && error.status === 410
+            ? t('editor.exportExpired')
+            : t('editor.exportFailed'),
       )
     }
-  }, [doc.id, editor, exportMutation, t])
+  }, [doc.id, editor, exportMutation, t, toast])
 
   const handleOutlineSelect = useCallback((blockId: string): void => {
     document

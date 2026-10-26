@@ -222,12 +222,12 @@
   "editor.export": "Export",
   "editor.exportPrintPdf": "Print / Save as PDF",
   "editor.exportPrintPdfHint": "Opens the browser print dialog — choose “Save as PDF”.",
-  "editor.exportPdfServer": "PDF (server-rendered)",
-  "editor.exportPdfServerHint": "High-fidelity PDF rendered by the DocuA4 backend.",
+  "editor.exportPdfServer": "Download PDF",
+  "editor.exportPdfServerHint": "Same layout on every device, with Amharic fonts built in.",
   "editor.exportDocx": "DOCX (Word)",
-  "editor.exportDocxHint": "Requires the DocuA4 backend service.",
-  "editor.exportStarted": "Preparing export…",
-  "editor.exportFailed": "Export failed.",
+  "editor.exportDocxHint": "Not available yet.",
+  "editor.exportStarted": "Preparing the PDF…",
+  "editor.exportFailed": "The PDF could not be created. Try again, or use Print / Save as PDF.",
   "editor.toggleFieldsPanel": "Toggle document fields panel",
   "editor.toggleFormatPanel": "Toggle assistant and formatting panel",
   "editor.panelFields": "Document fields",
@@ -629,5 +629,9 @@
   "organization.fromOrg": "From your organization",
   "editor.useLetterhead": "Use organization letterhead",
   "editor.letterheadApplied": "Organization letterhead added to the page.",
-  "editor.letterheadMissing": "Add a letterhead on the Organization page first."
+  "editor.letterheadMissing": "Add a letterhead on the Organization page first.",
+  "editor.exportNeedsSave": "Save the document first: the PDF is made from the saved version.",
+  "editor.exportDownloaded": "PDF downloaded.",
+  "editor.exportUnavailable": "PDF download needs the DocuA4 server. Use Print / Save as PDF instead.",
+  "editor.exportExpired": "The download link expired. Choose Download PDF again."
 }
