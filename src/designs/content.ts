@@ -1,4 +1,5 @@
 import { DESIGN_SCHEMA } from '../lib/editor/document-kind'
+import { MAX_BATCH_ROWS } from './batch'
 import type { DesignContent } from './types'
 
 const SLUG = /^[a-z0-9-]{1,60}$/
@@ -36,6 +37,17 @@ export function parseDesignContent(raw: unknown): DesignContent | null {
       images[slot] = id
     }
   }
+  let batch: DesignContent['batch']
+  if (candidate.batch && Array.isArray(candidate.batch.rows)) {
+    const rows = candidate.batch.rows.slice(0, MAX_BATCH_ROWS).map((row) => {
+      const kept: Record<string, string> = {}
+      for (const [key, text] of Object.entries(row ?? {})) {
+        if (Object.keys(kept).length < 8 && FIELD_ID.test(key) && typeof text === 'string') kept[key] = text.slice(0, 200)
+      }
+      return kept
+    })
+    if (rows.length) batch = { rows }
+  }
   return {
     schema: DESIGN_SCHEMA,
     version: 1,
@@ -44,6 +56,7 @@ export function parseDesignContent(raw: unknown): DesignContent | null {
     options,
     fields,
     images,
+    ...(batch ? { batch } : {}),
   }
 }
 

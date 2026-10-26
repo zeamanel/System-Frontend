@@ -12,6 +12,8 @@ export interface DesignContent {
   fields: Record<string, string>
   /** Uploaded images by slot (slot id → media id). */
   images: Record<string, string>
+  /** Printing for a list of people: one page per row; a row replaces those fields. */
+  batch?: { rows: Array<Record<string, string>> }
 }
 
 export interface DesignTheme {
@@ -42,6 +44,17 @@ export interface DesignOption {
   default: boolean
 }
 
+export interface DesignBatch {
+  /** Field for names in Ethiopic script. */
+  amField: string
+  /** Field for names in Latin script. */
+  enField: string
+  /** Field for a number per page (counted up from the template's value when the list has none). */
+  numberField: string
+  /** Image slots that belong to one person, so they are left off list pages. */
+  personalImages: string[]
+}
+
 export interface DesignImageSlot {
   id: string
   kind: MediaKind
@@ -68,6 +81,8 @@ export interface DesignDefinition {
   options: DesignOption[]
   /** Places for uploaded images; slot `logo` starts with the organization logo. */
   imageSlots: DesignImageSlot[]
+  /** Printing for a list of people (certificates for a class). */
+  batch?: DesignBatch
   /** Text the design starts with (example wording users overwrite). */
   defaults: Record<string, string>
   Page: ComponentType<DesignPageProps>

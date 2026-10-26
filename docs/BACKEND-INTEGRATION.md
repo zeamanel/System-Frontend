@@ -104,6 +104,11 @@ All backend errors use the envelope `{ error: { code, message, ...extras } }`
   ≤ 1200 px) and shown as blob URLs because `GET /media/:id` needs auth.
   Design content stores `images: { slot: mediaId }`; new designs start with
   the organization logo. Demo mode keeps images in this browser only.
+- **Batch certificates** — design content may carry `batch.rows` (≤ 300,
+  one printed page per row; each row replaces the recipient names and
+  number). The list is read in the browser (`src/designs/batch.ts`: pasted
+  from Excel, typed, or a CSV file) and printed by the browser; all pages
+  are rendered only while printing, so editing stays fast.
 
 ## Contract mapping notes
 

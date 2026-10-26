@@ -207,4 +207,65 @@ describe('DesignWorkspace', () => {
     fireEvent.change(screen.getByTestId('design-image-logo-input'), { target: { files: [gif] } })
     expect(await screen.findByText('Choose a PNG, JPEG or WebP image.')).toBeInTheDocument()
   })
+
+  it('prints one page per person from a pasted list, numbered, and saves the list', async () => {
+    renderWorkspace()
+    fireEvent.change(screen.getByLabelText('Certificate number'), { target: { value: 'ASTC-0142' } })
+    fireEvent.change(screen.getByLabelText('People'), {
+      target: { value: 'ዳዊት ኃይሌ\tDawit Haile\nሰላም ተስፋዬ\tSelam Tesfaye\nAbebe Kebede' },
+    })
+    expect(screen.getByTestId('design-batch-summary')).toHaveTextContent('3 certificates')
+    expect(screen.getByTestId('design-print')).toHaveTextContent('Print 3 pages')
+    expect(screen.getByTestId('design-pager')).toHaveTextContent('1 of 3')
+
+    // Until printing, only the page shown is rendered for print (typing stays quick).
+    expect(document.querySelectorAll('body > .design-print-portal > .design-page')).toHaveLength(1)
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('design-print'))
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+    expect(print).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('body > .design-print-portal > .design-page')).toHaveLength(3)
+    const portal = document.querySelector('body > .design-print-portal')!
+    expect(portal).toHaveTextContent('Selam Tesfaye')
+    expect(portal).toHaveTextContent('ASTC-0144')
+    act(() => {
+      window.dispatchEvent(new Event('afterprint'))
+    })
+    expect(document.querySelectorAll('body > .design-print-portal > .design-page')).toHaveLength(1)
+    // The browser's own print (Ctrl+P) renders every page too.
+    act(() => {
+      window.dispatchEvent(new Event('beforeprint'))
+    })
+    expect(document.querySelectorAll('body > .design-print-portal > .design-page')).toHaveLength(3)
+    act(() => {
+      window.dispatchEvent(new Event('afterprint'))
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next person' }))
+    expect(screen.getByTestId('design-pager')).toHaveTextContent('2 of 3')
+    expect(screen.getByTestId('design-workspace').querySelector('.design-workspace__sheet')).toHaveTextContent('ASTC-0143')
+
+    await waitFor(() => expect(screen.getByTestId('design-save-status')).toHaveTextContent('Saved'), { timeout: 4000 })
+    const stored = parseDesignContent((await getRepositories().documents.get(doc.id))?.content)
+    expect(stored?.batch?.rows).toEqual([
+      { recipientAm: 'ዳዊት ኃይሌ', recipientEn: 'Dawit Haile' },
+      { recipientAm: 'ሰላም ተስፋዬ', recipientEn: 'Selam Tesfaye' },
+      { recipientEn: 'Abebe Kebede' },
+    ])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear list' }))
+    expect(screen.queryByTestId('design-pager')).toBeNull()
+    expect(screen.getByTestId('design-print')).toHaveTextContent(/^Print/)
+    expect(screen.queryByTestId('design-batch-summary')).toBeNull()
+  })
+
+  it('loads a CSV file saved from Excel', async () => {
+    renderWorkspace()
+    const csv = new File([`${String.fromCharCode(0xfeff)}Name,No.\r\n"Haile, Dawit",A-7\r\nSelam Tesfaye,A-7\r\n`], 'class.csv', { type: 'text/csv' })
+    fireEvent.change(screen.getByTestId('design-batch-file'), { target: { files: [csv] } })
+    expect(await screen.findByText('2 certificates, one page each')).toBeInTheDocument()
+    expect(screen.getByTestId('design-batch-warnings')).toHaveTextContent('Certificate number A-7 is used more than once.')
+  })
 })

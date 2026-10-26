@@ -747,5 +747,22 @@
   "designs.image.loadFailed": "This image could not be loaded.",
   "designs.image.none": "No image",
   "check.issue.PARTY_NAME_VARIANT": "“{variant}” looks like a different spelling of “{name}”.",
-  "check.issue.PARTY_WITHOUT_SIGNATURE": "“{name}” ({label}) has no signature line."
+  "check.issue.PARTY_WITHOUT_SIGNATURE": "“{name}” ({label}) has no signature line.",
+  "designs.group.batch": "Print for a list of people",
+  "designs.batch.label": "People",
+  "designs.batch.hint": "One person per line — paste from Excel or type. Give any of: Amharic name, English name, certificate number, separated by a tab or comma. Names and numbers from the list replace the ones typed above.",
+  "designs.batch.loadFile": "Load CSV file",
+  "designs.batch.clear": "Clear list",
+  "designs.batch.fileError": "This file could not be read. Save it from Excel as CSV and try again.",
+  "designs.batch.summary": "{count} certificates, one page each",
+  "designs.batch.numbering": "Number the rest from the certificate number above ({first}, {second}, …)",
+  "designs.batch.numberingNeedsBase": "Type a certificate number ending in digits above to number them automatically.",
+  "designs.batch.photoNote": "The recipient photo is not printed on list certificates.",
+  "designs.batch.tooMany": "Only the first {max} people are kept.",
+  "designs.batch.missingName": "Line {line} has no name.",
+  "designs.batch.duplicateNumber": "Certificate number {number} is used more than once.",
+  "designs.batch.previewOf": "{index} of {count}",
+  "designs.batch.previous": "Previous person",
+  "designs.batch.next": "Next person",
+  "designs.printCount": "Print {count} pages"
 }

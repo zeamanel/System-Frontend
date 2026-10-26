@@ -3,7 +3,7 @@ import './designs.css'
 import './DesignWorkspace.css'
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useI18n } from '../i18n'
 import { getRepositories, DocumentConflictError } from '../lib/repositories'
@@ -13,9 +13,11 @@ import { Button, EmptyState, Input, Textarea } from '../components/ui'
 import { ImagePicker } from '../components/media/ImagePicker'
 import { useMediaUrls } from '../hooks/use-media'
 import { useOrganization } from '../hooks/use-organization'
-import { ArrowLeftIcon, PrinterIcon } from '../components/icons'
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, PrinterIcon } from '../components/icons'
 import { parseDesignContent, serializeDesignContent } from './content'
 import { designById } from './registry'
+import { BatchPanel } from './BatchPanel'
+import { NUMBERING_OPTION, batchPages } from './batch'
 import { DESIGN_THEMES, themeById } from './themes'
 import type { DesignContent } from './types'
 
@@ -139,7 +141,36 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
     schedule()
   }
 
+  const setBatchRows = (rows: Array<Record<string, string>> | null): void => {
+    setContent((current) => {
+      const { batch: _old, ...rest } = current
+      return rows ? { ...rest, batch: { rows } } : rest
+    })
+    schedule()
+  }
+
   const { urls: imageUrls, loading: imagesLoading, failed: failedImages } = useMediaUrls(content.images)
+
+  // One page per person when a list is given; the preview shows one at a time.
+  const pages = useMemo(() => batchPages(content, design.batch), [content, design.batch])
+  const [previewIndex, setPreviewIndex] = useState(0)
+  const shownIndex = Math.min(previewIndex, pages.length - 1)
+  // Every page of a list is rendered only while printing (the Print button or
+  // the browser's own print), so typing stays quick with long lists.
+  const [printingAll, setPrintingAll] = useState(false)
+  useEffect(() => {
+    const before = (): void => flushSync(() => setPrintingAll(true))
+    const after = (): void => setPrintingAll(false)
+    window.addEventListener('beforeprint', before)
+    window.addEventListener('afterprint', after)
+    return () => {
+      window.removeEventListener('beforeprint', before)
+      window.removeEventListener('afterprint', after)
+    }
+  }, [])
+  const printPages = printingAll ? pages : [pages[shownIndex]]
+  const urlsFor = (page: DesignContent): Record<string, string> =>
+    Object.fromEntries(Object.entries(imageUrls).filter(([slot]) => slot in page.images))
   const organizationLogo = useOrganization().data?.logoMediaId ?? null
 
   // Printing: the sheet matches the design, only while this editor is open.
@@ -159,6 +190,7 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
   const handlePrint = async (): Promise<void> => {
     if (timer.current !== null) window.clearTimeout(timer.current)
     await save()
+    flushSync(() => setPrintingAll(true))
     // Print only once the page's images are decoded, so none prints blank.
     const images = Array.from(window.document.querySelectorAll<HTMLImageElement>('.design-print-portal img'))
     await Promise.all(images.map((image) => (typeof image.decode === 'function' ? image.decode().catch(() => undefined) : undefined)))
@@ -222,15 +254,38 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
           </Button>
         ) : null}
         <Button variant="primary" size="sm" icon={<PrinterIcon size={16} />} onClick={() => void handlePrint()} disabled={imagesLoading} data-testid="design-print">
-          {t('designs.print')}
+          {pages.length > 1 ? t('designs.printCount', { count: pages.length }) : t('designs.print')}
         </Button>
       </div>
 
       <div className="design-workspace__body">
         <div className="design-workspace__preview" ref={previewRef} aria-label={t('designs.previewLabel')}>
+          {pages.length > 1 ? (
+            <div className="design-workspace__pager" data-testid="design-pager">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                icon={<ChevronLeftIcon size={16} />}
+                aria-label={t('designs.batch.previous')}
+                disabled={shownIndex === 0}
+                onClick={() => setPreviewIndex(shownIndex - 1)}
+              />
+              <span>{t('designs.batch.previewOf', { index: shownIndex + 1, count: pages.length })}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                icon={<ChevronRightIcon size={16} />}
+                aria-label={t('designs.batch.next')}
+                disabled={shownIndex >= pages.length - 1}
+                onClick={() => setPreviewIndex(shownIndex + 1)}
+              />
+            </div>
+          ) : null}
           <div style={{ width: design.page.width * scale, height: design.page.height * scale }} className="design-workspace__sheet">
             <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-              <Page content={content} theme={theme} imageUrls={imageUrls} showPlaceholders />
+              <Page content={pages[shownIndex]} theme={theme} imageUrls={urlsFor(pages[shownIndex])} showPlaceholders />
             </div>
           </div>
         </div>
@@ -299,6 +354,16 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
             </fieldset>
           ) : null}
 
+          {design.batch ? (
+            <BatchPanel
+              batch={design.batch}
+              content={content}
+              pages={pages}
+              onRowsChange={setBatchRows}
+              onNumberingChange={(on) => setOption(NUMBERING_OPTION, on)}
+            />
+          ) : null}
+
           {design.groups.map((group) => (
             <fieldset key={group.labelKey} className="design-workspace__group">
               <legend>{t(group.labelKey)}</legend>
@@ -332,7 +397,9 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
 
       {createPortal(
         <div className="design-print-portal" aria-hidden="true">
-          <Page content={content} theme={theme} imageUrls={imageUrls} showPlaceholders={false} />
+          {printPages.map((page, index) => (
+            <Page key={index} content={page} theme={theme} imageUrls={urlsFor(page)} showPlaceholders={false} />
+          ))}
         </div>,
         window.document.body,
       )}

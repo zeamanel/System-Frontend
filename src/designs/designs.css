@@ -241,6 +241,15 @@
     display: block !important;
   }
 
+  /* A list prints one sheet per person. */
+  html.design-printing .design-print-portal > .design-page {
+    break-after: page;
+  }
+
+  html.design-printing .design-print-portal > .design-page:last-child {
+    break-after: auto;
+  }
+
   html.design-printing .design-print-portal .design-placeholder {
     visibility: hidden !important;
   }

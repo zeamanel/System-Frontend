@@ -51,6 +51,7 @@ export const certificateClassic: DesignDefinition = {
     { id: 'logo', kind: 'logo', labelKey: 'designs.image.logo', hintKey: 'designs.image.logoHint' },
     { id: 'photo', kind: 'photo', labelKey: 'designs.image.photo', hintKey: 'designs.image.photoHint' },
   ],
+  batch: { amField: 'recipientAm', enField: 'recipientEn', numberField: 'certificateNo', personalImages: ['photo'] },
   defaults: {
     titleAm: 'የምስክር ወረቀት',
     titleEn: 'Certificate of Completion',

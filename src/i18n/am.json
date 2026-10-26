@@ -747,5 +747,22 @@
   "designs.image.loadFailed": "ይህ ምስል ሊጫን አልቻለም።",
   "designs.image.none": "ምስል የለም",
   "check.issue.PARTY_NAME_VARIANT": "“{variant}” የ“{name}” የተለየ አጻጻፍ ይመስላል።",
-  "check.issue.PARTY_WITHOUT_SIGNATURE": "“{name}” ({label}) የፊርማ ቦታ የለውም።"
+  "check.issue.PARTY_WITHOUT_SIGNATURE": "“{name}” ({label}) የፊርማ ቦታ የለውም።",
+  "designs.group.batch": "ለብዙ ሰዎች ማተሚያ",
+  "designs.batch.label": "ሰዎች",
+  "designs.batch.hint": "በአንድ መስመር አንድ ሰው — ከExcel ይለጥፉ ወይም ይጻፉ። የአማርኛ ስም፣ የእንግሊዝኛ ስም፣ የምስክር ወረቀት ቁጥር — ያለዎትን በታብ ወይም በኮማ ለይተው ያስገቡ። ከዝርዝሩ ያሉ ስሞችና ቁጥሮች ከላይ የተጻፉትን ይተካሉ።",
+  "designs.batch.loadFile": "CSV ፋይል ጫን",
+  "designs.batch.clear": "ዝርዝሩን አጽዳ",
+  "designs.batch.fileError": "ይህ ፋይል ሊነበብ አልቻለም። ከExcel በCSV አስቀምጠው እንደገና ይሞክሩ።",
+  "designs.batch.summary": "{count} የምስክር ወረቀቶች፣ እያንዳንዳቸው አንድ ገጽ",
+  "designs.batch.numbering": "የቀሩትን ከላይ ካለው ቁጥር ጀምሮ ቁጥር ስጥ ({first}፣ {second}፣ …)",
+  "designs.batch.numberingNeedsBase": "በራስ-ሰር ቁጥር ለመስጠት ከላይ በአሃዝ የሚያልቅ የምስክር ወረቀት ቁጥር ይጻፉ።",
+  "designs.batch.photoNote": "የተሸላሚው ፎቶ በዝርዝር የምስክር ወረቀቶች ላይ አይታተምም።",
+  "designs.batch.tooMany": "የመጀመሪያዎቹ {max} ሰዎች ብቻ ይቀመጣሉ።",
+  "designs.batch.missingName": "መስመር {line} ስም የለውም።",
+  "designs.batch.duplicateNumber": "የምስክር ወረቀት ቁጥር {number} ከአንድ ጊዜ በላይ ተጠቅሟል።",
+  "designs.batch.previewOf": "{index} ከ{count}",
+  "designs.batch.previous": "ቀዳሚው ሰው",
+  "designs.batch.next": "ቀጣዩ ሰው",
+  "designs.printCount": "{count} ገጾችን አትም"
 }
