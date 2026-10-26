@@ -105,6 +105,77 @@ describe('design catalog and content', () => {
   })
 })
 
+describe('every design', () => {
+  const organization = normalizeOrganization({
+    name: 'Tadesse Print',
+    legalName: 'Tadesse Print Works PLC',
+    phone: '+251 911 223344',
+    email: 'info@tadesse.example',
+    address: 'Bole, Addis Ababa',
+  })
+
+  it.each(DESIGNS.map((design) => [design.id, design] as const))('%s prints blank fields blank and fits its page', (_, design) => {
+    const content = createDesignContent(design, null)
+    const { container } = render(
+      <I18nProvider>
+        <design.Page content={content} theme={themeById('navy')} imageUrls={{}} showPlaceholders={false} />
+      </I18nProvider>,
+    )
+    const page = container.firstElementChild as HTMLElement
+    expect(page).toHaveClass('design-page')
+    expect(page.style.width).toBe(`${design.page.width}px`)
+    expect(page.style.height).toBe(`${design.page.height}px`)
+    expect(container.querySelector('.design-placeholder')).toBeNull()
+    // Every field the form offers has a label; defaults only fill known fields.
+    const ids = design.groups.flatMap((group) => group.fields.map((field) => field.id))
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const key of Object.keys(design.defaults)) expect(ids).toContain(key)
+  })
+
+  it('business cards: ten cards with cutting marks, prefilled with the office contact', () => {
+    const design = designById('business-cards')!
+    const content = createDesignContent(design, organization)
+    expect(content.fields).toMatchObject({ phone: '+251 911 223344', email: 'info@tadesse.example', address: 'Bole, Addis Ababa', orgNameEn: 'Tadesse Print Works PLC' })
+    content.fields.nameEn = 'Selam Tesfaye'
+    const { container, rerender } = render(
+      <I18nProvider>
+        <design.Page content={content} theme={themeById('green')} imageUrls={{ logo: 'blob:logo' }} showPlaceholders={false} />
+      </I18nProvider>,
+    )
+    expect(container.querySelectorAll('.design-card')).toHaveLength(10)
+    expect(container.querySelectorAll('.design-card img')).toHaveLength(10)
+    expect(container.querySelectorAll('.design-card')[9]).toHaveTextContent('Selam Tesfaye')
+    expect(container.querySelectorAll('.design-cards__mark')).toHaveLength(18)
+    rerender(
+      <I18nProvider>
+        <design.Page content={{ ...content, options: { cropMarks: false } }} theme={themeById('green')} imageUrls={{}} showPlaceholders={false} />
+      </I18nProvider>,
+    )
+    expect(container.querySelectorAll('.design-cards__mark')).toHaveLength(0)
+  })
+
+  it('announcement leaves out empty date, time and venue boxes in print', () => {
+    const design = designById('announcement')!
+    const content = createDesignContent(design, organization)
+    content.fields.venue = 'Main hall'
+    const { container } = render(
+      <I18nProvider>
+        <design.Page content={content} theme={themeById('green')} imageUrls={{}} showPlaceholders={false} />
+      </I18nProvider>,
+    )
+    expect(container.querySelectorAll('.design-announcement__detail')).toHaveLength(1)
+    expect(container).toHaveTextContent('Main hall')
+  })
+
+  it('certificate of appreciation prints for a list of people too', async () => {
+    const { batchPages } = await import('./batch')
+    const design = designById('certificate-appreciation')!
+    const content = { ...createDesignContent(design, organization), batch: { rows: [{ recipientEn: 'A B' }, { recipientEn: 'C D' }] } }
+    expect(batchPages(content, design.batch).map((page) => page.fields.recipientEn)).toEqual(['A B', 'C D'])
+    expect(content.fields.titleAm).toBe('የምስጋና ምስክር ወረቀት')
+  })
+})
+
 describe('DesignWorkspace', () => {
   let doc: DocumentDetailRecord
 

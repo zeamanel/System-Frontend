@@ -20,9 +20,27 @@ export const DESIGN_CATALOG: DesignCatalogEntry[] = [
     orientation: 'landscape',
   },
   {
+    id: 'certificate-appreciation',
+    titleKey: 'designs.appreciation.title',
+    descriptionKey: 'designs.appreciation.description',
+    orientation: 'landscape',
+  },
+  {
     id: 'vacancy-notice',
     titleKey: 'designs.notice.title',
     descriptionKey: 'designs.notice.description',
+    orientation: 'portrait',
+  },
+  {
+    id: 'announcement',
+    titleKey: 'designs.announcement.title',
+    descriptionKey: 'designs.announcement.description',
+    orientation: 'portrait',
+  },
+  {
+    id: 'business-cards',
+    titleKey: 'designs.cards.title',
+    descriptionKey: 'designs.cards.description',
     orientation: 'portrait',
   },
 ]

@@ -1,10 +1,10 @@
 import { DESIGN_SCHEMA } from '../lib/editor/document-kind'
 import type { OrganizationProfile } from '../lib/repositories'
-import { certificateClassic, vacancyNotice } from './definitions'
+import { announcement, businessCards, certificateAppreciation, certificateClassic, vacancyNotice } from './definitions'
 import type { DesignContent, DesignDefinition } from './types'
 
 /** Designs users can start from. Content stores only the id; the look lives here. */
-export const DESIGNS: DesignDefinition[] = [certificateClassic, vacancyNotice]
+export const DESIGNS: DesignDefinition[] = [certificateClassic, certificateAppreciation, vacancyNotice, announcement, businessCards]
 
 export function designById(id: string): DesignDefinition | null {
   return DESIGNS.find((design) => design.id === id) ?? null
@@ -44,6 +44,10 @@ export function createDesignContent(design: DesignDefinition, organization: Orga
       if (second.title) set('signer2Role', second.title)
     }
     set('contact', [organization.address, organization.phone, organization.email].filter(Boolean).join('\n'))
+    // Business cards: the office's contact details, until the person's own are typed.
+    set('phone', organization.phone)
+    set('email', organization.email)
+    set('address', organization.address)
   }
   return {
     schema: DESIGN_SCHEMA,

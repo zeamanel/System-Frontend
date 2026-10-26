@@ -373,7 +373,7 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
                     key={field.id}
                     id={`design-field-${field.id}`}
                     label={t(field.labelKey)}
-                    hint={t('designs.oneLinePerItem')}
+                    hint={t(field.hintKey ?? 'designs.oneLinePerItem')}
                     rows={4}
                     maxLength={field.maxLength}
                     value={content.fields[field.id] ?? ''}

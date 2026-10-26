@@ -30,6 +30,8 @@ export interface DesignField {
   labelKey: MessageKey
   /** Several lines (one list item per line where the design shows a list). */
   multiline?: boolean
+  /** Hint under a multi-line field (default: one item per line). */
+  hintKey?: MessageKey
   maxLength?: number
 }
 
