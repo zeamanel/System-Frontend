@@ -221,6 +221,33 @@ describe('EditorWorkspace', () => {
     await waitFor(() => expect(printSpy).toHaveBeenCalled())
   })
 
+  it('asks before printing a document with problems, and can hand them to the assistant', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const created = await repos.documents.create({
+      title: 'Unfinished lease',
+      language: 'en',
+      answers: {},
+      content: 'The tenant [Tenant name] rents the premises.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    fireEvent.click(screen.getByRole('button', { name: /print/i }))
+    const dialog = await screen.findByTestId('print-check-dialog')
+    expect(dialog.textContent).toMatch(/\[Tenant name\]/)
+    expect(printSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('print-check-review'))
+    const result = await screen.findByTestId('assistant-check-result')
+    expect(result.textContent).toMatch(/fix before printing/i)
+    expect(printSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: /print/i }))
+    fireEvent.click(await screen.findByTestId('print-check-anyway'))
+    await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1))
+  })
+
   it('reports server PDF export honestly when the backend is missing', async () => {
     const { doc, template } = await loadDocument('doc-fixture-1')
     renderWorkspace(doc, template)

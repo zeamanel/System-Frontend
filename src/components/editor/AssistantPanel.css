@@ -352,3 +352,42 @@
     outline: none;
   }
 }
+
+/* Pre-print check result */
+.assistant-check .assistant-notes__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.assistant-check__issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+}
+
+.assistant-check__group--error,
+.assistant-check__group--warning {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.assistant-check__group--error {
+  background-color: var(--color-error-bg);
+}
+
+.assistant-check__group--error .assistant-notes__label {
+  color: var(--color-error);
+}
+
+.assistant-check__group--warning {
+  background-color: var(--color-warning-bg);
+}
+
+.assistant-check__group--warning .assistant-notes__label {
+  color: var(--color-warning);
+}
