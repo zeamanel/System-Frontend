@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '../../i18n'
 import {
   GuidedFieldsPanel,
@@ -74,9 +75,11 @@ function renderPanel(props: Partial<React.ComponentProps<typeof GuidedFieldsPane
   return {
     user: userEvent.setup(),
     ...render(
-      <I18nProvider>
-        <GuidedFieldsPanel {...defaultProps} />
-      </I18nProvider>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <I18nProvider>
+          <GuidedFieldsPanel {...defaultProps} />
+        </I18nProvider>
+      </QueryClientProvider>,
     ),
     props: defaultProps,
   }
@@ -112,6 +115,7 @@ describe('GuidedFieldsPanel Independent Scroll Locking & Layout', () => {
 
   it('renders children inside the scrollable body', () => {
     render(
+      <QueryClientProvider client={new QueryClient()}>
       <I18nProvider>
         <GuidedFieldsPanel
           template={mockTemplate}
@@ -128,7 +132,8 @@ describe('GuidedFieldsPanel Independent Scroll Locking & Layout', () => {
         >
           <div data-testid="nested-auxiliary-panel">Auxiliary Refine Panel</div>
         </GuidedFieldsPanel>
-      </I18nProvider>,
+      </I18nProvider>
+      </QueryClientProvider>,
     )
 
     const body = screen.getByTestId('guided-fields-body')
@@ -389,5 +394,21 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
     expect(onAnswerChange).not.toHaveBeenCalled()
     // Previous customer's autocomplete suggestions are forgotten.
     expect(window.localStorage.getItem('docuA4.partyMemory.v1')).toBeNull()
+  })
+
+  it('offers the organization name on organization fields, filled only on tap', async () => {
+    window.localStorage.clear()
+    const onAnswerChange = vi.fn()
+    renderPanel({
+      onAnswerChange,
+      template: {
+        ...mockTemplate,
+        questions: [{ id: 'employer_name', label: 'Employer', type: 'text', required: true }],
+      },
+    })
+    const chip = await screen.findByRole('button', { name: /from your organization: tadesse print works$/i })
+    expect(onAnswerChange).not.toHaveBeenCalled()
+    fireEvent.click(chip)
+    expect(onAnswerChange).toHaveBeenCalledWith('employer_name', 'Tadesse Print Works')
   })
 })

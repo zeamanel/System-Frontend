@@ -221,13 +221,24 @@ describe('fixture organization & usage repositories', () => {
     expect(original?.name).toBeTruthy()
 
     await repositories.organization.update({
+      ...original!,
       name: 'Updated',
       type: 'office',
-      address: '',
-      phone: '',
-      email: '',
+      signatories: [{ fullName: 'Sara Haile', title: 'Manager' }],
     })
-    expect((await repositories.organization.get())?.name).toBe('Updated')
+    const saved = await repositories.organization.get()
+    expect(saved?.name).toBe('Updated')
+    expect(saved?.signatories).toEqual([{ fullName: 'Sara Haile', title: 'Manager' }])
+    expect(await repositories.organization.listMembers()).toBeNull()
+  })
+
+  it('fills fields missing from profiles stored by older versions', async () => {
+    window.localStorage.setItem(
+      'docuA4.fixture.organization',
+      JSON.stringify({ name: 'Old', type: 'office', address: '', phone: '', email: '' }),
+    )
+    const profile = await repositories.organization.get()
+    expect(profile).toMatchObject({ name: 'Old', tin: '', letterhead: { headerLines: [], footerLine: '' }, signatories: [] })
   })
 
   it('never fabricates usage data', async () => {

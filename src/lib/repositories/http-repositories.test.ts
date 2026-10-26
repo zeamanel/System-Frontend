@@ -302,6 +302,57 @@ const templateRecord = (title: string, popularity: number) => ({
   updatedAt: '2026-10-13T16:55:14.525Z',
 })
 
+describe('HttpOrganizationRepository', () => {
+  const record = (overrides: Record<string, unknown> = {}) => ({
+    id: 'org-1',
+    name: 'Abebe Print',
+    legalName: '',
+    tin: '',
+    type: 'print_shop',
+    address: '',
+    phone: '',
+    email: '',
+    role: 'owner',
+    letterhead: { headerLines: [], footerLine: '' },
+    bankDetails: { bankName: '', accountNumber: '', swift: '' },
+    signatories: [],
+    updatedAt: '2026-10-26T00:00:00.000Z',
+    ...overrides,
+  })
+
+  it('returns null without an organization and creates one on first save', async () => {
+    fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (method === 'GET') return notFound()
+      if (method === 'POST') return jsonResponse(record(), { status: 201 })
+      return jsonResponse(record({ signatories: [{ id: 's1', fullName: 'Abebe', title: '' }] }))
+    })
+    const repos = createHttpRepositories()
+    expect(await repos.organization.get()).toBeNull()
+
+    const saved = await repos.organization.update({
+      ...record(),
+      signatories: [{ fullName: 'Abebe', title: '' }],
+    } as never)
+    const calls = fetchMock.mock.calls.map(([url, init]) => `${(init as RequestInit | undefined)?.method ?? 'GET'} ${String(url).replace(env.apiBaseUrl, '')}`)
+    expect(calls).toEqual(['GET /organization', 'GET /organization', 'POST /organization', 'PUT /organization/signatories'])
+    expect(saved.signatories).toEqual([{ fullName: 'Abebe', title: '' }])
+    const body = JSON.parse(fetchMock.mock.calls[2][1].body as string)
+    expect(body).not.toHaveProperty('signatories')
+    expect(body).not.toHaveProperty('role')
+  })
+
+  it('patches an existing organization and leaves unchanged signatories alone', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(record({ role: 'admin' })))
+    const repos = createHttpRepositories()
+    const current = await repos.organization.get()
+    expect(current?.role).toBe('admin')
+    await repos.organization.update({ ...current!, phone: '0911' })
+    const methods = fetchMock.mock.calls.map(([, init]) => (init as RequestInit | undefined)?.method ?? 'GET')
+    expect(methods).toEqual(['GET', 'GET', 'PATCH'])
+  })
+})
+
 describe('HttpTemplatesRepository', () => {
   it('applies search filtering and popularity ordering client-side', async () => {
     // Fresh Response per fetch — a Response body can only be consumed once.

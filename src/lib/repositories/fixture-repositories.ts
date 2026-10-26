@@ -1,4 +1,5 @@
 import type { Locale } from '../../i18n/locales'
+import { normalizeOrganization } from '../organization/profile'
 import {
   DEFAULT_FAVORITE_TEMPLATE_IDS,
   DEFAULT_ORGANIZATION_FIXTURE,
@@ -502,15 +503,34 @@ class FixtureNotificationsRepository implements NotificationsRepository {
 
 class FixtureOrganizationRepository implements OrganizationRepository {
   async get(): Promise<OrganizationProfile | null> {
-    return readJson<OrganizationProfile | null>(
+    const stored = readJson<OrganizationProfile | null>(
       'docuA4.fixture.organization',
       DEFAULT_ORGANIZATION_FIXTURE,
     )
+    return stored ? normalizeOrganization(stored) : null
   }
 
   async update(profile: OrganizationProfile): Promise<OrganizationProfile> {
-    writeJson('docuA4.fixture.organization', profile)
-    return profile
+    const normalized = normalizeOrganization(profile)
+    writeJson('docuA4.fixture.organization', normalized)
+    return normalized
+  }
+
+  // Members need accounts on the backend: not available in demo mode.
+  async listMembers(): Promise<null> {
+    return null
+  }
+
+  async addMember(): Promise<never> {
+    throw new Error('Members are not available in demo mode.')
+  }
+
+  async setMemberRole(): Promise<never> {
+    throw new Error('Members are not available in demo mode.')
+  }
+
+  async removeMember(): Promise<void> {
+    throw new Error('Members are not available in demo mode.')
   }
 }
 

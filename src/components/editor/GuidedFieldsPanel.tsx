@@ -8,6 +8,8 @@ import { clearSavedAnswers, getSavedSuggestionsForField } from '../../lib/saved-
 import { listTelegramMediaVault, type TelegramVaultProfile } from '../../lib/api'
 import { SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
+import { useOrganization } from '../../hooks/use-organization'
+import { organizationSuggestionsForField } from '../../lib/organization/autofill'
 import type { TemplateDetail, TemplateQuestion } from '../../lib/repositories'
 import type { OutlineEntry } from '../../lib/editor/model'
 import { Badge, Button, Input, Select, Spinner, Textarea } from '../ui'
@@ -150,6 +152,7 @@ export function GuidedFieldsPanel({
   children,
 }: GuidedFieldsPanelProps) {
   const { t } = useI18n()
+  const organization = useOrganization()
   const [invalid, setInvalid] = useState<Record<string, boolean>>({})
   const [confirming, setConfirming] = useState(false)
   const [telegramProfiles, setTelegramProfiles] = useState<TelegramVaultProfile[]>([])
@@ -530,9 +533,21 @@ export function GuidedFieldsPanel({
             // Ethiopian legal smart inputs
             const suggestion = getSmartSuggestion(question, currentValue, language)
             // Previously used party/company values from earlier documents
+            const fromOrganization = organizationSuggestionsForField(
+              question.id,
+              question.label,
+              organization.data,
+            ).filter((value) => value !== currentValue)
             const recents = getSavedSuggestionsForField(question.id, question.label).filter(
-              (recent) => recent !== currentValue,
+              (recent) => recent !== currentValue && !fromOrganization.includes(recent),
             )
+            const pick = (value: string): void => {
+              if (isParty) {
+                handlePrimaryChange(fieldKey, value, question.label, currentValue)
+              } else {
+                onAnswerChange(question.id, value)
+              }
+            }
 
             return (
               <div key={question.id} className="editor-panel__field">
@@ -801,15 +816,12 @@ export function GuidedFieldsPanel({
                   />
                 ) : null}
                 <RecentAnswerChips
-                  suggestions={recents}
-                  onPick={(recent) => {
-                    if (isParty) {
-                      handlePrimaryChange(fieldKey, recent, question.label, currentValue)
-                    } else {
-                      onAnswerChange(question.id, recent)
-                    }
-                  }}
+                  suggestions={fromOrganization}
+                  label={t('organization.fromOrg')}
+                  icon="⌂"
+                  onPick={pick}
                 />
+                <RecentAnswerChips suggestions={recents} onPick={pick} />
               </div>
             )
           })}

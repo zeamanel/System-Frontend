@@ -391,7 +391,7 @@ describe('EditorWorkspace', () => {
     expect(fontSize).toHaveTextContent('10pt')
     expect(topMargin.value).toBe('15')
 
-    const letterhead = screen.getByRole('button', { name: /letterhead/i })
+    const letterhead = screen.getByRole('button', { name: /^(?!use organization).*letterhead/i })
     expect(letterhead).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(letterhead)
     expect(topMargin.value).toBe('38')

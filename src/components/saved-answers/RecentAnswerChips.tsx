@@ -4,6 +4,10 @@ import './RecentAnswerChips.css'
 export interface RecentAnswerChipsProps {
   suggestions: string[]
   onPick: (value: string) => void
+  /** Chip caption; defaults to "Recently used". */
+  label?: string
+  /** Leading symbol; defaults to ↺. */
+  icon?: string
 }
 
 /**
@@ -11,7 +15,7 @@ export interface RecentAnswerChipsProps {
  * organization fields (employer, landlord, TIN, …), so repeat users fill
  * their own details in a single click instead of retyping them.
  */
-export function RecentAnswerChips({ suggestions, onPick }: RecentAnswerChipsProps) {
+export function RecentAnswerChips({ suggestions, onPick, label, icon = '↺' }: RecentAnswerChipsProps) {
   const { t } = useI18n()
   const visible = suggestions.slice(0, 2)
   if (visible.length === 0) return null
@@ -25,8 +29,8 @@ export function RecentAnswerChips({ suggestions, onPick }: RecentAnswerChipsProp
           title={value}
           onClick={() => onPick(value)}
         >
-          <span aria-hidden="true">↺</span>
-          {t('flow.recentAnswer')}: {value}
+          <span aria-hidden="true">{icon}</span>
+          {label ?? t('flow.recentAnswer')}: {value}
         </button>
       ))}
     </div>

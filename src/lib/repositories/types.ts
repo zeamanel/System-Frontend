@@ -155,12 +155,47 @@ export interface AppNotification {
 
 export type OrganizationType = 'print_shop' | 'office' | 'personal'
 
+export type OrganizationRole = 'owner' | 'admin' | 'member'
+
+export interface OrganizationSignatory {
+  fullName: string
+  title: string
+}
+
+export interface OrganizationLetterhead {
+  /** Up to four lines printed at the top of documents. */
+  headerLines: string[]
+  footerLine: string
+}
+
+export interface OrganizationBankDetails {
+  bankName: string
+  accountNumber: string
+  swift: string
+}
+
+/** Business memory: what fills documents and letterheads automatically. */
 export interface OrganizationProfile {
   name: string
   type: OrganizationType
   address: string
   phone: string
   email: string
+  legalName: string
+  tin: string
+  letterhead: OrganizationLetterhead
+  bankDetails: OrganizationBankDetails
+  signatories: OrganizationSignatory[]
+  /** The signed-in user's role; set by the backend (read-only). */
+  role?: OrganizationRole
+}
+
+export interface OrganizationMember {
+  userId: string
+  name: string
+  email: string
+  role: OrganizationRole
+  joinedAt: string
 }
 
 /**
@@ -318,6 +353,11 @@ export interface NotificationsRepository {
 export interface OrganizationRepository {
   get(): Promise<OrganizationProfile | null>
   update(profile: OrganizationProfile): Promise<OrganizationProfile>
+  /** Members of the organization; null where members are not available (demo mode). */
+  listMembers(): Promise<OrganizationMember[] | null>
+  addMember(email: string, role: Exclude<OrganizationRole, 'owner'>): Promise<OrganizationMember[]>
+  setMemberRole(userId: string, role: OrganizationRole): Promise<OrganizationMember[]>
+  removeMember(userId: string): Promise<void>
 }
 
 export interface UsageRepository {

@@ -33,6 +33,7 @@ export const queryKeys = {
   },
   organization: {
     all: ['organization'] as const,
+    members: ['organization', 'members'] as const,
   },
   usage: {
     all: ['usage'] as const,

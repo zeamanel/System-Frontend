@@ -42,8 +42,10 @@ import type {
   FavoritesRepository,
   GenerationRepository,
   NotificationsRepository,
+  OrganizationMember,
   OrganizationProfile,
   OrganizationRepository,
+  OrganizationRole,
   PaginatedResult,
   PreferencesRepository,
   Repositories,
@@ -72,6 +74,17 @@ import type {
 import type { CountryCode } from '../geo'
 import type { DocumentLanguage } from '../languages'
 import { stashPendingNotes } from '../assistant/pending-notes'
+import {
+  addOrganizationMember,
+  createOrganization as createOrganizationEndpoint,
+  getOrganization as getOrganizationEndpoint,
+  listOrganizationMembers,
+  removeOrganizationMember,
+  replaceSignatories as replaceSignatoriesEndpoint,
+  setOrganizationMemberRole,
+  updateOrganization as updateOrganizationEndpoint,
+} from '../api/endpoints/organization'
+import { normalizeOrganization } from '../organization/profile'
 
 /**
  * API-backed repositories over the live Cloud Run backend
@@ -600,17 +613,42 @@ class HttpNotificationsRepository implements NotificationsRepository {
  * stub throws instead of faking a profile; the organization page shows its
  * existing error state.
  */
+/**
+ * Organization profile over /organization. A user without an organization
+ * gets null; the first save creates it (the user becomes its owner).
+ * Signatories are saved only when they changed.
+ */
 class HttpOrganizationRepository implements OrganizationRepository {
   async get(): Promise<OrganizationProfile | null> {
-    throw new Error(
-      'Organization profiles require backend endpoints that are not implemented yet (backend Phase 6).',
-    )
+    const record = await nullOnNotFound(() => getOrganizationEndpoint())
+    return record ? normalizeOrganization(record) : null
   }
 
-  async update(_profile: OrganizationProfile): Promise<OrganizationProfile> {
-    throw new Error(
-      'Organization profiles require backend endpoints that are not implemented yet (backend Phase 6).',
-    )
+  async update(profile: OrganizationProfile): Promise<OrganizationProfile> {
+    const { signatories, role: _role, ...fields } = normalizeOrganization(profile)
+    const existing = await nullOnNotFound(() => getOrganizationEndpoint())
+    let record = existing ? await updateOrganizationEndpoint(fields) : await createOrganizationEndpoint(fields)
+    const current = record.signatories.map(({ fullName, title }) => ({ fullName, title }))
+    if (JSON.stringify(current) !== JSON.stringify(signatories)) {
+      record = await replaceSignatoriesEndpoint(signatories)
+    }
+    return normalizeOrganization(record)
+  }
+
+  async listMembers(): Promise<OrganizationMember[] | null> {
+    return nullOnNotFound(() => listOrganizationMembers())
+  }
+
+  addMember(email: string, role: 'admin' | 'member'): Promise<OrganizationMember[]> {
+    return addOrganizationMember(email, role)
+  }
+
+  setMemberRole(userId: string, role: OrganizationRole): Promise<OrganizationMember[]> {
+    return setOrganizationMemberRole(userId, role)
+  }
+
+  removeMember(userId: string): Promise<void> {
+    return removeOrganizationMember(userId)
   }
 }
 
