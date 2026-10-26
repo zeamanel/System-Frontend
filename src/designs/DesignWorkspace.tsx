@@ -13,7 +13,7 @@ import { Button, EmptyState, Input, Textarea } from '../components/ui'
 import { ImagePicker } from '../components/media/ImagePicker'
 import { useMediaUrls } from '../hooks/use-media'
 import { useOrganization } from '../hooks/use-organization'
-import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, PrinterIcon } from '../components/icons'
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, PrinterIcon } from '../components/icons'
 import { parseDesignContent, serializeDesignContent } from './content'
 import { designById } from './registry'
 import { BatchPanel } from './BatchPanel'
@@ -29,6 +29,8 @@ type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error' | 'conflict'
 export interface DesignWorkspaceProps {
   document: DocumentDetailRecord
   onBack: () => void
+  /** A colleague's shared design: preview, print and copy only. */
+  readOnly?: { onCopy: () => void; copying: boolean }
 }
 
 /**
@@ -36,7 +38,7 @@ export interface DesignWorkspaceProps {
  * The design's look is fixed; the user fills its fields, picks a colour
  * theme and options, and prints it. Changes save automatically.
  */
-export default function DesignWorkspace({ document: doc, onBack }: DesignWorkspaceProps) {
+export default function DesignWorkspace({ document: doc, onBack, readOnly }: DesignWorkspaceProps) {
   const { t } = useI18n()
   const initial = useMemo(() => parseDesignContent(doc.content), [doc.content])
   const design = initial ? designById(initial.designId) : null
@@ -56,10 +58,20 @@ export default function DesignWorkspace({ document: doc, onBack }: DesignWorkspa
       </div>
     )
   }
-  return <DesignEditor doc={doc} initial={initial} onBack={onBack} />
+  return <DesignEditor doc={doc} initial={initial} onBack={onBack} readOnly={readOnly} />
 }
 
-function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; initial: DesignContent; onBack: () => void }) {
+function DesignEditor({
+  doc,
+  initial,
+  onBack,
+  readOnly,
+}: {
+  doc: DocumentDetailRecord
+  initial: DesignContent
+  onBack: () => void
+  readOnly?: DesignWorkspaceProps['readOnly']
+}) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
   const design = designById(initial.designId)!
@@ -225,11 +237,26 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
   }[status]
 
   return (
-    <div className="design-workspace" data-testid="design-workspace">
+    <div className={`design-workspace${readOnly ? ' design-workspace--read-only' : ''}`} data-testid="design-workspace">
       <div className="design-workspace__toolbar">
         <Button variant="ghost" size="sm" icon={<ArrowLeftIcon size={16} />} onClick={onBack}>
           {t('editor.back')}
         </Button>
+        {readOnly ? (
+          <>
+            <span className="design-workspace__title design-workspace__title--text">{doc.title}</span>
+            <Button variant="secondary" size="sm" icon={<PrinterIcon size={16} />} onClick={() => void handlePrint()} disabled={imagesLoading} data-testid="design-print">
+              {pages.length > 1 ? t('designs.printCount', { count: pages.length }) : t('designs.print')}
+            </Button>
+            <Button variant="primary" size="sm" icon={<CopyIcon size={16} />} onClick={readOnly.onCopy} loading={readOnly.copying} data-testid="shared-copy">
+              {t('shared.copy')}
+            </Button>
+            <p className="design-workspace__notice" role="note">
+              {t('shared.notice', { name: doc.ownerName || t('documents.colleague') })}
+            </p>
+          </>
+        ) : (
+          <>
         <input
           className="input design-workspace__title"
           value={title}
@@ -256,6 +283,8 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
         <Button variant="primary" size="sm" icon={<PrinterIcon size={16} />} onClick={() => void handlePrint()} disabled={imagesLoading} data-testid="design-print">
           {pages.length > 1 ? t('designs.printCount', { count: pages.length }) : t('designs.print')}
         </Button>
+          </>
+        )}
       </div>
 
       <div className="design-workspace__body">
@@ -290,6 +319,7 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
           </div>
         </div>
 
+        {readOnly ? null : (
         <form className="design-workspace__form" onSubmit={(event) => event.preventDefault()}>
           <fieldset className="design-workspace__group">
             <legend>{t('designs.group.look')}</legend>
@@ -393,6 +423,7 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
             </fieldset>
           ))}
         </form>
+        )}
       </div>
 
       {createPortal(

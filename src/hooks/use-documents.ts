@@ -12,6 +12,27 @@ export function useDocumentsList(search?: string) {
   })
 }
 
+/** Documents shared with the user's organization. */
+export function useSharedDocuments(search?: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.documents.shared(search),
+    queryFn: () => getRepositories().documents.listShared({ search }),
+    placeholderData: (previous) => previous,
+    enabled,
+  })
+}
+
+export function useSetDocumentSharing() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, shared }: { id: string; shared: boolean }) => getRepositories().documents.setSharing(id, shared),
+    onSuccess: (document) => {
+      queryClient.setQueryData(queryKeys.documents.detail(document.id), document)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
+    },
+  })
+}
+
 export function useRecentDocuments(limit = 5) {
   return useQuery({
     queryKey: queryKeys.documents.recent(limit),

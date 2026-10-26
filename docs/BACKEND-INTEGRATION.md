@@ -104,6 +104,13 @@ All backend errors use the envelope `{ error: { code, message, ...extras } }`
   ≤ 1200 px) and shown as blob URLs because `GET /media/:id` needs auth.
   Design content stores `images: { slot: mediaId }`; new designs start with
   the organization logo. Demo mode keeps images in this browser only.
+- **Shared documents** — `PUT /documents/:id/sharing` and
+  `GET /documents?scope=shared` (backend docs/API.md §4). My Documents gets
+  "My documents / Shared with my organization" tabs and a share button per
+  own document. A colleague's document (`access: "view"`) opens read only —
+  text in `SharedDocumentView` (the editor's A4 pages, not editable), designs
+  in the design editor without its form — with Print and "Make my own
+  copy". An older backend (no `shared` flag) shows nothing as shared.
 - **Batch certificates** — design content may carry `batch.rows` (≤ 300,
   one printed page per row; each row replaces the recipient names and
   number). The list is read in the browser (`src/designs/batch.ts`: pasted

@@ -96,6 +96,12 @@
   transition: all 0.15s ease-in-out;
 }
 
+.document-item__action-btn--on {
+  border-color: var(--color-border-strong);
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
 .document-item__action-btn:hover {
   background: var(--color-surface-hover);
   border-color: var(--color-border);
@@ -107,4 +113,25 @@
   background: rgba(220, 38, 38, 0.08);
   border-color: rgba(220, 38, 38, 0.3);
   color: var(--color-danger);
+}
+
+/* Phones: badges wrap under the title so the title keeps its width. */
+@media (max-width: 600px) {
+  .document-item {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .document-item__content {
+    flex: 1 1 calc(100% - 34px - var(--space-3));
+  }
+
+  .document-item__content + .badge {
+    margin-left: calc(34px + var(--space-3));
+  }
+
+  .document-item__actions {
+    align-self: flex-start;
+    padding-top: var(--space-3);
+  }
 }

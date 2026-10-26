@@ -192,3 +192,22 @@
 .design-workspace__batch-warnings {
   padding-left: 18px;
 }
+
+/* A colleague's shared design: preview only, full width. */
+.design-workspace--read-only .design-workspace__body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.design-workspace__title--text {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.design-workspace__notice {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}

@@ -3,9 +3,10 @@ import './pages.css'
 import { Suspense, lazy, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useI18n } from '../i18n'
-import { useDocument } from '../hooks/use-documents'
+import { useDocument, useDuplicateDocument } from '../hooks/use-documents'
 import { useTemplateDetail } from '../hooks/use-templates'
-import { Button, EmptyState, LoadingState, PanelError } from '../components/ui'
+import { Button, EmptyState, LoadingState, PanelError, useToast } from '../components/ui'
+import { SharedDocumentView } from '../components/editor/SharedDocumentView'
 import { EditorWorkspace, type NewCustomerDocumentInput } from '../components/editor/EditorWorkspace'
 import { useStartTemplateDocument } from '../hooks/use-start-template-document'
 import { documentKindOf } from '../lib/editor/document-kind'
@@ -30,6 +31,18 @@ export default function EditorPage() {
     const result = await docQuery.refetch()
     return result.data ?? null
   }, [docQuery])
+
+  const toast = useToast()
+  const duplicate = useDuplicateDocument()
+  const makeCopy = useCallback(async (): Promise<void> => {
+    if (!documentId) return
+    try {
+      const copy = await duplicate.mutateAsync(documentId)
+      navigate(`/documents/${encodeURIComponent(copy.id)}`)
+    } catch {
+      toast.push(t('shared.copyFailed'), { variant: 'error' })
+    }
+  }, [documentId, duplicate, navigate, toast, t])
 
   const { startTemplateDocument } = useStartTemplateDocument()
   const handleNewCustomer = useCallback(
@@ -86,13 +99,28 @@ export default function EditorPage() {
     )
   }
 
+  // A colleague's shared document opens read only: it can be printed and copied, never saved.
+  const readOnly = doc.access === 'view' ? { onCopy: () => void makeCopy(), copying: duplicate.isPending } : undefined
+
   // A design never reaches the text editor (its loader would rewrite it):
   // it opens in the design editor, loaded only for designs.
   if (documentKindOf(doc) === 'design') {
     return (
       <Suspense fallback={<LoadingState full label={t('common.loading')} />}>
-        <DesignWorkspace key={doc.id} document={doc} onBack={() => navigate('/documents')} />
+        <DesignWorkspace key={doc.id} document={doc} onBack={() => navigate('/documents')} readOnly={readOnly} />
       </Suspense>
+    )
+  }
+
+  if (readOnly) {
+    return (
+      <SharedDocumentView
+        key={doc.id}
+        document={doc}
+        onBack={() => navigate('/documents')}
+        onCopy={readOnly.onCopy}
+        copying={readOnly.copying}
+      />
     )
   }
 

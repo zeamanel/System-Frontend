@@ -98,6 +98,33 @@ describe('HttpDocumentsRepository', () => {
     expect(documents.map((d) => d.kind)).toEqual(['text', 'design'])
   })
 
+  it('lists shared documents, maps who shared them, and changes sharing', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse([documentRecord({ shared: true, access: 'view', ownerName: 'Selam Tesfaye' }), documentRecord({ id: 'd2', shared: true })]),
+    )
+    const repos = createHttpRepositories()
+    const shared = await repos.documents.listShared({ search: 'price' })
+    expect(requestInfo(0).url).toContain('scope=shared')
+    expect(requestInfo(0).url).toContain('search=price')
+    expect(shared.map((d) => [d.id, d.access, d.ownerName, d.shared])).toEqual([
+      ['d1', 'view', 'Selam Tesfaye', true],
+      ['d2', 'owner', undefined, true],
+    ])
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(documentRecord({ shared: true, content: null })))
+    const updated = await repos.documents.setSharing('d1', true)
+    expect(requestInfo(1).url).toBe(`${env.apiBaseUrl}/documents/d1/sharing`)
+    expect(requestInfo(1).init.method).toBe('PUT')
+    expect(requestInfo(1).init.body).toBe(JSON.stringify({ shared: true }))
+    expect(updated.shared).toBe(true)
+
+    // An older backend without sharing: nothing is shared.
+    fetchMock.mockResolvedValueOnce(notFound())
+    expect(await repos.documents.listShared()).toEqual([])
+    fetchMock.mockResolvedValueOnce(jsonResponse([documentRecord()]))
+    expect(await repos.documents.listShared()).toEqual([])
+  })
+
   it('sends the Idempotency-Key header and parsed content on create', async () => {
     fetchMock.mockResolvedValue(jsonResponse(documentRecord(), { status: 201 }))
     const repos = createHttpRepositories()

@@ -10,6 +10,7 @@ import {
   getDocument as fetchDocumentEndpoint,
   listDocumentVersions as fetchDocumentVersionsEndpoint,
   listDocuments as fetchDocumentsEndpoint,
+  setDocumentSharing,
   renameDocument as renameDocumentEndpoint,
   restoreDocument as restoreDocumentEndpoint,
   restoreDocumentVersion as restoreDocumentVersionEndpoint,
@@ -183,6 +184,9 @@ function mapDocument(record: DocumentApiRecord): DocumentRecord {
     version: record.version,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    shared: record.shared === true,
+    access: record.access === 'view' ? 'view' : 'owner',
+    ...(record.access === 'view' ? { ownerName: record.ownerName ?? '' } : {}),
   }
 }
 
@@ -513,6 +517,17 @@ class HttpDocumentsRepository implements DocumentsRepository {
 
   async delete(id: string): Promise<void> {
     await deleteDocumentEndpoint(id)
+  }
+
+  async listShared(options?: { search?: string }): Promise<DocumentRecord[]> {
+    // An older backend ignores `scope` and returns the caller's own documents
+    // without a `shared` flag: only records marked shared count.
+    const records = await nullOnNotFound(() => fetchDocumentsEndpoint({ search: options?.search, limit: 200, scope: 'shared' }))
+    return (records ?? []).filter((record) => record.shared === true).map(mapDocument)
+  }
+
+  async setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord> {
+    return mapDocumentDetail(await setDocumentSharing(id, shared))
   }
 }
 

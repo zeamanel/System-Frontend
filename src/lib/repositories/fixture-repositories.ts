@@ -179,6 +179,11 @@ class FixtureDocumentsRepository implements DocumentsRepository {
     return readJson<string[]>('docuA4.fixture.deletedDocuments', [])
   }
 
+  /** Demo mode has one user: shared documents are their own, marked shared. */
+  private getSharedIds(): Set<string> {
+    return new Set(readJson<string[]>('docuA4.fixture.sharedDocuments', []))
+  }
+
   private async all(locale: Locale): Promise<DocumentRecord[]> {
     const templates = new Map(
       TEMPLATE_FIXTURES.map(
@@ -215,9 +220,24 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       ...documentTimestamps(fixture.ageHours),
     }))
 
-    return [...customDocs, ...defaultDocs].sort((a, b) =>
-      b.updatedAt.localeCompare(a.updatedAt),
-    )
+    const shared = this.getSharedIds()
+    return [...customDocs, ...defaultDocs]
+      .map((doc) => ({ ...doc, shared: shared.has(doc.id), access: 'owner' as const }))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  }
+
+  async listShared(options?: { search?: string }): Promise<DocumentRecord[]> {
+    return (await this.list(options)).filter((doc) => doc.shared)
+  }
+
+  async setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord> {
+    const doc = await this.get(id)
+    if (!doc) throw new Error('Document not found')
+    const ids = this.getSharedIds()
+    if (shared) ids.add(id)
+    else ids.delete(id)
+    writeJson('docuA4.fixture.sharedDocuments', [...ids])
+    return { ...doc, shared, access: 'owner' }
   }
 
   async list(options?: { search?: string }): Promise<DocumentRecord[]> {
@@ -238,6 +258,11 @@ class FixtureDocumentsRepository implements DocumentsRepository {
   }
 
   async get(id: string): Promise<DocumentDetailRecord | null> {
+    const record = await this.getStored(id)
+    return record ? { ...record, shared: this.getSharedIds().has(id), access: 'owner' } : null
+  }
+
+  private async getStored(id: string): Promise<DocumentDetailRecord | null> {
     const deleted = new Set(this.getDeletedIds())
     if (deleted.has(id)) return null
 

@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n'
 import { ToastProvider } from '../components/ui'
 import EditorPage from './EditorPage'
@@ -31,6 +31,20 @@ function renderEditor(initialEntry = '/documents/doc-fixture-1') {
 beforeEach(() => {
   window.localStorage.clear()
 })
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+/** Makes the repository return `id` as a colleague's shared document. */
+function asSharedByColleague(id: string) {
+  const documents = getRepositories().documents
+  const realGet = documents.get.bind(documents)
+  vi.spyOn(documents, 'get').mockImplementation(async (requested) => {
+    const doc = await realGet(requested)
+    return doc && requested === id ? { ...doc, shared: true, access: 'view', ownerName: 'Selam Tesfaye' } : doc
+  })
+}
 
 describe('EditorPage', () => {
   it('renders document title and drafted content on canvas', async () => {
@@ -107,5 +121,48 @@ describe('EditorPage', () => {
     await new Promise((resolve) => setTimeout(resolve, 1800))
     const stored = await getRepositories().documents.get(created.id)
     expect(stored?.content).toBe(designContent)
+  })
+
+  it("opens a colleague's shared document read only, and copies it", async () => {
+    asSharedByColleague('doc-fixture-1')
+    const update = vi.spyOn(getRepositories().documents, 'update')
+    renderEditor('/documents/doc-fixture-1')
+
+    expect(await screen.findByTestId('shared-document-view')).toBeInTheDocument()
+    expect(screen.getByText(/Shared by Selam Tesfaye/)).toBeInTheDocument()
+    expect(screen.queryByTestId('editor-title-input')).toBeNull()
+    expect(screen.getAllByText(/residential lease agreement/i).length).toBeGreaterThan(0)
+    expect(document.querySelector('[contenteditable="true"]')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('shared-copy'))
+    // The copy is the user's own: it opens in the normal editor.
+    const titleInput = await screen.findByTestId('editor-title-input')
+    expect(titleInput).toHaveValue('Rental agreement — Bole, Addis Ababa (copy)')
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it("opens a colleague's shared design read only", async () => {
+    const created = await getRepositories().documents.create({
+      kind: 'design',
+      title: 'Shared certificate',
+      language: 'am',
+      content: JSON.stringify({
+        schema: 'docuA4.design',
+        version: 1,
+        designId: 'certificate-classic',
+        theme: 'navy',
+        options: {},
+        fields: { recipientEn: 'Dawit Haile' },
+      }),
+    })
+    asSharedByColleague(created.id)
+    renderEditor(`/documents/${created.id}`)
+
+    expect(await screen.findByTestId('design-workspace', {}, { timeout: 4000 })).toHaveClass('design-workspace--read-only')
+    expect(screen.getByText(/Shared by Selam Tesfaye/)).toBeInTheDocument()
+    expect(screen.queryByTestId('design-title')).toBeNull()
+    expect(screen.queryByLabelText('Recipient name (English)')).toBeNull()
+    expect(screen.getAllByText('Dawit Haile').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('shared-copy')).toBeInTheDocument()
   })
 })

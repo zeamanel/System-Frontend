@@ -96,6 +96,12 @@ export interface DocumentRecord {
   version?: number
   createdAt: string
   updatedAt: string
+  /** Shared with the owner's organization (members can open and copy it). */
+  shared?: boolean
+  /** `view`: a colleague's shared document (read and copy only). Absent: own. */
+  access?: 'owner' | 'view'
+  /** Owner's name, on documents shared by a colleague. */
+  ownerName?: string
 }
 
 export interface DocumentDetailRecord extends DocumentRecord {
@@ -331,6 +337,10 @@ export interface DocumentsRepository {
   /** Restore title/content/answers from a snapshot (bumps the version). */
   restoreVersion(id: string, version: number): Promise<DocumentDetailRecord>
   delete(id: string): Promise<void>
+  /** Documents shared with the user's organization (their own included). */
+  listShared(options?: { search?: string }): Promise<DocumentRecord[]>
+  /** Owner only: share with the organization, or make private again. */
+  setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord>
 }
 
 export interface GenerationRepository {

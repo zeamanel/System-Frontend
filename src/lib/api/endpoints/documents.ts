@@ -25,6 +25,9 @@ export interface DocumentApiRecord {
   version: number
   createdAt: string
   updatedAt: string
+  shared?: boolean
+  access?: 'owner' | 'view'
+  ownerName?: string
   /** Present on detail responses: serialized structured content. */
   content?: string | null
   answers?: Record<string, string>
@@ -37,6 +40,8 @@ export interface ListDocumentsApiQuery {
   /** Page size (backend default 50, max 200). */
   limit?: number
   offset?: number
+  /** `shared`: documents shared with the caller's organization. */
+  scope?: 'shared'
 }
 
 export function listDocuments(
@@ -50,10 +55,15 @@ export function listDocuments(
       language: query.language,
       limit: query.limit,
       offset: query.offset,
+      scope: query.scope,
     },
     signal,
     auth: 'required',
   })
+}
+
+export function setDocumentSharing(id: string, shared: boolean): Promise<DocumentApiRecord> {
+  return apiClient.put<DocumentApiRecord>(`/documents/${encodeURIComponent(id)}/sharing`, { shared }, { auth: 'required' })
 }
 
 export function getDocument(id: string, signal?: AbortSignal): Promise<DocumentApiRecord> {
