@@ -657,5 +657,7 @@
   "customers.shared": "የተጋራ",
   "customers.personal": "ለእርስዎ ብቻ",
   "customers.expand": "የተቀመጡ ደንበኞችን አሳይ",
-  "customers.collapse": "የተቀመጡ ደንበኞችን ደብቅ"
+  "customers.collapse": "የተቀመጡ ደንበኞችን ደብቅ",
+  "editor.designDocumentTitle": "ይህ ዲዛይን ነው",
+  "editor.designDocumentDesc": "እንደ የምስክር ወረቀት፣ ማስታወቂያ እና ካርድ ያሉ ዲዛይኖች የሚከፈቱት በዲዛይን አርታኢ ውስጥ ነው፤ እሱ ገና አልተዘጋጀም። ዲዛይኑ አልተቀየረም።"
 }

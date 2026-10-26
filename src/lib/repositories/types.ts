@@ -85,6 +85,8 @@ export interface DocumentRecord {
   templateId: string | null
   templateTitle: string | null
   status: DocumentStatus
+  /** `design` documents never open in the text editor. Absent on older records: text. */
+  kind?: DocumentKind
   language: string
   /**
    * Optimistic-concurrency version from the backend (If-Match guard).
@@ -152,6 +154,9 @@ export interface AppNotification {
   createdAt: string
   read: boolean
 }
+
+export type { DocumentKind } from '../editor/document-kind'
+import type { DocumentKind } from '../editor/document-kind'
 
 export type OrganizationType = 'print_shop' | 'office' | 'personal'
 

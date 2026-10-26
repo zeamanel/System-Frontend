@@ -657,5 +657,7 @@
   "customers.shared": "Shared",
   "customers.personal": "Only you",
   "customers.expand": "Show saved customers",
-  "customers.collapse": "Hide saved customers"
+  "customers.collapse": "Hide saved customers",
+  "editor.designDocumentTitle": "This is a design",
+  "editor.designDocumentDesc": "Designs such as certificates, notices and cards open in the design editor, which is not available yet. The design has not been changed."
 }

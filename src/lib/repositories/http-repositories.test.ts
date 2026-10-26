@@ -89,6 +89,15 @@ describe('HttpDocumentsRepository', () => {
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer test-token')
   })
 
+  it('maps the document kind, treating records without one as text', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse([documentRecord({ id: 'd1' }), documentRecord({ id: 'd2', kind: 'design' })]),
+    )
+    const repos = createHttpRepositories()
+    const documents = await repos.documents.list()
+    expect(documents.map((d) => d.kind)).toEqual(['text', 'design'])
+  })
+
   it('sends the Idempotency-Key header and parsed content on create', async () => {
     fetchMock.mockResolvedValue(jsonResponse(documentRecord(), { status: 201 }))
     const repos = createHttpRepositories()

@@ -65,4 +65,22 @@ describe('EditorPage', () => {
       screen.getAllByText('You are cordially invited to our annual conference.').length,
     ).toBeGreaterThan(0)
   })
+
+  it('never opens a design in the text editor and leaves it untouched', async () => {
+    const designContent = JSON.stringify({ schema: 'docuA4.design', page: { size: 'A4' }, elements: [] })
+    const created = await getRepositories().documents.create({
+      title: 'Training certificate',
+      language: 'am',
+      answers: {},
+      content: designContent,
+    })
+
+    renderEditor(`/documents/${created.id}`)
+
+    expect(await screen.findByText('This is a design')).toBeInTheDocument()
+    expect(screen.queryByTestId('editor-title-input')).not.toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 1800))
+    const stored = await getRepositories().documents.get(created.id)
+    expect(stored?.content).toBe(designContent)
+  })
 })

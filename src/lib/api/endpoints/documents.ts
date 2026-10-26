@@ -19,6 +19,8 @@ export interface DocumentApiRecord {
   templateTitle: string | null
   documentTypeId?: string | null
   status: DocumentStatus
+  /** `text` (default) or `design`. */
+  kind?: 'text' | 'design'
   language: string
   version: number
   createdAt: string

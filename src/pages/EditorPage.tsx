@@ -8,10 +8,12 @@ import { useTemplateDetail } from '../hooks/use-templates'
 import { Button, EmptyState, LoadingState, PanelError } from '../components/ui'
 import { EditorWorkspace, type NewCustomerDocumentInput } from '../components/editor/EditorWorkspace'
 import { useStartTemplateDocument } from '../hooks/use-start-template-document'
+import { documentKindOf } from '../lib/editor/document-kind'
 
 /**
  * Document editor route: loads the document (and its template schema for the
- * guided fields panel) and renders the A4 editing workspace.
+ * guided fields panel) and renders the A4 editing workspace. Design documents
+ * never open here: they get their own editor.
  */
 export default function EditorPage() {
   const { t } = useI18n()
@@ -72,6 +74,23 @@ export default function EditorPage() {
         <EmptyState
           title={t('editor.untitled')}
           description={t('editor.placeholder')}
+          action={
+            <Button variant="secondary" onClick={() => navigate('/documents')}>
+              {t('editor.back')}
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  // A design must never reach the text editor (its loader would rewrite it).
+  if (documentKindOf(doc) === 'design') {
+    return (
+      <div className="page">
+        <EmptyState
+          title={t('editor.designDocumentTitle')}
+          description={t('editor.designDocumentDesc')}
           action={
             <Button variant="secondary" onClick={() => navigate('/documents')}>
               {t('editor.back')}

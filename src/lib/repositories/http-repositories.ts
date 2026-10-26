@@ -174,6 +174,7 @@ function mapDocument(record: DocumentApiRecord): DocumentRecord {
     templateId: record.templateId ?? null,
     templateTitle: record.templateTitle ?? '',
     status: record.status,
+    kind: record.kind === 'design' ? 'design' : 'text',
     language: record.language,
     version: record.version,
     createdAt: record.createdAt,
