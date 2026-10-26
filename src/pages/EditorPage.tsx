@@ -1,6 +1,6 @@
 import './pages.css'
 
-import { useCallback } from 'react'
+import { Suspense, lazy, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { useDocument } from '../hooks/use-documents'
@@ -10,10 +10,12 @@ import { EditorWorkspace, type NewCustomerDocumentInput } from '../components/ed
 import { useStartTemplateDocument } from '../hooks/use-start-template-document'
 import { documentKindOf } from '../lib/editor/document-kind'
 
+const DesignWorkspace = lazy(() => import('../designs/DesignWorkspace'))
+
 /**
  * Document editor route: loads the document (and its template schema for the
  * guided fields panel) and renders the A4 editing workspace. Design documents
- * never open here: they get their own editor.
+ * open in the design editor instead, never in the text editor.
  */
 export default function EditorPage() {
   const { t } = useI18n()
@@ -84,20 +86,13 @@ export default function EditorPage() {
     )
   }
 
-  // A design must never reach the text editor (its loader would rewrite it).
+  // A design never reaches the text editor (its loader would rewrite it):
+  // it opens in the design editor, loaded only for designs.
   if (documentKindOf(doc) === 'design') {
     return (
-      <div className="page">
-        <EmptyState
-          title={t('editor.designDocumentTitle')}
-          description={t('editor.designDocumentDesc')}
-          action={
-            <Button variant="secondary" onClick={() => navigate('/documents')}>
-              {t('editor.back')}
-            </Button>
-          }
-        />
-      </div>
+      <Suspense fallback={<LoadingState full label={t('common.loading')} />}>
+        <DesignWorkspace key={doc.id} document={doc} onBack={() => navigate('/documents')} />
+      </Suspense>
     )
   }
 

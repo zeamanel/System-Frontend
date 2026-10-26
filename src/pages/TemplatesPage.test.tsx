@@ -1,23 +1,28 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { I18nProvider } from '../i18n'
 import { PreferencesProvider } from '../preferences'
+import { ToastProvider } from '../components/ui'
 import TemplatesPage from './TemplatesPage'
+import { getRepositories } from '../lib/repositories'
 
-function renderTemplatesPage() {
+function renderTemplatesPage(features?: { designs: boolean }) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
+  if (features) queryClient.setQueryData(['features'], features)
   return render(
     <QueryClientProvider client={queryClient}>
       <PreferencesProvider>
         <I18nProvider>
-          <MemoryRouter>
-            <TemplatesPage />
-          </MemoryRouter>
+          <ToastProvider>
+            <MemoryRouter>
+              <TemplatesPage />
+            </MemoryRouter>
+          </ToastProvider>
         </I18nProvider>
       </PreferencesProvider>
     </QueryClientProvider>,
@@ -147,5 +152,28 @@ describe('TemplatesPage Filtering & Multilingual Browser', () => {
     // Should filter to favorites
     expect(favButton).toBeInTheDocument()
   })
-})
 
+  it('offers designs when the switch is on and creates one prefilled with the organization', async () => {
+    const user = userEvent.setup()
+    renderTemplatesPage({ designs: true })
+    const shelf = await screen.findByTestId('design-shelf')
+    await user.click(within(shelf).getByRole('button', { name: /certificate/i }))
+
+    await waitFor(async () => {
+      const docs = await getRepositories().documents.list()
+      const design = docs.find((d) => d.kind === 'design')
+      expect(design?.title).toBe('Certificate')
+    })
+    const docs = await getRepositories().documents.list()
+    const created = await getRepositories().documents.get(docs.find((d) => d.kind === 'design')!.id)
+    const content = JSON.parse(created!.content!) as { designId: string; fields: Record<string, string> }
+    expect(content.designId).toBe('certificate-classic')
+    expect(content.fields.orgNameEn).toBe('Tadesse Print Works PLC')
+  })
+
+  it('hides designs when the switch is off', async () => {
+    renderTemplatesPage({ designs: false })
+    expect(await screen.findAllByRole('tab')).not.toHaveLength(0)
+    expect(screen.queryByTestId('design-shelf')).not.toBeInTheDocument()
+  })
+})

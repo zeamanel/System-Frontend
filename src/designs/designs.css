@@ -1,0 +1,208 @@
+/* ---------- Design pages (fixed-size, printed as is) ---------- */
+
+.design-page {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #fbf8f0;
+  color: #1c1b17;
+  text-align: center;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.design-page *,
+.design-page *::before,
+.design-page *::after {
+  box-sizing: border-box;
+}
+
+.design-frame {
+  position: absolute;
+  pointer-events: none;
+}
+
+.design-corner-wrap {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+}
+
+.design-corner {
+  display: block;
+}
+
+.design-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.design-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.design-monogram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  color: #fbf8f0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.design-placeholder {
+  color: #9a9483;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Certificate */
+.design-certificate__content {
+  position: absolute;
+  inset: 70px 96px 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.design-certificate__content .design-row:first-child {
+  text-align: left;
+}
+
+.design-signatures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 32px;
+}
+
+/* Notice */
+.design-notice {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.design-notice__band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 130px;
+  padding: 28px 56px;
+  text-align: left;
+}
+
+.design-notice__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 26px;
+  padding: 40px 56px 32px;
+  min-height: 0;
+}
+
+.design-notice__position {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 24px;
+  border: 2px solid;
+  border-radius: 10px;
+}
+
+.design-notice__details {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.design-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.design-notice__deadline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-left: 6px solid;
+  border-radius: 6px;
+  font-size: 15px;
+  text-align: left;
+}
+
+.design-notice__footer-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.design-notice__stamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 190px;
+  height: 110px;
+  border: 1.5px dashed #8a8473;
+  border-radius: 8px;
+  color: #5b574c;
+  font-size: 12px;
+}
+
+.design-notice__bottom {
+  height: 18px;
+}
+
+/* ---------- Printing a design ----------
+   The workspace renders a print copy of the page straight under <body>
+   (a portal). While a design is open, printing shows only that copy, at
+   true size, on a sheet of exactly that size (see the @page rule the
+   workspace adds). */
+.design-print-portal {
+  display: none;
+}
+
+@media print {
+  html.design-printing body > *:not(.design-print-portal) {
+    display: none !important;
+  }
+
+  html.design-printing,
+  html.design-printing body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  html.design-printing .design-print-portal {
+    display: block !important;
+  }
+
+  html.design-printing .design-print-portal .design-placeholder {
+    visibility: hidden !important;
+  }
+}

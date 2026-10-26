@@ -1,0 +1,105 @@
+.design-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.design-shelf__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.design-shelf__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.design-shelf__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.design-shelf__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.design-shelf__card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 72px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.design-shelf__card:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+}
+
+.design-shelf__card:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.design-shelf__card:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.design-shelf__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.design-shelf__name {
+  font-weight: var(--weight-semibold);
+}
+
+.design-shelf__description {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.design-shelf__arrow {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.design-sheet-icon {
+  flex-shrink: 0;
+  border: 2px solid var(--color-text);
+  border-radius: 2px;
+  background:
+    linear-gradient(var(--color-text), var(--color-text)) center 28% / 60% 2px no-repeat,
+    linear-gradient(var(--color-border-strong), var(--color-border-strong)) center 52% / 70% 1px no-repeat,
+    linear-gradient(var(--color-border-strong), var(--color-border-strong)) center 64% / 70% 1px no-repeat;
+}
+
+.design-sheet-icon--portrait {
+  width: 30px;
+  height: 40px;
+}
+
+.design-sheet-icon--landscape {
+  width: 40px;
+  height: 30px;
+}

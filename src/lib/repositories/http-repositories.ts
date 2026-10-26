@@ -436,6 +436,7 @@ class HttpDocumentsRepository implements DocumentsRepository {
   async create(payload: CreateDocumentPayload): Promise<DocumentRecord> {
     const record = await createDocumentEndpoint(
       {
+        ...(payload.kind ? { kind: payload.kind } : {}),
         templateId: payload.templateId,
         documentTypeId: payload.documentTypeId,
         title: payload.title,

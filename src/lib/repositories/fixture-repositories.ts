@@ -153,6 +153,7 @@ interface CustomDocumentRecord {
   title: string
   templateId: string | null
   status: 'draft' | 'generating' | 'ready' | 'error'
+  kind?: 'text' | 'design'
   language: string
   createdAt: string
   updatedAt: string
@@ -191,6 +192,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         templateId: doc.templateId,
         templateTitle: doc.templateId ? (templates.get(doc.templateId) ?? doc.templateId) : null,
         status: doc.status,
+        kind: doc.kind ?? 'text',
         language: doc.language,
         version: doc.version ?? 1,
         createdAt: doc.createdAt,
@@ -251,6 +253,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         templateId: custom.templateId,
         templateTitle: custom.templateId ? (templates.get(custom.templateId) ?? custom.templateId) : null,
         status: custom.status,
+        kind: custom.kind ?? 'text',
         language: custom.language,
         version: custom.version ?? 1,
         createdAt: custom.createdAt,
@@ -295,6 +298,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       title,
       templateId: payload.templateId ?? null,
       status: 'ready',
+      ...(payload.kind ? { kind: payload.kind } : {}),
       language: payload.language,
       version: 1,
       createdAt: nowIso,
@@ -395,6 +399,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       templateId: record.templateId,
       templateTitle: record.templateId ? (templates.get(record.templateId) ?? record.templateId) : null,
       status: record.status,
+      kind: record.kind ?? 'text',
       language: record.language,
       version: record.version ?? 1,
       createdAt: record.createdAt,

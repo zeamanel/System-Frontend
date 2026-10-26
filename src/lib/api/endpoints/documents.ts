@@ -64,6 +64,7 @@ export function getDocument(id: string, signal?: AbortSignal): Promise<DocumentA
 }
 
 export interface CreateDocumentApiInput {
+  kind?: 'text' | 'design'
   templateId?: string
   title?: string
   language?: string

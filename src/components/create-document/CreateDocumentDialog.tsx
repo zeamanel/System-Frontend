@@ -8,6 +8,10 @@ import { useStartTemplateDocument } from '../../hooks/use-start-template-documen
 import { ArrowRightIcon } from '../icons'
 import { templateIcon } from '../templates/template-icons'
 import { Button, Dialog, PanelError, SearchInput } from '../ui'
+import { DesignSheetIcon } from '../designs'
+import { DESIGN_CATALOG } from '../../designs/catalog'
+import { useFeatures } from '../../hooks/use-features'
+import { useCreateDesign } from '../../hooks/use-create-design'
 
 export interface CreateDocumentDialogProps {
   open: boolean
@@ -26,12 +30,22 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
   const [filter, setFilter] = useState('')
 
   const templates = useTemplatesList()
+  const features = useFeatures()
+  const { start: startDesign, pendingId } = useCreateDesign()
 
   useEffect(() => {
     if (open) setFilter('')
   }, [open])
 
   const needle = filter.trim().toLowerCase()
+  const designs = features.designs
+    ? DESIGN_CATALOG.filter(
+        (design) =>
+          !needle ||
+          t(design.titleKey).toLowerCase().includes(needle) ||
+          t(design.descriptionKey).toLowerCase().includes(needle),
+      )
+    : []
   const items = (templates.data ?? []).filter(
     (template) =>
       !needle ||
@@ -68,6 +82,36 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
           clearLabel={t('search.clear')}
           loading={templates.isPending}
         />
+        {designs.length > 0 ? (
+          <div className="create-dialog__group" data-testid="create-dialog-designs">
+            <p className="create-dialog__group-title">{t('designs.shelfTitle')}</p>
+            <ul className="create-dialog__list">
+              {designs.map((design) => (
+                <li key={design.id}>
+                  <button
+                    type="button"
+                    className="create-dialog__item"
+                    disabled={pendingId !== null}
+                    onClick={() => {
+                      onClose()
+                      void startDesign(design.id)
+                    }}
+                  >
+                    <span className="create-dialog__item-icon">
+                      <DesignSheetIcon orientation={design.orientation} />
+                    </span>
+                    <span className="create-dialog__item-text">
+                      <span className="create-dialog__item-title">{t(design.titleKey)}</span>
+                      <span className="create-dialog__item-description">{t(design.descriptionKey)}</span>
+                    </span>
+                    <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="create-dialog__group-title">{t('designs.textDocumentsTitle')}</p>
+          </div>
+        ) : null}
         {templates.isPending ? (
           <p className="create-dialog__hint">{t('common.loading')}</p>
         ) : templates.isError ? (

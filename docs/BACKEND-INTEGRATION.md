@@ -73,7 +73,7 @@ All backend errors use the envelope `{ error: { code, message, ...extras } }`
 | Preferences | `GET/PATCH /preferences`, `POST /preferences/sync` | **Local-first**: localStorage persistence keeps working; remote sync skipped silently (dev-only `console.info`); no user-facing errors. |
 | Favorites | `GET /favorites/templates`, `POST/DELETE /favorites/templates/:id` | **Local-first**: stars work via localStorage; remote sync skipped silently; toggling never throws. |
 | Notifications | `GET /notifications`, `POST /notifications/read-all` | Real errors surface in the notifications menu's existing error state (never fabricated). |
-| Exports | `POST /exports` | Honest failure + browser print-to-PDF fallback (unchanged since Phase 4). |
+| Exports | — (shipped: `POST /exports` + short-lived download link) | "Download PDF" saves first, then downloads under the document title. Older backends without it: honest failure + browser print-to-PDF fallback. Designs are refused by the backend (422) and print from the browser. |
 | Usage counter | `GET /usage` (documentsThisMonth) | Usage widget shows "unavailable"; real AI usage is available via `GET /ai/usage` on the generation repository. |
 
 ### (b) Endpoints needing additive backend work (frontend works around them)
@@ -84,16 +84,20 @@ All backend errors use the envelope `{ error: { code, message, ...extras } }`
   catalogue grows.
 - **Relevance sorting** — fixture mode scores relevance heuristically; API
   mode degrades `sortBy=relevance` to the backend's popularity ordering.
-- **Generation result → document** — `GET /ai/generate/:id` returns raw
-  `content` with no `documentId`; the frontend creates the document itself
-  after completion (deterministic idempotency key). The backend could return
-  the created document id directly to remove the extra round-trip.
+- **Generation result → document** — shipped: the backend creates the
+  document with the job and returns its `documentId`; the frontend only
+  creates it itself for older backends (deterministic idempotency key).
 
-### (c) Backend Phase 6 territory (stubbed, intentionally)
+### (c) Shipped since
 
-- **Organizations** — `GET/PATCH /organization` do not exist; the repository
-  stub throws "not implemented" and the organization page shows its existing
-  error state.
+- **Organizations** — `GET/POST/PATCH /organization`, signatories and
+  members (docs/API.md §6 in the backend).
+- **Designs** — documents have `kind` (`text` | `design`). Designs open in
+  the design editor (`src/designs/`, loaded only for designs), never in the
+  text editor. `GET /features` (`{ designs }`, from the backend's
+  `FEATURE_DESIGNS` setting) decides whether the Designs shelf and the
+  dialog's Designs group show; an older backend or an error means off.
+  Demo mode always shows designs.
 
 ## Contract mapping notes
 

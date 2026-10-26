@@ -31,6 +31,7 @@ export const queryKeys = {
   notifications: {
     all: ['notifications'] as const,
   },
+  features: ['features'] as const,
   customers: {
     all: ['customers'] as const,
     list: (query: string) => ['customers', 'list', query] as const,

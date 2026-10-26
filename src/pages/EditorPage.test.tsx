@@ -66,9 +66,17 @@ describe('EditorPage', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('never opens a design in the text editor and leaves it untouched', async () => {
-    const designContent = JSON.stringify({ schema: 'docuA4.design', page: { size: 'A4' }, elements: [] })
+  it('opens a design in the design editor, never in the text editor', async () => {
+    const designContent = JSON.stringify({
+      schema: 'docuA4.design',
+      version: 1,
+      designId: 'certificate-classic',
+      theme: 'navy',
+      options: { seal: true },
+      fields: { recipientEn: 'Dawit Haile', titleAm: 'የምስክር ወረቀት' },
+    })
     const created = await getRepositories().documents.create({
+      kind: 'design',
       title: 'Training certificate',
       language: 'am',
       answers: {},
@@ -77,7 +85,24 @@ describe('EditorPage', () => {
 
     renderEditor(`/documents/${created.id}`)
 
-    expect(await screen.findByText('This is a design')).toBeInTheDocument()
+    expect(await screen.findByTestId('design-workspace')).toBeInTheDocument()
+    expect(screen.queryByTestId('editor-title-input')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Dawit Haile').length).toBeGreaterThan(0)
+    expect(screen.getByLabelText('Recipient name (English)')).toHaveValue('Dawit Haile')
+  })
+
+  it('shows a notice for a design it does not know and leaves it untouched', async () => {
+    const designContent = JSON.stringify({ schema: 'docuA4.design', page: { size: 'A4' }, elements: [] })
+    const created = await getRepositories().documents.create({
+      title: 'Old design',
+      language: 'am',
+      answers: {},
+      content: designContent,
+    })
+
+    renderEditor(`/documents/${created.id}`)
+
+    expect(await screen.findByText("This design can't be opened")).toBeInTheDocument()
     expect(screen.queryByTestId('editor-title-input')).not.toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 1800))
     const stored = await getRepositories().documents.get(created.id)

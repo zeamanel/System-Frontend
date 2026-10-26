@@ -111,6 +111,8 @@ export interface DocumentVersionSnapshot {
 }
 
 export interface CreateDocumentPayload {
+  /** `design` for fixed-layout designs; text otherwise. */
+  kind?: DocumentKind
   title?: string
   templateId?: string
   documentTypeId?: string

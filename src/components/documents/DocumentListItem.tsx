@@ -48,6 +48,7 @@ export function DocumentListItem({ document, onDuplicate, onDelete }: DocumentLi
             </time>
           </span>
         </span>
+        {document.kind === 'design' ? <Badge variant="neutral">{t('designs.badge')}</Badge> : null}
         <Badge variant={status.variant}>{t(status.labelKey)}</Badge>
       </Link>
       {(onDuplicate || onDelete) && (
