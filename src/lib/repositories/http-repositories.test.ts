@@ -174,7 +174,32 @@ describe('HttpGenerationRepository', () => {
     expect(JSON.parse(init.body as string).templateId).toBe('template-9')
   })
 
-  it('creates the document exactly once on completion with a deterministic key', async () => {
+  it('opens the document the server created and never creates one itself', async () => {
+    const assistantNotes = { summary: 'Drafted.', questions: [], assumptions: [], warnings: [] }
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if ((init?.method ?? 'GET') === 'POST' && url.endsWith('/ai/generate')) {
+        return jsonResponse({ id: 'job-s', status: 'pending', documentId: 'server-doc' }, { status: 202 })
+      }
+      return jsonResponse({
+        id: 'job-s',
+        status: 'completed',
+        documentId: 'server-doc',
+        content: '{"blocks":[]}',
+        assistantNotes,
+      })
+    })
+    const repos = createHttpRepositories()
+    await repos.generation.createRequest({ documentType: 't', answers: {}, language: 'en' })
+
+    const job = await repos.generation.getRequest('job-s')
+
+    expect(job.documentId).toBe('server-doc')
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/documents'))).toBe(false)
+    expect(consumePendingNotes('server-doc')?.notes.summary).toBe('Drafted.')
+  })
+
+  it('older backends: creates the document exactly once on completion with a deterministic key', async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       const method = init?.method ?? 'GET'

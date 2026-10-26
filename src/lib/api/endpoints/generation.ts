@@ -23,6 +23,12 @@ export interface CreateGenerationApiInput {
 export interface GenerationJobApiRecord {
   id: string
   status: GenerationStatus
+  /**
+   * The document this job fills. The backend creates it with the job (or
+   * uses the one being regenerated), so it is present from the 202 on.
+   * Older backends omit it.
+   */
+  documentId?: string
   /** Serialized generated content (JSON blocks string) once completed. */
   content?: string
   error?: { code?: string; message?: string }

@@ -685,20 +685,23 @@ class HttpSessionRepository implements SessionRepository {
 /**
  * Guided-flow generation over POST /ai/generate + polling.
  *
- * Contract bridge: the backend returns raw `content` on completion, while the
- * frontend flow expects the completed job to reference a created document.
- * This repository creates that document once (deterministic idempotency key
- * derived from the job id, so poll races and replays can never duplicate it)
- * and returns its id — components stay identical in both data modes. For
- * in-place regeneration (input.documentId) the backend updates the document
- * server-side, so the input documentId is echoed back and the editor
- * refetches.
+ * The backend creates the document together with the job and returns its id
+ * (also on every poll); on completion it has already written the content, so
+ * the flow just opens that document. For in-place regeneration
+ * (input.documentId) the same document is updated server-side.
+ *
+ * Fallback for backends that do not return a documentId yet: this repository
+ * creates the document once from the returned content (deterministic
+ * idempotency key derived from the job id, so poll races and replays can
+ * never duplicate it).
  */
 interface GenerationJobContext {
   templateId: string
   language: string
   answers: Record<string, string>
   inputDocumentId?: string
+  /** Document the server created for this job. */
+  serverDocumentId?: string
   createdDocumentId?: string
   /** Assistant notes already handed to the editor (avoid repeats on re-poll). */
   notesHandedOff?: boolean
@@ -744,6 +747,7 @@ class HttpGenerationRepository implements GenerationRepository {
       language: input.language,
       answers: input.answers,
       inputDocumentId: input.documentId,
+      serverDocumentId: record.documentId,
     })
     return { id: record.id, status: record.status }
   }
@@ -760,16 +764,19 @@ class HttpGenerationRepository implements GenerationRepository {
     if (job.status !== 'completed') return result
 
     const context = readJobContext(id)
-    if (!context) return result
-    if (context.inputDocumentId) {
-      result.documentId = context.inputDocumentId
-      if (!context.notesHandedOff && job.assistantNotes) {
-        stashPendingNotes(context.inputDocumentId, id, job.assistantNotes)
-        context.notesHandedOff = true
-        writeJobContext(id, context)
+    const targetDocumentId = context?.inputDocumentId ?? job.documentId ?? context?.serverDocumentId
+    if (targetDocumentId) {
+      result.documentId = targetDocumentId
+      if (job.assistantNotes && !context?.notesHandedOff) {
+        stashPendingNotes(targetDocumentId, id, job.assistantNotes)
+        if (context) {
+          context.notesHandedOff = true
+          writeJobContext(id, context)
+        }
       }
       return result
     }
+    if (!context) return result
     if (!context.createdDocumentId) {
       const document = await createDocumentEndpoint(
         {
