@@ -31,6 +31,10 @@ export const queryKeys = {
   notifications: {
     all: ['notifications'] as const,
   },
+  customers: {
+    all: ['customers'] as const,
+    list: (query: string) => ['customers', 'list', query] as const,
+  },
   organization: {
     all: ['organization'] as const,
     members: ['organization', 'members'] as const,

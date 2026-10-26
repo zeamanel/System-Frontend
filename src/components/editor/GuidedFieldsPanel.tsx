@@ -9,6 +9,8 @@ import { listTelegramMediaVault, type TelegramVaultProfile } from '../../lib/api
 import { SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
 import { useOrganization } from '../../hooks/use-organization'
+import { SavedCustomers, SaveCustomerButton } from '../customers'
+import { customerTargets, type FieldFill } from '../../lib/customers/fill'
 import { organizationSuggestionsForField } from '../../lib/organization/autofill'
 import type { TemplateDetail, TemplateQuestion } from '../../lib/repositories'
 import type { OutlineEntry } from '../../lib/editor/model'
@@ -321,6 +323,24 @@ export function GuidedFieldsPanel({
     syncSlotsAndAnswers(fieldKey, currentSlots, roleLabel)
   }
 
+  /** Fill a saved customer into fields. Names go through the party slots; details are plain answers. */
+  const handleCustomerFill = (fills: FieldFill[], targetId: string): void => {
+    for (const fill of fills) {
+      const question = questions.find((q) => q.id === fill.questionId)
+      if (!question) continue
+      if (fill.questionId === targetId && isPartyFieldKey((question as { key?: string; id: string }).key ?? question.id)) {
+        handlePrimaryChange(fill.questionId, fill.value, question.label, answers[fill.questionId] ?? '')
+      } else {
+        onAnswerChange(fill.questionId, fill.value)
+      }
+    }
+  }
+
+  const handleAppendInstructions = (text: string): void => {
+    const previous = (answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID] ?? '').trim()
+    onAnswerChange(ADDITIONAL_INSTRUCTIONS_FIELD_ID, previous ? `${previous}\n${text}` : text)
+  }
+
   const handleCoPartyChange = (
     fieldKey: string,
     slotIdx: number,
@@ -520,6 +540,12 @@ export function GuidedFieldsPanel({
 
       <div className="guided-fields-panel__body" data-testid="guided-fields-body">
         <div className="guided-fields-panel__list">
+          <SavedCustomers
+            questions={questions}
+            answers={answers}
+            onFill={(fills) => handleCustomerFill(fills, fills[0]?.questionId ?? '')}
+            onAppendInstructions={handleAppendInstructions}
+          />
           {questions.map((question) => {
             const fieldKey = (question as { key?: string; id: string }).key ?? question.id
             const isParty = isPartyFieldKey(fieldKey)
@@ -822,6 +848,9 @@ export function GuidedFieldsPanel({
                   onPick={pick}
                 />
                 <RecentAnswerChips suggestions={recents} onPick={pick} />
+                {customerTargets(questions).some((target) => target.id === question.id) ? (
+                  <SaveCustomerButton questions={questions} answers={answers} fieldId={question.id} />
+                ) : null}
               </div>
             )
           })}

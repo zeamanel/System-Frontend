@@ -105,7 +105,7 @@ describe('EditorWorkspace', () => {
 
     window.sessionStorage.setItem('docuA4.test.documentSaveFail', 'true')
     await editFirstParagraph()
-    fireEvent.click(screen.getByRole('button', { name: /save|retry save/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^save$|retry save/i }))
 
     await waitFor(() => expect(saveStatus().dataset.status).toBe('error'))
     expect(screen.getByText('Save failed')).toBeInTheDocument()
