@@ -26,4 +26,6 @@ const CHECK_ISSUE_KEYS: Record<string, true> = {
   'check.issue.ETHIOPIAN_DATE_INVALID': true,
   'check.issue.ETHIOPIAN_YEAR_LOOKS_GREGORIAN': true,
   'check.issue.DATE_INVALID': true,
+  'check.issue.PARTY_NAME_VARIANT': true,
+  'check.issue.PARTY_WITHOUT_SIGNATURE': true,
 }

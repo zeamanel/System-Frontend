@@ -745,5 +745,7 @@
   "designs.image.remove": "አስወግድ",
   "designs.image.useOrgLogo": "የድርጅቱን አርማ ተጠቀም",
   "designs.image.loadFailed": "ይህ ምስል ሊጫን አልቻለም።",
-  "designs.image.none": "ምስል የለም"
+  "designs.image.none": "ምስል የለም",
+  "check.issue.PARTY_NAME_VARIANT": "“{variant}” የ“{name}” የተለየ አጻጻፍ ይመስላል።",
+  "check.issue.PARTY_WITHOUT_SIGNATURE": "“{name}” ({label}) የፊርማ ቦታ የለውም።"
 }

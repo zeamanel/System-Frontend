@@ -745,5 +745,7 @@
   "designs.image.remove": "Remove",
   "designs.image.useOrgLogo": "Use organization logo",
   "designs.image.loadFailed": "This image could not be loaded.",
-  "designs.image.none": "No image"
+  "designs.image.none": "No image",
+  "check.issue.PARTY_NAME_VARIANT": "“{variant}” looks like a different spelling of “{name}”.",
+  "check.issue.PARTY_WITHOUT_SIGNATURE": "“{name}” ({label}) has no signature line."
 }
