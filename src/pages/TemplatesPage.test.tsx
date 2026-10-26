@@ -157,7 +157,7 @@ describe('TemplatesPage Filtering & Multilingual Browser', () => {
     const user = userEvent.setup()
     renderTemplatesPage({ designs: true })
     const shelf = await screen.findByTestId('design-shelf')
-    await user.click(within(shelf).getByRole('button', { name: /certificate/i }))
+    await user.click(within(shelf).getByRole('button', { name: /^certificate(?! of appreciation)/i }))
 
     await waitFor(async () => {
       const docs = await getRepositories().documents.list()
