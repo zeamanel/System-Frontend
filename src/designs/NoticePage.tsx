@@ -20,7 +20,7 @@ function DetailList({ value, placeholder, showPlaceholders }: { value: string | 
   )
 }
 
-export function NoticePage({ content, theme, showPlaceholders }: DesignPageProps) {
+export function NoticePage({ content, theme, showPlaceholders, imageUrls }: DesignPageProps) {
   const { t } = useI18n()
   const f = content.fields
   const field = (id: string, labelKey: Parameters<typeof t>[0]) => (
@@ -31,7 +31,12 @@ export function NoticePage({ content, theme, showPlaceholders }: DesignPageProps
   return (
     <div className="design-page design-notice" style={{ width: 794, height: 1123, fontFamily: SANS }}>
       <header className="design-notice__band" style={{ background: theme.primary }}>
-        <div className="design-stack" style={{ alignItems: 'flex-start', gap: 4 }}>
+        {imageUrls.logo ? (
+          <span className="design-notice__logo">
+            <img src={imageUrls.logo} alt="" />
+          </span>
+        ) : null}
+        <div className="design-stack" style={{ alignItems: 'flex-start', gap: 4, flex: 1 }}>
           <span style={{ fontFamily: SERIF_ETHIOPIC, fontWeight: 700, fontSize: 24, color: '#ffffff' }}>
             {field('orgNameAm', 'designs.field.orgNameAm')}
           </span>

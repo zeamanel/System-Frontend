@@ -40,6 +40,7 @@ export const queryKeys = {
     all: ['organization'] as const,
     members: ['organization', 'members'] as const,
   },
+  media: (id: string) => ['media', id] as const,
   usage: {
     all: ['usage'] as const,
   },

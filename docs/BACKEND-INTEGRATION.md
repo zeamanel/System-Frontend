@@ -98,6 +98,12 @@ All backend errors use the envelope `{ error: { code, message, ...extras } }`
   `FEATURE_DESIGNS` setting) decides whether the Designs shelf and the
   dialog's Designs group show; an older backend or an error means off.
   Demo mode always shows designs.
+- **Logos and photos** — `POST/GET/DELETE /media` (backend docs/API.md §9)
+  and `logoMediaId` on the organization. Images are shrunk in the browser
+  first (`src/lib/media/prepare.ts`: logos PNG ≤ 1000 px, photos JPEG
+  ≤ 1200 px) and shown as blob URLs because `GET /media/:id` needs auth.
+  Design content stores `images: { slot: mediaId }`; new designs start with
+  the organization logo. Demo mode keeps images in this browser only.
 
 ## Contract mapping notes
 

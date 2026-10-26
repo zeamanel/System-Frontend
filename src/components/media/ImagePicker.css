@@ -1,0 +1,57 @@
+.image-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-picker__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 140px;
+  height: 80px;
+  padding: 6px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  /* A checker shows transparent logos as transparent. */
+  background-color: var(--color-surface);
+  background-image:
+    linear-gradient(45deg, var(--color-surface-muted) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-surface-muted) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-surface-muted) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-surface-muted) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  overflow: hidden;
+}
+
+.image-picker--photo .image-picker__preview {
+  width: 72px;
+  height: 90px;
+}
+
+.image-picker__preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.image-picker--photo .image-picker__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-picker__empty {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.image-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

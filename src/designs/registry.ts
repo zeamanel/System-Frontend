@@ -21,7 +21,7 @@ function initials(name: string): string {
 
 /**
  * New content for a design, filled with the organization's own details where
- * the design has a place for them (name, signatories, contact). Customer
+ * the design has a place for them (name, logo, signatories, contact). Customer
  * details are never prefilled.
  */
 export function createDesignContent(design: DesignDefinition, organization: OrganizationProfile | null): DesignContent {
@@ -52,5 +52,6 @@ export function createDesignContent(design: DesignDefinition, organization: Orga
     theme: 'green',
     options: Object.fromEntries(design.options.map((option) => [option.id, option.default])),
     fields,
+    images: organization?.logoMediaId && design.imageSlots.some((slot) => slot.id === 'logo') ? { logo: organization.logoMediaId } : {},
   }
 }

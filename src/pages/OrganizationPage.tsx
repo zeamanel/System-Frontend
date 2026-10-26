@@ -19,6 +19,8 @@ import {
   useUpdateOrganization,
 } from '../hooks/use-organization'
 import { useSession } from '../session/use-session'
+import { useMediaUrls, useSetOrganizationLogo } from '../hooks/use-media'
+import { ImagePicker } from '../components/media/ImagePicker'
 import { env } from '../config/env'
 import {
   Badge,
@@ -76,7 +78,10 @@ export default function OrganizationPage() {
     setForm((current) => ({ ...(current ?? EMPTY_ORGANIZATION), ...patch }))
   }
 
-  const dirty = form !== null && JSON.stringify(form) !== JSON.stringify(organization.data ?? EMPTY_ORGANIZATION)
+  // The logo saves on its own (LogoCard), so it never makes the form dirty.
+  const withoutLogo = ({ logoMediaId: _logo, ...rest }: OrganizationProfile) => rest
+  const dirty =
+    form !== null && JSON.stringify(withoutLogo(form)) !== JSON.stringify(withoutLogo(organization.data ?? EMPTY_ORGANIZATION))
 
   const handleSave = async () => {
     if (!form) return
@@ -348,12 +353,63 @@ export default function OrganizationPage() {
         ) : null}
       </form>
 
+      <LogoCard
+        logoMediaId={organization.data?.logoMediaId ?? null}
+        exists={exists}
+        editable={editable}
+      />
+
       {exists ? <MembersCard role={organization.data?.role} /> : null}
 
       <p className="page__footnote">
         {t('settings.apiUrlLabel')}: <code>{env.apiBaseUrl}</code>
       </p>
     </div>
+  )
+}
+
+function LogoCard({ logoMediaId, exists, editable }: { logoMediaId: string | null; exists: boolean; editable: boolean }) {
+  const { t } = useI18n()
+  const toast = useToast()
+  const setLogo = useSetOrganizationLogo()
+  const { urls, failed } = useMediaUrls({ logo: logoMediaId })
+
+  const save = async (mediaId: string | null): Promise<void> => {
+    try {
+      await setLogo.mutateAsync(mediaId)
+      toast.push(t(mediaId ? 'organization.logoSaved' : 'organization.logoRemoved'), { variant: 'success' })
+    } catch {
+      toast.push(t('common.error'), { variant: 'error' })
+    }
+  }
+
+  return (
+    <Card className="org-logo">
+      <CardTitle>{t('organization.section.logo')}</CardTitle>
+      <CardBody>
+        {!exists ? (
+          <p className="org-form__hint">{t('organization.logoNeedsOrganization')}</p>
+        ) : (
+          <>
+            <p className="org-form__hint">{t('organization.logoHint')}</p>
+            <ImagePicker
+              kind="logo"
+              imageUrl={urls.logo}
+              failed={failed.includes('logo')}
+              alt={t('organization.logoAlt')}
+              uploadLabel={t('organization.logoUpload')}
+              replaceLabel={t('organization.logoReplace')}
+              removeLabel={t('organization.logoRemove')}
+              emptyLabel={t('organization.logoEmpty')}
+              disabled={!editable || setLogo.isPending}
+              onUploaded={(record) => save(record.id)}
+              onRemove={editable ? () => void save(null) : undefined}
+              testId="org-logo"
+            />
+          </>
+        )}
+      </CardBody>
+    </Card>
   )
 }
 

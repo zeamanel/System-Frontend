@@ -195,6 +195,8 @@ export interface OrganizationProfile {
   signatories: OrganizationSignatory[]
   /** The signed-in user's role; set by the backend (read-only). */
   role?: OrganizationRole
+  /** Uploaded logo (media id); changed with OrganizationRepository.setLogo. */
+  logoMediaId?: string | null
 }
 
 export interface OrganizationMember {
@@ -365,6 +367,30 @@ export interface OrganizationRepository {
   addMember(email: string, role: Exclude<OrganizationRole, 'owner'>): Promise<OrganizationMember[]>
   setMemberRole(userId: string, role: OrganizationRole): Promise<OrganizationMember[]>
   removeMember(userId: string): Promise<void>
+  /** Sets (media id of an uploaded logo) or removes (null) the organization logo. */
+  setLogo(mediaId: string | null): Promise<OrganizationProfile>
+}
+
+export type MediaKind = 'logo' | 'photo'
+
+/** An uploaded image (PNG, JPEG or WebP). */
+export interface MediaRecord {
+  id: string
+  kind: MediaKind
+  mime: string
+  size: number
+  width: number
+  height: number
+  /** Shared with the organization (false: personal). */
+  shared: boolean
+  createdAt: string
+}
+
+export interface MediaRepository {
+  upload(file: Blob, kind: MediaKind, fileName: string): Promise<MediaRecord>
+  /** The image bytes (images need auth, so they are shown as blob URLs). */
+  get(id: string): Promise<Blob>
+  remove(id: string): Promise<void>
 }
 
 export interface UsageRepository {
@@ -403,6 +429,7 @@ export interface Repositories {
   favorites: FavoritesRepository
   notifications: NotificationsRepository
   organization: OrganizationRepository
+  media: MediaRepository
   usage: UsageRepository
   session: SessionRepository
   preferences: PreferencesRepository

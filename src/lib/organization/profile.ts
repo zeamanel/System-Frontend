@@ -44,6 +44,7 @@ export function normalizeOrganization(raw: Partial<OrganizationProfile> | null |
           .map((s) => ({ fullName: s.fullName, title: text(s.title) }))
       : [],
     ...(source.role ? { role: source.role } : {}),
+    ...(typeof source.logoMediaId === 'string' ? { logoMediaId: source.logoMediaId } : {}),
   }
 }
 

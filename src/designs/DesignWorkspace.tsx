@@ -10,6 +10,9 @@ import { getRepositories, DocumentConflictError } from '../lib/repositories'
 import type { DocumentDetailRecord } from '../lib/repositories'
 import { queryKeys } from '../lib/query-keys'
 import { Button, EmptyState, Input, Textarea } from '../components/ui'
+import { ImagePicker } from '../components/media/ImagePicker'
+import { useMediaUrls } from '../hooks/use-media'
+import { useOrganization } from '../hooks/use-organization'
 import { ArrowLeftIcon, PrinterIcon } from '../components/icons'
 import { parseDesignContent, serializeDesignContent } from './content'
 import { designById } from './registry'
@@ -126,6 +129,18 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
     setContent((current) => ({ ...current, options: { ...current.options, [id]: value } }))
     schedule()
   }
+  const setImage = (slot: string, mediaId: string | null): void => {
+    setContent((current) => {
+      const images = { ...current.images }
+      if (mediaId) images[slot] = mediaId
+      else delete images[slot]
+      return { ...current, images }
+    })
+    schedule()
+  }
+
+  const { urls: imageUrls, loading: imagesLoading, failed: failedImages } = useMediaUrls(content.images)
+  const organizationLogo = useOrganization().data?.logoMediaId ?? null
 
   // Printing: the sheet matches the design, only while this editor is open.
   useEffect(() => {
@@ -144,6 +159,9 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
   const handlePrint = async (): Promise<void> => {
     if (timer.current !== null) window.clearTimeout(timer.current)
     await save()
+    // Print only once the page's images are decoded, so none prints blank.
+    const images = Array.from(window.document.querySelectorAll<HTMLImageElement>('.design-print-portal img'))
+    await Promise.all(images.map((image) => (typeof image.decode === 'function' ? image.decode().catch(() => undefined) : undefined)))
     window.setTimeout(() => window.print(), 50)
   }
 
@@ -203,7 +221,7 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
             {t('designs.retry')}
           </Button>
         ) : null}
-        <Button variant="primary" size="sm" icon={<PrinterIcon size={16} />} onClick={() => void handlePrint()} data-testid="design-print">
+        <Button variant="primary" size="sm" icon={<PrinterIcon size={16} />} onClick={() => void handlePrint()} disabled={imagesLoading} data-testid="design-print">
           {t('designs.print')}
         </Button>
       </div>
@@ -212,7 +230,7 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
         <div className="design-workspace__preview" ref={previewRef} aria-label={t('designs.previewLabel')}>
           <div style={{ width: design.page.width * scale, height: design.page.height * scale }} className="design-workspace__sheet">
             <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-              <Page content={content} theme={theme} showPlaceholders />
+              <Page content={content} theme={theme} imageUrls={imageUrls} showPlaceholders />
             </div>
           </div>
         </div>
@@ -247,6 +265,40 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
             ))}
           </fieldset>
 
+          {design.imageSlots.length > 0 ? (
+            <fieldset className="design-workspace__group">
+              <legend>{t('designs.group.images')}</legend>
+              {design.imageSlots.map((slot) => {
+                const current = content.images[slot.id]
+                return (
+                  <div key={slot.id} className="design-workspace__image">
+                    <span className="design-workspace__image-label">{t(slot.labelKey)}</span>
+                    <span className="design-workspace__image-hint">{t(slot.hintKey)}</span>
+                    <ImagePicker
+                      kind={slot.kind}
+                      imageUrl={imageUrls[slot.id]}
+                      failed={failedImages.includes(slot.id)}
+                      alt={t(slot.labelKey)}
+                      uploadLabel={t('designs.image.upload')}
+                      replaceLabel={t('designs.image.replace')}
+                      removeLabel={t('designs.image.remove')}
+                      emptyLabel={t('designs.image.none')}
+                      onUploaded={(record) => setImage(slot.id, record.id)}
+                      onRemove={() => setImage(slot.id, null)}
+                      testId={`design-image-${slot.id}`}
+                    >
+                      {slot.id === 'logo' && organizationLogo && organizationLogo !== current ? (
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setImage(slot.id, organizationLogo)}>
+                          {t('designs.image.useOrgLogo')}
+                        </Button>
+                      ) : null}
+                    </ImagePicker>
+                  </div>
+                )
+              })}
+            </fieldset>
+          ) : null}
+
           {design.groups.map((group) => (
             <fieldset key={group.labelKey} className="design-workspace__group">
               <legend>{t(group.labelKey)}</legend>
@@ -280,7 +332,7 @@ function DesignEditor({ doc, initial, onBack }: { doc: DocumentDetailRecord; ini
 
       {createPortal(
         <div className="design-print-portal" aria-hidden="true">
-          <Page content={content} theme={theme} showPlaceholders={false} />
+          <Page content={content} theme={theme} imageUrls={imageUrls} showPlaceholders={false} />
         </div>,
         window.document.body,
       )}

@@ -35,7 +35,7 @@ function Seal({ primary, accent, label }: { primary: string; accent: string; lab
   )
 }
 
-export function CertificatePage({ content, theme, showPlaceholders }: DesignPageProps) {
+export function CertificatePage({ content, theme, showPlaceholders, imageUrls }: DesignPageProps) {
   const { t } = useI18n()
   const f = content.fields
   const field = (id: string, labelKey: Parameters<typeof t>[0]) => (
@@ -65,9 +65,13 @@ export function CertificatePage({ content, theme, showPlaceholders }: DesignPage
       <div className="design-certificate__content">
         <div className="design-row">
           <div className="design-row" style={{ gap: 14, justifyContent: 'flex-start' }}>
-            <div className="design-monogram" style={{ background: theme.primary, fontFamily: SANS }}>
-              {(f.monogram ?? '').trim().slice(0, 4) || (showPlaceholders ? '◆' : '')}
-            </div>
+            {imageUrls.logo ? (
+              <img className="design-logo" src={imageUrls.logo} alt="" />
+            ) : (
+              <div className="design-monogram" style={{ background: theme.primary, fontFamily: SANS }}>
+                {(f.monogram ?? '').trim().slice(0, 4) || (showPlaceholders ? '◆' : '')}
+              </div>
+            )}
             <div className="design-stack" style={{ gap: 2, alignItems: 'flex-start' }}>
               <span style={{ fontFamily: SERIF_ETHIOPIC, fontWeight: 700, fontSize: 17, color: theme.primary }}>
                 {field('orgNameAm', 'designs.field.orgNameAm')}
@@ -96,7 +100,10 @@ export function CertificatePage({ content, theme, showPlaceholders }: DesignPage
           </div>
         </div>
 
-        <div className="design-stack" style={{ gap: 4 }}>
+        <div className="design-stack" style={{ gap: 4, position: 'relative' }}>
+          {imageUrls.photo ? (
+            <img className="design-photo" src={imageUrls.photo} alt="" style={{ borderColor: theme.accent }} />
+          ) : null}
           <span style={{ fontFamily: SERIF_ETHIOPIC, fontSize: 17, color: '#3b3830' }}>{field('awardedAm', 'designs.field.awardedAm')}</span>
           <span style={{ fontSize: 15, fontStyle: 'italic', color: '#5b574c' }}>{field('awardedEn', 'designs.field.awardedEn')}</span>
           <span style={{ marginTop: 8, fontFamily: SERIF_ETHIOPIC, fontWeight: 700, fontSize: 46, lineHeight: 1.2, color: '#1c1b17' }}>

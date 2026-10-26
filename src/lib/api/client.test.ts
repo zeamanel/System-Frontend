@@ -44,6 +44,23 @@ function jsonResponse(body: unknown, init?: ResponseInit): Response {
 }
 
 describe('apiClient', () => {
+  it('sends FormData as multipart (the browser sets the boundary) and reads images as blobs', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'm1' }, { status: 201 }))
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'image/png' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    authState.token = 'token-123'
+
+    const form = new FormData()
+    form.append('kind', 'logo')
+    await apiClient.post('/media', form, { auth: 'required' })
+    const [, upload] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(upload.body).toBe(form)
+    expect((upload.headers as Record<string, string>)['Content-Type']).toBeUndefined()
+
+    const blob = await apiClient.get<Blob>('/media/m1', { auth: 'required', responseType: 'blob' })
+    expect(blob.size).toBe(3)
+  })
+
   it('sends JSON bodies with auth and content-type headers', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ ok: true }))
     vi.stubGlobal('fetch', fetchMock)

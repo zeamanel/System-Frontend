@@ -623,6 +623,7 @@
   gap: var(--space-3);
 }
 
+.org-logo,
 .org-members {
   margin-top: var(--space-4);
 }

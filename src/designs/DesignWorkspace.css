@@ -134,3 +134,25 @@
     padding: var(--space-2);
   }
 }
+
+.design-workspace__image {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.design-workspace__image + .design-workspace__image {
+  margin-top: var(--space-3);
+}
+
+.design-workspace__image-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.design-workspace__image-hint {
+  margin-bottom: 4px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}

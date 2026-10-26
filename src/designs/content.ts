@@ -3,7 +3,10 @@ import type { DesignContent } from './types'
 
 const SLUG = /^[a-z0-9-]{1,60}$/
 const FIELD_ID = /^[a-zA-Z0-9_]{1,60}$/
+const IMAGE_SLOT = /^[a-zA-Z0-9_]{1,40}$/
+const MEDIA_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const MAX_FIELD_LENGTH = 2000
+const MAX_IMAGES = 10
 
 /** Reads stored design content; null when it is not a valid version-1 design. */
 export function parseDesignContent(raw: unknown): DesignContent | null {
@@ -27,6 +30,12 @@ export function parseDesignContent(raw: unknown): DesignContent | null {
   for (const [key, option] of Object.entries(candidate.options ?? {})) {
     if (typeof option === 'boolean' || typeof option === 'string') options[key] = option
   }
+  const images: Record<string, string> = {}
+  for (const [slot, id] of Object.entries(candidate.images ?? {})) {
+    if (Object.keys(images).length < MAX_IMAGES && IMAGE_SLOT.test(slot) && typeof id === 'string' && MEDIA_ID.test(id)) {
+      images[slot] = id
+    }
+  }
   return {
     schema: DESIGN_SCHEMA,
     version: 1,
@@ -34,6 +43,7 @@ export function parseDesignContent(raw: unknown): DesignContent | null {
     theme: typeof candidate.theme === 'string' && SLUG.test(candidate.theme) ? candidate.theme : 'green',
     options,
     fields,
+    images,
   }
 }
 

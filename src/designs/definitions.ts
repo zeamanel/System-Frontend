@@ -47,6 +47,10 @@ export const certificateClassic: DesignDefinition = {
     },
   ],
   options: [{ id: 'seal', labelKey: 'designs.option.seal', default: true }],
+  imageSlots: [
+    { id: 'logo', kind: 'logo', labelKey: 'designs.image.logo', hintKey: 'designs.image.logoHint' },
+    { id: 'photo', kind: 'photo', labelKey: 'designs.image.photo', hintKey: 'designs.image.photoHint' },
+  ],
   defaults: {
     titleAm: 'የምስክር ወረቀት',
     titleEn: 'Certificate of Completion',
@@ -98,6 +102,7 @@ export const vacancyNotice: DesignDefinition = {
     },
   ],
   options: [{ id: 'stampBox', labelKey: 'designs.option.stampBox', default: true }],
+  imageSlots: [{ id: 'logo', kind: 'logo', labelKey: 'designs.image.logo', hintKey: 'designs.image.noticeLogoHint' }],
   defaults: {
     headlineAm: 'የሥራ ማስታወቂያ',
     headlineEn: 'Vacancy Announcement',

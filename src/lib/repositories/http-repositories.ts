@@ -61,6 +61,9 @@ import type {
   TemplatesRepository,
   UpdateDocumentPayload,
   UsageRepository,
+  MediaKind,
+  MediaRecord,
+  MediaRepository,
 } from './types'
 import type {
   ExportRequest,
@@ -85,6 +88,7 @@ import {
   updateOrganization as updateOrganizationEndpoint,
 } from '../api/endpoints/organization'
 import { normalizeOrganization } from '../organization/profile'
+import { deleteMedia, getMediaBlob, uploadMedia } from '../api/endpoints/media'
 
 /**
  * API-backed repositories over the live Cloud Run backend
@@ -636,7 +640,8 @@ class HttpOrganizationRepository implements OrganizationRepository {
   }
 
   async update(profile: OrganizationProfile): Promise<OrganizationProfile> {
-    const { signatories, role: _role, ...fields } = normalizeOrganization(profile)
+    // The logo changes only through setLogo, so a form opened before a logo change never reverts it.
+    const { signatories, role: _role, logoMediaId: _logo, ...fields } = normalizeOrganization(profile)
     const existing = await nullOnNotFound(() => getOrganizationEndpoint())
     let record = existing ? await updateOrganizationEndpoint(fields) : await createOrganizationEndpoint(fields)
     const current = record.signatories.map(({ fullName, title }) => ({ fullName, title }))
@@ -660,6 +665,24 @@ class HttpOrganizationRepository implements OrganizationRepository {
 
   removeMember(userId: string): Promise<void> {
     return removeOrganizationMember(userId)
+  }
+
+  async setLogo(mediaId: string | null): Promise<OrganizationProfile> {
+    return normalizeOrganization(await updateOrganizationEndpoint({ logoMediaId: mediaId }))
+  }
+}
+
+class HttpMediaRepository implements MediaRepository {
+  upload(file: Blob, kind: MediaKind, fileName: string): Promise<MediaRecord> {
+    return uploadMedia(file, kind, fileName)
+  }
+
+  get(id: string): Promise<Blob> {
+    return getMediaBlob(id)
+  }
+
+  remove(id: string): Promise<void> {
+    return deleteMedia(id)
   }
 }
 
@@ -991,6 +1014,7 @@ export function createHttpRepositories(options?: {
     favorites,
     notifications: new HttpNotificationsRepository(),
     organization: new HttpOrganizationRepository(),
+    media: new HttpMediaRepository(),
     usage: new HttpUsageRepository(),
     session: new HttpSessionRepository(),
     preferences: new HttpPreferencesRepository(),

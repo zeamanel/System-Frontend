@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { MessageKey } from '../i18n'
+import type { MediaKind } from '../lib/repositories'
 
 /** Stored design content, version 1 (backend validates the same shape). */
 export interface DesignContent {
@@ -9,6 +10,8 @@ export interface DesignContent {
   theme: string
   options: Record<string, boolean | string>
   fields: Record<string, string>
+  /** Uploaded images by slot (slot id → media id). */
+  images: Record<string, string>
 }
 
 export interface DesignTheme {
@@ -39,9 +42,18 @@ export interface DesignOption {
   default: boolean
 }
 
+export interface DesignImageSlot {
+  id: string
+  kind: MediaKind
+  labelKey: MessageKey
+  hintKey: MessageKey
+}
+
 export interface DesignPageProps {
   content: DesignContent
   theme: DesignTheme
+  /** Displayable URLs of the content's images, by slot. */
+  imageUrls: Record<string, string>
   /** Show placeholders for empty fields (editing); printing leaves them blank. */
   showPlaceholders: boolean
 }
@@ -54,6 +66,8 @@ export interface DesignDefinition {
   page: { width: number; height: number; orientation: 'portrait' | 'landscape'; paper: 'A4' }
   groups: DesignFieldGroup[]
   options: DesignOption[]
+  /** Places for uploaded images; slot `logo` starts with the organization logo. */
+  imageSlots: DesignImageSlot[]
   /** Text the design starts with (example wording users overwrite). */
   defaults: Record<string, string>
   Page: ComponentType<DesignPageProps>

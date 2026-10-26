@@ -65,6 +65,45 @@
 }
 
 /* Certificate */
+.design-logo {
+  display: block;
+  max-width: 150px;
+  max-height: 64px;
+  object-fit: contain;
+}
+
+/* Passport-style photo beside the recipient's name. */
+.design-photo {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  width: 104px;
+  height: 130px;
+  object-fit: cover;
+  border: 3px solid;
+  border-radius: 4px;
+  transform: translateY(-50%);
+  background: #ffffff;
+}
+
+.design-notice__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 84px;
+  height: 84px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.design-notice__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
 .design-certificate__content {
   position: absolute;
   inset: 70px 96px 64px;
