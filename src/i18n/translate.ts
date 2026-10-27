@@ -1,18 +1,50 @@
-import am from './am.json'
 import en from './en.json'
-import om from './om.json'
 import { isLocale, type Locale } from './locales'
 import type { MessageKey, MessageVars } from './types'
 
+type Dictionary = Record<MessageKey, string>
+
 /**
- * Locales map to their dictionary. Every locale must define every key —
- * a missing key fails the type-check, and full key parity (including
- * extra keys) is enforced by `npm run check:i18n` as part of `npm run build`.
+ * English is built in; Amharic and Afaan Oromoo are separate downloads,
+ * fetched when first needed (the interface language before the first
+ * render, a document's language before the editor opens it). Every locale
+ * must define every key: parity is enforced by `npm run check:i18n`.
  */
-export const dictionaries: Record<Locale, Record<MessageKey, string>> = {
-  en,
-  am,
-  om,
+const loaded: Partial<Record<Locale, Dictionary>> = { en }
+const loaders: Record<Exclude<Locale, 'en'>, () => Promise<{ default: Dictionary }>> = {
+  am: () => import('./am.json'),
+  om: () => import('./om.json'),
+}
+const pending = new Map<Locale, Promise<void>>()
+const listeners = new Set<() => void>()
+
+const resolveLocale = (locale: string): Locale => (isLocale(locale) ? locale : 'en')
+
+export function isLocaleLoaded(locale: string): boolean {
+  return Boolean(loaded[resolveLocale(locale)])
+}
+
+/** Loads a locale's messages (once). Rejects when offline; a later call retries. */
+export function loadLocale(locale: string): Promise<void> {
+  const resolved = resolveLocale(locale)
+  if (loaded[resolved]) return Promise.resolve()
+  let promise = pending.get(resolved)
+  if (!promise) {
+    promise = loaders[resolved as Exclude<Locale, 'en'>]()
+      .then((module) => {
+        loaded[resolved] = module.default
+        listeners.forEach((listener) => listener())
+      })
+      .finally(() => pending.delete(resolved))
+    pending.set(resolved, promise)
+  }
+  return promise
+}
+
+/** Called whenever another locale finishes loading. */
+export function onLocaleLoaded(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
 }
 
 export function interpolate(template: string, vars?: MessageVars): string {
@@ -30,8 +62,13 @@ export function interpolate(template: string, vars?: MessageVars): string {
  * language. Unknown locale codes fall back to English instead of failing.
  */
 export function tForLocale(locale: string, key: MessageKey, vars?: MessageVars): string {
-  const resolved: Locale = isLocale(locale) ? locale : 'en'
-  const dictionary = dictionaries[resolved] ?? dictionaries.en
+  const resolved = resolveLocale(locale)
+  const dictionary = loaded[resolved]
+  if (!dictionary) {
+    // Not downloaded yet: English for now, and re-render once it arrives.
+    void loadLocale(resolved).catch(() => undefined)
+    return interpolate(en[key] ?? key, vars)
+  }
   // Parity is enforced at build time; this guards against a stale or
   // hand-edited dictionary at runtime, warning developers instead of
   // failing silently to an English fallback.
@@ -40,6 +77,6 @@ export function tForLocale(locale: string, key: MessageKey, vars?: MessageVars):
       `[i18n] key "${key}" is missing from the "${resolved}" dictionary — falling back to English`,
     )
   }
-  const template = dictionary[key] ?? dictionaries.en[key] ?? key
+  const template = dictionary[key] ?? en[key] ?? key
   return interpolate(template, vars)
 }

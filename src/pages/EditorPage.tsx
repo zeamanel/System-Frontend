@@ -2,7 +2,7 @@ import './pages.css'
 
 import { Suspense, lazy, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useI18n } from '../i18n'
+import { useI18n, useLocaleReady } from '../i18n'
 import { useDocument, useDuplicateDocument } from '../hooks/use-documents'
 import { useTemplateDetail } from '../hooks/use-templates'
 import { Button, EmptyState, LoadingState, PanelError, useToast } from '../components/ui'
@@ -26,6 +26,8 @@ export default function EditorPage() {
   const docQuery = useDocument(documentId)
   const doc = docQuery.data ?? null
   const templateQuery = useTemplateDetail(doc?.templateId ?? '')
+  // Captions on the page (signatures, page numbers) follow the document's language.
+  const documentLanguageReady = useLocaleReady(doc?.language ?? 'en')
 
   const refresh = useCallback(async () => {
     const result = await docQuery.refetch()
@@ -55,7 +57,7 @@ export default function EditorPage() {
     [startTemplateDocument],
   )
 
-  if (docQuery.isPending) {
+  if (docQuery.isPending || (doc && !documentLanguageReady)) {
     return <LoadingState full label={t('common.loading')} />
   }
 

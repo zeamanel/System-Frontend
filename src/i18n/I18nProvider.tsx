@@ -1,34 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { env } from '../config/env'
 import { LANGUAGES, type LanguageCode } from '../lib/languages'
 import { I18nContext } from './context'
-import { tForLocale } from './translate'
-import { isLocale, type Locale } from './locales'
+import { loadLocale, onLocaleLoaded, tForLocale } from './translate'
+import type { Locale } from './locales'
+import { STORAGE_KEY, detectInitialLocale } from './initial-locale'
 import type { MessageKey, MessageVars } from './types'
-
-const STORAGE_KEY = 'docuA4.locale'
-
-function detectInitialLocale(): Locale {
-  try {
-    const storedPrefs = globalThis.localStorage?.getItem('docuA4.preferences')
-    if (storedPrefs) {
-      const parsed = JSON.parse(storedPrefs)
-      if (isLocale(parsed?.preferredLanguage)) return parsed.preferredLanguage
-    }
-    const stored = globalThis.localStorage?.getItem(STORAGE_KEY)
-    if (isLocale(stored)) return stored
-  } catch {
-    // localStorage unavailable (private mode etc.) — fall through
-  }
-  const navigatorLocale =
-    typeof navigator !== 'undefined' ? navigator.language?.split('-')[0] : undefined
-  if (isLocale(navigatorLocale)) return navigatorLocale
-  return env.defaultLocale
-}
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(detectInitialLocale)
+  // Bumped when another locale's messages arrive, so text re-renders in it.
+  const [loadedVersion, setLoadedVersion] = useState(0)
+  useEffect(() => onLocaleLoaded(() => setLoadedVersion((version) => version + 1)), [])
 
   // Keep the document language and direction in sync for assistive tech and layout.
   useEffect(() => {
@@ -38,7 +21,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [locale])
 
   const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next)
+    // Switch once the messages are here (no flash of English); offline, switch anyway.
+    void loadLocale(next)
+      .catch(() => undefined)
+      .then(() => setLocaleState(next))
     try {
       globalThis.localStorage?.setItem(STORAGE_KEY, next)
       const raw = globalThis.localStorage?.getItem('docuA4.preferences')
@@ -54,7 +40,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback(
     (key: MessageKey, vars?: MessageVars): string => tForLocale(locale, key, vars),
-    [locale],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadedVersion: re-translate when messages arrive
+    [locale, loadedVersion],
   )
 
   const value = useMemo(

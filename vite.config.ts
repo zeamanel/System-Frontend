@@ -18,6 +18,16 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        treeshake: {
+          // The demo data files only declare sample data (their top-level code
+          // just builds arrays), so when nothing uses them — production builds
+          // for the live backend — they are dropped from the download.
+          moduleSideEffects: (id: string) => !/[\\/]src[\\/]lib[\\/]repositories[\\/]fixtures[\\/]/.test(id),
+        },
+      },
+    },
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
