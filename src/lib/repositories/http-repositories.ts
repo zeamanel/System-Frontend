@@ -31,7 +31,11 @@ import {
 import { getFirebaseAuth } from '../firebase/client'
 import { DocumentConflictError, ExportUnavailableError } from './errors'
 import { matchesCategory, toSummary, toDetail } from './fixtures/template-filtering'
-import { FIXTURE_TEMPLATES } from '../fixtures/templates'
+
+/** Built-in templates, used only when the backend lacks one; loaded on first use (keeps them out of the startup bundle). */
+type FallbackTemplates = TemplateFixture[] | (() => Promise<TemplateFixture[]>)
+const loadBuiltInTemplates = (): Promise<TemplateFixture[]> =>
+  import('../fixtures/templates').then((module) => module.FIXTURE_TEMPLATES)
 import type {
   AppNotification,
   CreateDocumentPayload,
@@ -297,8 +301,31 @@ function applyTemplateOptions(
 class HttpTemplatesRepository implements TemplatesRepository {
   constructor(
     private readonly getFavoriteIds: () => Promise<string[]>,
-    private readonly fallbackFixtures: TemplateFixture[] = FIXTURE_TEMPLATES,
-  ) {}
+    fallback: FallbackTemplates = loadBuiltInTemplates,
+  ) {
+    this.fallback = fallback
+  }
+
+  private fallback: FallbackTemplates
+  private fallbackLoad: Promise<TemplateFixture[]> | null = null
+
+  private fallbackFixtures(): Promise<TemplateFixture[]> {
+    if (Array.isArray(this.fallback)) return Promise.resolve(this.fallback)
+    // Load once; a failed load (offline) is retried next time instead of cached.
+    this.fallbackLoad ??= this.fallback().catch((error: unknown) => {
+      this.fallbackLoad = null
+      throw error
+    })
+    return this.fallbackLoad
+  }
+
+  private async fallbackFixturesOrNone(): Promise<TemplateFixture[]> {
+    try {
+      return await this.fallbackFixtures()
+    } catch {
+      return []
+    }
+  }
 
   private async fetchAll(locale: Locale): Promise<TemplateSummary[]> {
     let apiTemplates: TemplateSummary[] = []
@@ -323,7 +350,7 @@ class HttpTemplatesRepository implements TemplatesRepository {
       result.push(t)
     }
 
-    for (const fixture of this.fallbackFixtures) {
+    for (const fixture of await this.fallbackFixturesOrNone()) {
       const slug = fixture.slug ?? fixture.id
       if (seenSlugs.has(slug) || seenIds.has(fixture.id)) {
         continue
@@ -400,7 +427,7 @@ class HttpTemplatesRepository implements TemplatesRepository {
       // In case of error, fall through to fixture lookup
     }
 
-    const fixture = this.fallbackFixtures.find(
+    const fixture = (await this.fallbackFixturesOrNone()).find(
       (f) => f.id === id || f.slug === id || f.documentTypeId === id,
     )
     if (fixture) {
@@ -1011,12 +1038,12 @@ class HttpPreferencesRepository implements PreferencesRepository {
 
 /** API-backed repository bundle targeting the live backend. */
 export function createHttpRepositories(options?: {
-  fallbackFixtures?: TemplateFixture[]
+  fallbackFixtures?: FallbackTemplates
 }): Repositories {
   const favorites = new HttpFavoritesRepository()
   const templates = new HttpTemplatesRepository(
     () => favorites.listIds(),
-    options?.fallbackFixtures ?? FIXTURE_TEMPLATES,
+    options?.fallbackFixtures ?? loadBuiltInTemplates,
   )
   const documents = new HttpDocumentsRepository()
   const generation = new HttpGenerationRepository()
