@@ -22,6 +22,8 @@ export interface BlockViewProps {
   labels: BlockLabels
   onImageLoad?: () => void
   bilingual?: boolean
+  /** Only these items (list) or rows (table), when the block continues across pages. */
+  range?: { from: number; to: number }
 }
 
 export interface BlockLabels {
@@ -48,6 +50,7 @@ export function BlockView({
   labels,
   onImageLoad,
   bilingual = false,
+  range,
 }: BlockViewProps) {
   const ref = useMemo<EditableRef>(() => ({ blockId: block.id }), [block.id])
 
@@ -184,12 +187,16 @@ export function BlockView({
 
   if (block.type === 'list') {
     const Tag = block.ordered ? 'ol' : 'ul'
+    const from = range?.from ?? 0
+    const items = range ? block.items.slice(range.from, range.to) : block.items
     return (
       <Tag
         data-block-id={block.id}
-        className={[blockClass, `doc-block--indent-${block.indent}`].join(' ')}
+        className={[blockClass, `doc-block--indent-${block.indent}`, from > 0 ? 'doc-block--continued' : null].filter(Boolean).join(' ')}
+        // A list continued from the previous page keeps counting.
+        start={block.ordered && from > 0 ? from + 1 : undefined}
       >
-        {block.items.map((item) => (
+        {items.map((item) => (
           <li key={item.id} className="doc-list__item">
             <EditableHtml
               html={item.html}
@@ -213,7 +220,7 @@ export function BlockView({
   }
 
   if (block.type === 'table') {
-    return renderTable(block, blockClass, editable, api, labels, handleFocus, handlePaste)
+    return renderTable(block, blockClass, editable, api, labels, handleFocus, handlePaste, range)
   }
 
   if (block.type === 'signature') {
@@ -267,11 +274,27 @@ function renderTable(
   labels: BlockLabels,
   handleFocus: FocusHandler,
   handlePaste: PasteHandler,
+  range?: { from: number; to: number },
 ) {
+  const from = range?.from ?? 0
+  const rows = range ? block.rows.slice(range.from, range.to) : block.rows
+  // A table continued from the previous page repeats its header row (read only there).
+  const repeatedHeader = from > 0 && block.headerRow ? block.rows[0] : null
   return (
-    <table data-block-id={block.id} className={blockClass}>
+    <table data-block-id={block.id} className={[blockClass, from > 0 ? 'doc-block--continued' : null].filter(Boolean).join(' ')}>
       <tbody>
-        {block.rows.map((row, rowIndex) => (
+        {repeatedHeader ? (
+          <tr className="doc-table__head" data-repeated-header="true" aria-hidden="true">
+            {repeatedHeader.cells.map((cell) => (
+              <td key={cell.id} className="doc-table__cell">
+                <EditableHtml html={cell.html} editable={false} className="doc-table__text" />
+              </td>
+            ))}
+          </tr>
+        ) : null}
+        {rows.map((row, index) => {
+          const rowIndex = from + index
+          return (
           <tr
             key={row.id}
             className={rowIndex === 0 && block.headerRow ? 'doc-table__head' : undefined}
@@ -294,7 +317,8 @@ function renderTable(
               </td>
             ))}
           </tr>
-        ))}
+          )
+        })}
       </tbody>
     </table>
   )

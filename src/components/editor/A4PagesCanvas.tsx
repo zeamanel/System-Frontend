@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { DocumentModel } from '../../lib/editor/types'
 import { sanitizeInlineHtml } from '../../lib/editor/sanitize'
 import { contentHeightMm } from '../../lib/editor/model'
-import { paginateBlockIds } from '../../lib/editor/paginate'
+import { paginateBlocks, type PageSlice, type SplittableBlock } from '../../lib/editor/paginate'
 import { fitWidthZoom } from '../../lib/editor/a4'
 import { fontStack } from '../../lib/editor/fonts'
 import { findEditable, focusEditable, type EditableRef } from './caret'
@@ -54,7 +54,7 @@ export function A4PagesCanvas({
   const pagesWrapRef = useRef<HTMLDivElement | null>(null)
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit')
   const [fit, setFit] = useState(1)
-  const [pages, setPages] = useState<string[][]>(() => [model.blocks.map((b) => b.id)])
+  const [pages, setPages] = useState<PageSlice[][]>(() => [model.blocks.map((b) => ({ id: b.id }))])
 
   const zoom = zoomMode === 'fit' ? fit : zoomMode
   const blocksById = useMemo(() => {
@@ -70,20 +70,52 @@ export function A4PagesCanvas({
     const wrap = pagesWrapRef.current
     if (!wrap) return
     const heights = new Map<string, number>()
+    // Lists and tables may be split over several pages: measure each item or
+    // row (heights do not depend on the page), plus the block's own chrome.
+    const items = new Map<string, number[]>()
+    const overheads = new Map<string, number>()
     wrap.querySelectorAll<HTMLElement>('.doc-block[data-block-id]').forEach((element) => {
       const id = element.dataset.blockId
       if (!id) return
-      heights.set(id, element.getBoundingClientRect().height / zoom)
+      const height = element.getBoundingClientRect().height / zoom
+      heights.set(id, (heights.get(id) ?? 0) + height)
+      const parts =
+        element.tagName === 'OL' || element.tagName === 'UL'
+          ? element.querySelectorAll<HTMLElement>(':scope > li')
+          : element.tagName === 'TABLE'
+            ? element.querySelectorAll<HTMLElement>(':scope > tbody > tr:not([data-repeated-header])')
+            : null
+      if (!parts) return
+      const partHeights = Array.from(parts, (part) => part.getBoundingClientRect().height / zoom)
+      items.set(id, [...(items.get(id) ?? []), ...partHeights])
+      if (!overheads.has(id)) {
+        const repeated = element.querySelector<HTMLElement>(':scope > tbody > tr[data-repeated-header]')
+        const repeatedHeight = repeated ? repeated.getBoundingClientRect().height / zoom : 0
+        overheads.set(id, Math.max(0, height - repeatedHeight - partHeights.reduce((sum, h) => sum + h, 0)))
+      }
     })
+    const splittable = new Map<string, SplittableBlock>()
+    for (const block of model.blocks) {
+      const measured = items.get(block.id)
+      if (!measured || (block.type !== 'list' && block.type !== 'table')) continue
+      const count = block.type === 'list' ? block.items.length : block.rows.length
+      // Only when every item was measured (the DOM can lag one render behind the model).
+      if (measured.length !== count) continue
+      splittable.set(block.id, {
+        overhead: overheads.get(block.id) ?? 0,
+        itemHeights: measured,
+        repeatFirst: block.type === 'table' && block.headerRow,
+      })
+    }
     const breakIds = new Set(
       model.blocks.filter((block) => block.type === 'page-break').map((block) => block.id),
     )
-    setPages(
-      paginateBlockIds(
-        model.blocks.map((block) => block.id),
-        { heights, breakIds, contentHeightPx },
-      ),
+    const next = paginateBlocks(
+      model.blocks.map((block) => block.id),
+      { heights, breakIds, contentHeightPx, splittable },
     )
+    // Keep the same array when nothing moved, so measuring never loops.
+    setPages((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next))
   }, [model.blocks, contentHeightPx, zoom])
 
   // Re-measure whenever content, page geometry or zoom changes.
@@ -178,12 +210,14 @@ export function A4PagesCanvas({
                 paddingLeft: `${model.page.margins.left}mm`,
               }}
             >
-              {pageBlockIds.map((blockId) => {
-                const block = blocksById.get(blockId)
+              {pageBlockIds.map((slice) => {
+                const block = blocksById.get(slice.id)
                 if (!block) return null
+                const range = slice.from !== undefined && slice.to !== undefined ? { from: slice.from, to: slice.to } : undefined
                 return (
                   <BlockView
-                    key={block.id}
+                    key={`${block.id}:${slice.from ?? 0}`}
+                    range={range}
                     block={block}
                     editable={editable}
                     active={editable && block.id === activeBlockId}
