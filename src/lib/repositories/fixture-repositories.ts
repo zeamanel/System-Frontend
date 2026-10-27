@@ -166,7 +166,43 @@ interface CustomDocumentRecord {
   answers?: Record<string, string>
 }
 
+interface FixtureVersion {
+  version: number
+  title: string
+  content?: string | null
+  answers?: Record<string, string>
+  createdAt: string
+}
+
+/** Demo history: like the backend, autosaves within a few minutes share one snapshot. */
+const FIXTURE_SNAPSHOT_GAP_MS = 2 * 60_000
+const FIXTURE_MAX_VERSIONS = 20
+
 class FixtureDocumentsRepository implements DocumentsRepository {
+  private versionsKey(id: string): string {
+    return `docuA4.fixture.versions.${id}`
+  }
+
+  private storedVersions(id: string): FixtureVersion[] {
+    return readJson<FixtureVersion[]>(this.versionsKey(id), [])
+  }
+
+  /** Keeps the state being replaced, so it can be restored later. */
+  private rememberVersion(previous: CustomDocumentRecord, always = false): void {
+    const stored = this.storedVersions(previous.id)
+    const latest = stored[0]
+    if (latest?.version === previous.version) return
+    if (!always && latest && Date.parse(previous.updatedAt) - Date.parse(latest.createdAt) < FIXTURE_SNAPSHOT_GAP_MS) return
+    const snapshot: FixtureVersion = {
+      version: previous.version ?? 1,
+      title: previous.title,
+      content: previous.content ?? null,
+      answers: previous.answers,
+      createdAt: previous.updatedAt,
+    }
+    writeJson(this.versionsKey(previous.id), [snapshot, ...stored].slice(0, FIXTURE_MAX_VERSIONS))
+  }
+
   private getCustomDocs(): CustomDocumentRecord[] {
     return readJson<CustomDocumentRecord[]>('docuA4.fixture.customDocuments', [])
   }
@@ -395,6 +431,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       throw new DocumentConflictError(undefined, record.updatedAt)
     }
 
+    this.rememberVersion(record)
     record = {
       ...record,
       title: payload.title?.trim() ? payload.title.trim() : record.title,
@@ -475,20 +512,26 @@ class FixtureDocumentsRepository implements DocumentsRepository {
   }
 
   async versions(id: string): Promise<DocumentVersionSnapshot[]> {
-    // Fixtures keep a single implicit snapshot (the current state) — labeled
-    // development data, never a fabricated history.
+    // The current state plus the states this browser saved over (demo data).
     const detail = await this.get(id)
     if (!detail) return []
     return [
       { version: detail.version ?? 1, title: detail.title, createdAt: detail.updatedAt },
+      ...this.storedVersions(id).map(({ version, title, createdAt }) => ({ version, title, createdAt })),
     ]
   }
 
-  async restoreVersion(id: string, _version: number): Promise<DocumentDetailRecord> {
-    // No historical snapshots exist in fixtures — restoring returns current.
+  async restoreVersion(id: string, version: number): Promise<DocumentDetailRecord> {
     const detail = await this.get(id)
     if (!detail) throw new Error(`Document ${id} not found.`)
-    return detail
+    if (version === detail.version) return detail
+    const snapshot = this.storedVersions(id).find((entry) => entry.version === version)
+    if (!snapshot) throw new Error(`Version ${version} not found.`)
+    // The text being replaced always stays in the history.
+    const current = this.getCustomDocs().find((doc) => doc.id === id)
+    if (current) this.rememberVersion(current, true)
+    // Restoring is a new save: the state it replaces stays in history.
+    return this.update(id, { title: snapshot.title, content: snapshot.content ?? undefined, answers: snapshot.answers ?? {} })
   }
 }
 

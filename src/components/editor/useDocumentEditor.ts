@@ -447,6 +447,18 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
 
   const saveNow = useCallback((): Promise<void> => saveRef.current(), [])
 
+  /**
+   * Resolves true once everything typed is saved: waits for a save in
+   * progress, then saves what is left. False when the save failed.
+   */
+  const saveAll = useCallback(async (): Promise<boolean> => {
+    for (let waited = 0; savingRef.current && waited < 20_000; waited += 50) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    if (dirtyRef.current) await saveRef.current()
+    return !dirtyRef.current && !savingRef.current
+  }, [])
+
   return {
     model,
     title,
@@ -454,6 +466,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     language,
     status,
     savedAt,
+    savedVersion,
     lastSavedAt,
     recovered,
     updateModel,
@@ -464,6 +477,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     revertChange,
     setLanguage,
     save: saveNow,
+    saveAll,
     reloadLatest,
     overwrite,
     flush,

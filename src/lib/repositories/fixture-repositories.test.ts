@@ -44,6 +44,25 @@ describe('fixture templates repository', () => {
 })
 
 describe('fixture documents repository', () => {
+  it('keeps a version history and restores without losing the current text', async () => {
+    const docs = repositories.documents
+    const created = await docs.create({ title: 'Lease', language: 'en', content: 'first draft' })
+    const v2 = await docs.update(created.id, { content: 'second draft' })
+    // Quick autosaves share one snapshot, like the backend.
+    const v3 = await docs.update(created.id, { content: 'third draft' })
+    const history = await docs.versions(created.id)
+    expect(history.map((v) => v.version)).toEqual([v3.version, 1])
+    expect(v2.version).toBe(2)
+
+    const restored = await docs.restoreVersion(created.id, 1)
+    expect(restored.content).toContain('first draft')
+    expect(restored.version).toBe(4)
+    const after = await docs.versions(created.id)
+    expect(after.map((v) => v.version)).toEqual([4, 3, 1])
+    // The replaced text can be brought back.
+    expect((await docs.restoreVersion(created.id, 3)).content).toContain('third draft')
+  })
+
   it('lists documents with template titles, newest first', async () => {
     const documents = await repositories.documents.list()
     expect(documents.length).toBe(3)

@@ -19,6 +19,7 @@ export const queryKeys = {
     shared: (search?: string) => ['documents', 'shared', search ?? null] as const,
     recent: (limit: number) => ['documents', 'recent', limit] as const,
     detail: (id: string) => ['documents', 'detail', id] as const,
+    versions: (id: string) => ['documents', 'versions', id] as const,
   },
   generation: {
     all: ['generation'] as const,
