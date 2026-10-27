@@ -1187,6 +1187,18 @@ figure.doc-block--image-right {
     overflow: visible !important;
   }
 
+  /* The editor locks the shell to the screen height for scrolling; print
+     must release it, or only the first screenful of pages is printed. */
+  .app-shell,
+  .app-shell--editor,
+  .app-shell__body--editor,
+  .app-shell__main--editor {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   .editor-workspace {
     display: block !important;
     min-height: 0 !important;
