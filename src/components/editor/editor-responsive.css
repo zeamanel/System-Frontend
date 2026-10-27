@@ -70,12 +70,16 @@
     flex-shrink: 0;
   }
 
-  /* Print and Save first: the most-used actions never scroll out of view. */
+  /* Print, Save and History first: the most-used actions never scroll out of view. */
   .editor-toolbar__group--end > .editor-toolbar__print {
-    order: -2;
+    order: -3;
   }
 
   .editor-toolbar__group--end > .editor-toolbar__save {
+    order: -2;
+  }
+
+  .editor-toolbar__group--end > .editor-toolbar__history {
     order: -1;
   }
 

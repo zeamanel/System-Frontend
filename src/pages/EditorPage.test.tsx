@@ -165,4 +165,26 @@ describe('EditorPage', () => {
     expect(screen.getAllByText('Dawit Haile').length).toBeGreaterThan(0)
     expect(screen.getByTestId('shared-copy')).toBeInTheDocument()
   })
+
+  it('shows the version history and restores an earlier version', async () => {
+    const docs = getRepositories().documents
+    const created = await docs.create({ title: 'Invitation', templateId: 'letter', language: 'en', content: 'Original wording.' })
+    await docs.update(created.id, { content: 'Rewritten wording.' })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderEditor(`/documents/${created.id}`)
+
+    expect((await screen.findAllByText('Rewritten wording.')).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByTestId('editor-history'))
+    expect(await screen.findByText('Version history')).toBeInTheDocument()
+    expect(await screen.findByText('Version 2')).toBeInTheDocument()
+    expect(screen.getByText('Current')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('restore-version-1'))
+    expect(await screen.findByText('Restored version 1.')).toBeInTheDocument()
+    expect((await screen.findAllByText('Original wording.')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Rewritten wording.')).toBeNull()
+    const stored = await docs.get(created.id)
+    expect(stored?.content).toContain('Original wording.')
+    expect((await docs.versions(created.id)).map((v) => v.version)).toEqual([3, 2, 1])
+  })
 })

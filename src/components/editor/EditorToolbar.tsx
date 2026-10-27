@@ -10,6 +10,7 @@ import {
   CheckIcon,
   DownloadIcon,
   EyeIcon,
+  HistoryIcon,
   PanelLeftIcon,
   PanelRightIcon,
   PrinterIcon,
@@ -23,6 +24,8 @@ export interface EditorToolbarProps {
   languageLabel: string
   onTogglePreview: () => void
   onSave: () => void
+  /** Opens the version history (absent: no history button). */
+  onShowHistory?: () => void
   onReloadLatest: () => void
   onOverwrite: () => void
   onPrint: () => void
@@ -64,6 +67,7 @@ export function EditorToolbar({
   languageLabel,
   onTogglePreview,
   onSave,
+  onShowHistory,
   onReloadLatest,
   onOverwrite,
   onPrint,
@@ -168,6 +172,7 @@ export function EditorToolbar({
         previewMode,
         onTogglePreview,
         onSave,
+        onShowHistory,
         onPrint,
         onExportServerPdf,
         exportPending,
@@ -191,6 +196,7 @@ function renderToolbarEnd(props: {
   previewMode: boolean
   onTogglePreview: () => void
   onSave: () => void
+  onShowHistory?: () => void
   onPrint: () => void
   onExportServerPdf: () => void
   exportPending: boolean
@@ -234,6 +240,19 @@ function renderToolbarEnd(props: {
           {props.previewMode ? t('editor.previewOff') : t('editor.preview')}
         </span>
       </Button>
+
+      {props.onShowHistory ? (
+        <Button
+          variant="ghost"
+          icon={<HistoryIcon size={16} />}
+          onClick={props.onShowHistory}
+          aria-label={t('editor.history')}
+          className="editor-toolbar__history"
+          data-testid="editor-history"
+        >
+          <span className="editor-toolbar__label">{t('editor.history')}</span>
+        </Button>
+      ) : null}
 
       <Button
         variant="secondary"

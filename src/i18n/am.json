@@ -814,5 +814,16 @@
   "shared.print": "አትም / በPDF አስቀምጥ",
   "shared.copy": "የራሴን ቅጂ ፍጠር",
   "shared.copyFailed": "ቅጂው ሊፈጠር አልቻለም። እንደገና ይሞክሩ።",
-  "shared.empty": "ይህ ሰነድ እስካሁን ይዘት የለውም።"
+  "shared.empty": "ይህ ሰነድ እስካሁን ይዘት የለውም።",
+  "editor.history": "ታሪክ",
+  "history.title": "የስሪት ታሪክ",
+  "history.hint": "የዚህ ሰነድ የተቀመጡ ስሪቶች፣ አዲሱ በመጀመሪያ። አንዱን ሲመልሱ የአሁኑ ጽሑፍ ይሆናል፤ አሁን ያለዎት በታሪክ ውስጥ ይቀመጣል።",
+  "history.current": "የአሁኑ",
+  "history.version": "ስሪት {version}",
+  "history.restore": "መልስ",
+  "history.confirmRestore": "ስሪት {version}ን ይመልሱ? የአሁኑ ጽሑፍዎ በታሪክ ውስጥ ይቀመጣል።",
+  "history.restored": "ስሪት {version} ተመልሷል።",
+  "history.restoreFailed": "ያ ስሪት ሊመለስ አልቻለም። እንደገና ይሞክሩ።",
+  "history.saveFirst": "የቅርብ ጊዜ ለውጦችዎ ሊቀመጡ ስላልቻሉ ምንም አልተመለሰም። እንደገና ይሞክሩ።",
+  "history.empty": "እስካሁን ቀደም ያሉ ስሪቶች የሉም። ሲያስተካክሉ ስሪቶች ይቀመጣሉ።"
 }

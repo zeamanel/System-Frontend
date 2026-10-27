@@ -60,6 +60,9 @@ import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../li
 import { LANGUAGES } from '../../lib/languages'
 import { Button, Dialog, useToast } from '../ui'
 import { A4PagesCanvas } from './A4PagesCanvas'
+import { VersionHistoryDialog } from './VersionHistoryDialog'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../../lib/query-keys'
 import { BlockRefinePanel } from './BlockRefinePanel'
 import { EditorToolbar } from './EditorToolbar'
 import { FormatPanel, type FormatPanelCallbacks } from './FormatPanel'
@@ -142,6 +145,8 @@ export function EditorWorkspace({
   const focusRef = useRef<EditableRef | null>(null)
   const pendingFocusRef = useRef<{ ref: EditableRef; position: 'start' | 'end' } | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const queryClient = useQueryClient()
   const [imageError, setImageError] = useState<string | null>(null)
   // Format stays the default tab; the panel switches to the assistant when
   // it has something to say after a generation.
@@ -1022,6 +1027,7 @@ export function EditorWorkspace({
         }
         onTogglePreview={() => setPreviewMode((current) => !current)}
         onSave={() => void editor.save()}
+        onShowHistory={() => setHistoryOpen(true)}
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
@@ -1141,6 +1147,22 @@ export function EditorWorkspace({
         <SectionsOutline outline={outline} onSelect={handleOutlineSelect} />
         </GuidedFieldsPanel>
       </aside>
+
+      <VersionHistoryDialog
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        documentId={doc.id}
+        currentVersion={editor.savedVersion}
+        beforeRestore={async () => {
+          if (!(await editor.saveAll())) throw new Error('unsaved')
+        }}
+        onRestored={(restored, version) => {
+          editor.adoptSnapshot(restored)
+          queryClient.setQueryData(queryKeys.documents.detail(restored.id), restored)
+          toast.push(t('history.restored', { version: String(version) }), { variant: 'success' })
+        }}
+        onFailed={(reason) => toast.push(t(reason === 'save' ? 'history.saveFirst' : 'history.restoreFailed'), { variant: 'error' })}
+      />
 
       <A4PagesCanvas
         model={model}

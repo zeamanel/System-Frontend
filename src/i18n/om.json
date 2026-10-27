@@ -814,5 +814,16 @@
   "shared.print": "Print / Save as PDF",
   "shared.copy": "Make my own copy",
   "shared.copyFailed": "The copy could not be made. Try again.",
-  "shared.empty": "This document has no content yet."
+  "shared.empty": "This document has no content yet.",
+  "editor.history": "History",
+  "history.title": "Version history",
+  "history.hint": "Saved versions of this document, newest first. Restoring one makes it the current text; what you have now stays in the history.",
+  "history.current": "Current",
+  "history.version": "Version {version}",
+  "history.restore": "Restore",
+  "history.confirmRestore": "Restore version {version}? Your current text stays in the history.",
+  "history.restored": "Restored version {version}.",
+  "history.restoreFailed": "That version could not be restored. Try again.",
+  "history.saveFirst": "Your latest changes could not be saved, so nothing was restored. Try again.",
+  "history.empty": "No earlier versions yet. Versions are kept as you edit."
 }
