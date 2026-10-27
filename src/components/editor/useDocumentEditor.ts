@@ -37,6 +37,9 @@ import { diffBlocks, sameBlock, type TrackedChange, type RevertResult } from '..
 export type { TrackedChange, RevertResult }
 import type { DocumentDetailRecord } from '../../lib/repositories'
 
+/** Longest flush() waits for an in-flight save before giving up. */
+const FLUSH_WAIT_MS = 15_000
+
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'conflict'
 
 const AUTOSAVE_DELAY_MS = 1500
@@ -422,11 +425,24 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     await saveRef.current(true)
   }, [])
 
-  const flush = useCallback(async (): Promise<void> => {
+  /**
+   * Saves pending edits now, waiting for a save already in flight (and the
+   * follow-up save it queues). Resolves true when the server has everything.
+   */
+  const flush = useCallback(async (): Promise<boolean> => {
     runFieldSync()
-    if (dirtyRef.current || savingRef.current) {
-      await saveRef.current()
+    const settle = async (): Promise<void> => {
+      const startedAt = Date.now()
+      while (savingRef.current && Date.now() - startedAt < FLUSH_WAIT_MS) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
     }
+    await settle()
+    if (dirtyRef.current) {
+      await saveRef.current()
+      await settle()
+    }
+    return !dirtyRef.current && !savingRef.current
   }, [runFieldSync])
 
   const saveNow = useCallback((): Promise<void> => saveRef.current(), [])

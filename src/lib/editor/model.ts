@@ -6,6 +6,7 @@
  * serialization of the model, and replaces brittle string-replacement editing.
  */
 
+import { DesignContentError, isDesignContent } from './document-kind'
 import type {
   Block,
   DocumentModel,
@@ -1388,6 +1389,8 @@ export function parseDocumentContent(
   language = 'en',
 ): DocumentModel | null {
   if (typeof content !== 'string' || content.trim() === '') return null
+  // Never convert a design into paragraphs (autosave would overwrite it).
+  if (isDesignContent(content)) throw new DesignContentError()
 
   const trimmed = content.trim()
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -1459,6 +1462,7 @@ export function deserializeModel(
   if (typeof content === 'string') {
     return parseDocumentContent(content, language)
   }
+  if (isDesignContent(content)) throw new DesignContentError()
   if (isRecord(content) || Array.isArray(content)) {
     return mapBackendPayload(content, language)
   }

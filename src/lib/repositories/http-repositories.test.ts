@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHttpRepositories } from './http-repositories'
 import { createFixtureRepositories } from './fixture-repositories'
-import { DocumentConflictError } from './errors'
+import { DocumentConflictError, ExportUnavailableError } from './errors'
 import { env } from '../../config/env'
 import { consumePendingNotes } from '../assistant/pending-notes'
 
@@ -89,6 +89,42 @@ describe('HttpDocumentsRepository', () => {
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer test-token')
   })
 
+  it('maps the document kind, treating records without one as text', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse([documentRecord({ id: 'd1' }), documentRecord({ id: 'd2', kind: 'design' })]),
+    )
+    const repos = createHttpRepositories()
+    const documents = await repos.documents.list()
+    expect(documents.map((d) => d.kind)).toEqual(['text', 'design'])
+  })
+
+  it('lists shared documents, maps who shared them, and changes sharing', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse([documentRecord({ shared: true, access: 'view', ownerName: 'Selam Tesfaye' }), documentRecord({ id: 'd2', shared: true })]),
+    )
+    const repos = createHttpRepositories()
+    const shared = await repos.documents.listShared({ search: 'price' })
+    expect(requestInfo(0).url).toContain('scope=shared')
+    expect(requestInfo(0).url).toContain('search=price')
+    expect(shared.map((d) => [d.id, d.access, d.ownerName, d.shared])).toEqual([
+      ['d1', 'view', 'Selam Tesfaye', true],
+      ['d2', 'owner', undefined, true],
+    ])
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(documentRecord({ shared: true, content: null })))
+    const updated = await repos.documents.setSharing('d1', true)
+    expect(requestInfo(1).url).toBe(`${env.apiBaseUrl}/documents/d1/sharing`)
+    expect(requestInfo(1).init.method).toBe('PUT')
+    expect(requestInfo(1).init.body).toBe(JSON.stringify({ shared: true }))
+    expect(updated.shared).toBe(true)
+
+    // An older backend without sharing: nothing is shared.
+    fetchMock.mockResolvedValueOnce(notFound())
+    expect(await repos.documents.listShared()).toEqual([])
+    fetchMock.mockResolvedValueOnce(jsonResponse([documentRecord()]))
+    expect(await repos.documents.listShared()).toEqual([])
+  })
+
   it('sends the Idempotency-Key header and parsed content on create', async () => {
     fetchMock.mockResolvedValue(jsonResponse(documentRecord(), { status: 201 }))
     const repos = createHttpRepositories()
@@ -174,7 +210,32 @@ describe('HttpGenerationRepository', () => {
     expect(JSON.parse(init.body as string).templateId).toBe('template-9')
   })
 
-  it('creates the document exactly once on completion with a deterministic key', async () => {
+  it('opens the document the server created and never creates one itself', async () => {
+    const assistantNotes = { summary: 'Drafted.', questions: [], assumptions: [], warnings: [] }
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if ((init?.method ?? 'GET') === 'POST' && url.endsWith('/ai/generate')) {
+        return jsonResponse({ id: 'job-s', status: 'pending', documentId: 'server-doc' }, { status: 202 })
+      }
+      return jsonResponse({
+        id: 'job-s',
+        status: 'completed',
+        documentId: 'server-doc',
+        content: '{"blocks":[]}',
+        assistantNotes,
+      })
+    })
+    const repos = createHttpRepositories()
+    await repos.generation.createRequest({ documentType: 't', answers: {}, language: 'en' })
+
+    const job = await repos.generation.getRequest('job-s')
+
+    expect(job.documentId).toBe('server-doc')
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/documents'))).toBe(false)
+    expect(consumePendingNotes('server-doc')?.notes.summary).toBe('Drafted.')
+  })
+
+  it('older backends: creates the document exactly once on completion with a deterministic key', async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       const method = init?.method ?? 'GET'
@@ -275,6 +336,78 @@ const templateRecord = (title: string, popularity: number) => ({
   popularity,
   createdAt: '2026-10-13T16:55:14.525Z',
   updatedAt: '2026-10-13T16:55:14.525Z',
+})
+
+describe('HttpExportsRepository', () => {
+  it('returns the export link and maps an unsupported format or missing service to ExportUnavailableError', async () => {
+    const repos = createHttpRepositories()
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ id: 'e1', status: 'completed', path: '/exports/e1/download?token=t' }, { status: 201 }),
+    )
+    expect(await repos.exports.createRequest({ documentId: 'd1', format: 'pdf' })).toMatchObject({ path: '/exports/e1/download?token=t' })
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: { code: 'UNPROCESSABLE_ENTITY', message: 'Only PDF' } }, { status: 422 }))
+    await expect(repos.exports.createRequest({ documentId: 'd1', format: 'docx' })).rejects.toBeInstanceOf(ExportUnavailableError)
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: { code: 'NOT_FOUND', message: 'Route POST /api/v1/exports not found' } }, { status: 404 }),
+    )
+    await expect(repos.exports.createRequest({ documentId: 'd1', format: 'pdf' })).rejects.toBeInstanceOf(ExportUnavailableError)
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: { code: 'NOT_FOUND', message: 'Document d1 not found' } }, { status: 404 }))
+    await expect(repos.exports.createRequest({ documentId: 'd1', format: 'pdf' })).rejects.not.toBeInstanceOf(ExportUnavailableError)
+  })
+})
+
+describe('HttpOrganizationRepository', () => {
+  const record = (overrides: Record<string, unknown> = {}) => ({
+    id: 'org-1',
+    name: 'Abebe Print',
+    legalName: '',
+    tin: '',
+    type: 'print_shop',
+    address: '',
+    phone: '',
+    email: '',
+    role: 'owner',
+    letterhead: { headerLines: [], footerLine: '' },
+    bankDetails: { bankName: '', accountNumber: '', swift: '' },
+    signatories: [],
+    updatedAt: '2026-10-26T00:00:00.000Z',
+    ...overrides,
+  })
+
+  it('returns null without an organization and creates one on first save', async () => {
+    fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (method === 'GET') return notFound()
+      if (method === 'POST') return jsonResponse(record(), { status: 201 })
+      return jsonResponse(record({ signatories: [{ id: 's1', fullName: 'Abebe', title: '' }] }))
+    })
+    const repos = createHttpRepositories()
+    expect(await repos.organization.get()).toBeNull()
+
+    const saved = await repos.organization.update({
+      ...record(),
+      signatories: [{ fullName: 'Abebe', title: '' }],
+    } as never)
+    const calls = fetchMock.mock.calls.map(([url, init]) => `${(init as RequestInit | undefined)?.method ?? 'GET'} ${String(url).replace(env.apiBaseUrl, '')}`)
+    expect(calls).toEqual(['GET /organization', 'GET /organization', 'POST /organization', 'PUT /organization/signatories'])
+    expect(saved.signatories).toEqual([{ fullName: 'Abebe', title: '' }])
+    const body = JSON.parse(fetchMock.mock.calls[2][1].body as string)
+    expect(body).not.toHaveProperty('signatories')
+    expect(body).not.toHaveProperty('role')
+  })
+
+  it('patches an existing organization and leaves unchanged signatories alone', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(record({ role: 'admin' })))
+    const repos = createHttpRepositories()
+    const current = await repos.organization.get()
+    expect(current?.role).toBe('admin')
+    await repos.organization.update({ ...current!, phone: '0911' })
+    const methods = fetchMock.mock.calls.map(([, init]) => (init as RequestInit | undefined)?.method ?? 'GET')
+    expect(methods).toEqual(['GET', 'GET', 'PATCH'])
+  })
 })
 
 describe('HttpTemplatesRepository', () => {

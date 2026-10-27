@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { askAssistant } from '../../lib/assistant/client'
+import { runDocumentCheck, type DocumentCheckResult } from '../../lib/document-check/check'
 import { applyTextProposal, blockPlainText, findPlaceholders, toAssistantBlocks } from '../../lib/assistant/context'
 import type {
   AssistantMessage,
@@ -84,6 +85,7 @@ export function useAssistant({
 }: UseAssistantParams) {
   const [messages, setMessages] = useState<AssistantMessage[]>(() => readThread(documentId))
   const [sending, setSending] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [unread, setUnread] = useState(0)
   const editorRef = useRef(editor)
   editorRef.current = editor
@@ -332,6 +334,33 @@ export function useAssistant({
     [messages, update],
   )
 
+  /**
+   * Run the pre-print check on the current (possibly unsaved) document.
+   * `post` adds the result to the thread; the print flow posts it only when
+   * the user chooses to review the problems.
+   */
+  const runCheck = useCallback(
+    async ({ post = true }: { post?: boolean } = {}): Promise<DocumentCheckResult> => {
+      setChecking(true)
+      try {
+        const { model, answers } = editorRef.current
+        const result = await runDocumentCheck({ documentId, model, answers, questions })
+        if (post) append({ id: newMessageId(), createdAt: Date.now(), role: 'assistant', kind: 'check', result })
+        return result
+      } finally {
+        setChecking(false)
+      }
+    },
+    [append, documentId, questions],
+  )
+
+  const postCheck = useCallback(
+    (result: DocumentCheckResult): void => {
+      append({ id: newMessageId(), createdAt: Date.now(), role: 'assistant', kind: 'check', result })
+    },
+    [append],
+  )
+
   const clearThread = useCallback((): void => {
     setMessages([])
     setUnread(0)
@@ -342,6 +371,7 @@ export function useAssistant({
   return {
     messages,
     sending,
+    checking,
     unread,
     markRead,
     send,
@@ -353,6 +383,8 @@ export function useAssistant({
     undoFieldSync,
     answerQuestion,
     applyFieldUpdate,
+    runCheck,
+    postCheck,
     clearThread,
     /** Current plain text of a block (for diffs / stale checks). */
     currentBlockText: (blockId: string): string | null => {

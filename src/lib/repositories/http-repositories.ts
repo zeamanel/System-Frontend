@@ -10,6 +10,7 @@ import {
   getDocument as fetchDocumentEndpoint,
   listDocumentVersions as fetchDocumentVersionsEndpoint,
   listDocuments as fetchDocumentsEndpoint,
+  setDocumentSharing,
   renameDocument as renameDocumentEndpoint,
   restoreDocument as restoreDocumentEndpoint,
   restoreDocumentVersion as restoreDocumentVersionEndpoint,
@@ -28,7 +29,7 @@ import {
   waitForAuthState,
 } from '../api/auth-store'
 import { getFirebaseAuth } from '../firebase/client'
-import { DocumentConflictError } from './errors'
+import { DocumentConflictError, ExportUnavailableError } from './errors'
 import { matchesCategory, toSummary, toDetail } from './fixtures/template-filtering'
 import { FIXTURE_TEMPLATES } from '../fixtures/templates'
 import type {
@@ -42,8 +43,10 @@ import type {
   FavoritesRepository,
   GenerationRepository,
   NotificationsRepository,
+  OrganizationMember,
   OrganizationProfile,
   OrganizationRepository,
+  OrganizationRole,
   PaginatedResult,
   PreferencesRepository,
   Repositories,
@@ -59,6 +62,9 @@ import type {
   TemplatesRepository,
   UpdateDocumentPayload,
   UsageRepository,
+  MediaKind,
+  MediaRecord,
+  MediaRepository,
 } from './types'
 import type {
   ExportRequest,
@@ -72,6 +78,18 @@ import type {
 import type { CountryCode } from '../geo'
 import type { DocumentLanguage } from '../languages'
 import { stashPendingNotes } from '../assistant/pending-notes'
+import {
+  addOrganizationMember,
+  createOrganization as createOrganizationEndpoint,
+  getOrganization as getOrganizationEndpoint,
+  listOrganizationMembers,
+  removeOrganizationMember,
+  replaceSignatories as replaceSignatoriesEndpoint,
+  setOrganizationMemberRole,
+  updateOrganization as updateOrganizationEndpoint,
+} from '../api/endpoints/organization'
+import { normalizeOrganization } from '../organization/profile'
+import { deleteMedia, getMediaBlob, uploadMedia } from '../api/endpoints/media'
 
 /**
  * API-backed repositories over the live Cloud Run backend
@@ -161,10 +179,14 @@ function mapDocument(record: DocumentApiRecord): DocumentRecord {
     templateId: record.templateId ?? null,
     templateTitle: record.templateTitle ?? '',
     status: record.status,
+    kind: record.kind === 'design' ? 'design' : 'text',
     language: record.language,
     version: record.version,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    shared: record.shared === true,
+    access: record.access === 'view' ? 'view' : 'owner',
+    ...(record.access === 'view' ? { ownerName: record.ownerName ?? '' } : {}),
   }
 }
 
@@ -422,6 +444,7 @@ class HttpDocumentsRepository implements DocumentsRepository {
   async create(payload: CreateDocumentPayload): Promise<DocumentRecord> {
     const record = await createDocumentEndpoint(
       {
+        ...(payload.kind ? { kind: payload.kind } : {}),
         templateId: payload.templateId,
         documentTypeId: payload.documentTypeId,
         title: payload.title,
@@ -495,6 +518,17 @@ class HttpDocumentsRepository implements DocumentsRepository {
   async delete(id: string): Promise<void> {
     await deleteDocumentEndpoint(id)
   }
+
+  async listShared(options?: { search?: string }): Promise<DocumentRecord[]> {
+    // An older backend ignores `scope` and returns the caller's own documents
+    // without a `shared` flag: only records marked shared count.
+    const records = await nullOnNotFound(() => fetchDocumentsEndpoint({ search: options?.search, limit: 200, scope: 'shared' }))
+    return (records ?? []).filter((record) => record.shared === true).map(mapDocument)
+  }
+
+  async setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord> {
+    return mapDocumentDetail(await setDocumentSharing(id, shared))
+  }
 }
 
 /**
@@ -505,7 +539,16 @@ class HttpDocumentsRepository implements DocumentsRepository {
  */
 class HttpExportsRepository implements ExportsRepository {
   async createRequest(input: ExportRequestInput): Promise<ExportRequest> {
-    return apiClient.post<ExportRequest>('/exports', input, { auth: 'required' })
+    try {
+      return await apiClient.post<ExportRequest>('/exports', input, { auth: 'required' })
+    } catch (error) {
+      // 422: format not offered. A 404 for the route itself: no export service on this backend.
+      if (error instanceof ApiError && error.status === 422) throw new ExportUnavailableError(error.message)
+      if (error instanceof ApiError && error.status === 404 && error.message.startsWith('Route ')) {
+        throw new ExportUnavailableError()
+      }
+      throw error
+    }
   }
 }
 
@@ -600,17 +643,61 @@ class HttpNotificationsRepository implements NotificationsRepository {
  * stub throws instead of faking a profile; the organization page shows its
  * existing error state.
  */
+/**
+ * Organization profile over /organization. A user without an organization
+ * gets null; the first save creates it (the user becomes its owner).
+ * Signatories are saved only when they changed.
+ */
 class HttpOrganizationRepository implements OrganizationRepository {
   async get(): Promise<OrganizationProfile | null> {
-    throw new Error(
-      'Organization profiles require backend endpoints that are not implemented yet (backend Phase 6).',
-    )
+    const record = await nullOnNotFound(() => getOrganizationEndpoint())
+    return record ? normalizeOrganization(record) : null
   }
 
-  async update(_profile: OrganizationProfile): Promise<OrganizationProfile> {
-    throw new Error(
-      'Organization profiles require backend endpoints that are not implemented yet (backend Phase 6).',
-    )
+  async update(profile: OrganizationProfile): Promise<OrganizationProfile> {
+    // The logo changes only through setLogo, so a form opened before a logo change never reverts it.
+    const { signatories, role: _role, logoMediaId: _logo, ...fields } = normalizeOrganization(profile)
+    const existing = await nullOnNotFound(() => getOrganizationEndpoint())
+    let record = existing ? await updateOrganizationEndpoint(fields) : await createOrganizationEndpoint(fields)
+    const current = record.signatories.map(({ fullName, title }) => ({ fullName, title }))
+    if (JSON.stringify(current) !== JSON.stringify(signatories)) {
+      record = await replaceSignatoriesEndpoint(signatories)
+    }
+    return normalizeOrganization(record)
+  }
+
+  async listMembers(): Promise<OrganizationMember[] | null> {
+    return nullOnNotFound(() => listOrganizationMembers())
+  }
+
+  addMember(email: string, role: 'admin' | 'member'): Promise<OrganizationMember[]> {
+    return addOrganizationMember(email, role)
+  }
+
+  setMemberRole(userId: string, role: OrganizationRole): Promise<OrganizationMember[]> {
+    return setOrganizationMemberRole(userId, role)
+  }
+
+  removeMember(userId: string): Promise<void> {
+    return removeOrganizationMember(userId)
+  }
+
+  async setLogo(mediaId: string | null): Promise<OrganizationProfile> {
+    return normalizeOrganization(await updateOrganizationEndpoint({ logoMediaId: mediaId }))
+  }
+}
+
+class HttpMediaRepository implements MediaRepository {
+  upload(file: Blob, kind: MediaKind, fileName: string): Promise<MediaRecord> {
+    return uploadMedia(file, kind, fileName)
+  }
+
+  get(id: string): Promise<Blob> {
+    return getMediaBlob(id)
+  }
+
+  remove(id: string): Promise<void> {
+    return deleteMedia(id)
   }
 }
 
@@ -685,20 +772,23 @@ class HttpSessionRepository implements SessionRepository {
 /**
  * Guided-flow generation over POST /ai/generate + polling.
  *
- * Contract bridge: the backend returns raw `content` on completion, while the
- * frontend flow expects the completed job to reference a created document.
- * This repository creates that document once (deterministic idempotency key
- * derived from the job id, so poll races and replays can never duplicate it)
- * and returns its id — components stay identical in both data modes. For
- * in-place regeneration (input.documentId) the backend updates the document
- * server-side, so the input documentId is echoed back and the editor
- * refetches.
+ * The backend creates the document together with the job and returns its id
+ * (also on every poll); on completion it has already written the content, so
+ * the flow just opens that document. For in-place regeneration
+ * (input.documentId) the same document is updated server-side.
+ *
+ * Fallback for backends that do not return a documentId yet: this repository
+ * creates the document once from the returned content (deterministic
+ * idempotency key derived from the job id, so poll races and replays can
+ * never duplicate it).
  */
 interface GenerationJobContext {
   templateId: string
   language: string
   answers: Record<string, string>
   inputDocumentId?: string
+  /** Document the server created for this job. */
+  serverDocumentId?: string
   createdDocumentId?: string
   /** Assistant notes already handed to the editor (avoid repeats on re-poll). */
   notesHandedOff?: boolean
@@ -744,6 +834,7 @@ class HttpGenerationRepository implements GenerationRepository {
       language: input.language,
       answers: input.answers,
       inputDocumentId: input.documentId,
+      serverDocumentId: record.documentId,
     })
     return { id: record.id, status: record.status }
   }
@@ -760,16 +851,19 @@ class HttpGenerationRepository implements GenerationRepository {
     if (job.status !== 'completed') return result
 
     const context = readJobContext(id)
-    if (!context) return result
-    if (context.inputDocumentId) {
-      result.documentId = context.inputDocumentId
-      if (!context.notesHandedOff && job.assistantNotes) {
-        stashPendingNotes(context.inputDocumentId, id, job.assistantNotes)
-        context.notesHandedOff = true
-        writeJobContext(id, context)
+    const targetDocumentId = context?.inputDocumentId ?? job.documentId ?? context?.serverDocumentId
+    if (targetDocumentId) {
+      result.documentId = targetDocumentId
+      if (job.assistantNotes && !context?.notesHandedOff) {
+        stashPendingNotes(targetDocumentId, id, job.assistantNotes)
+        if (context) {
+          context.notesHandedOff = true
+          writeJobContext(id, context)
+        }
       }
       return result
     }
+    if (!context) return result
     if (!context.createdDocumentId) {
       const document = await createDocumentEndpoint(
         {
@@ -935,6 +1029,7 @@ export function createHttpRepositories(options?: {
     favorites,
     notifications: new HttpNotificationsRepository(),
     organization: new HttpOrganizationRepository(),
+    media: new HttpMediaRepository(),
     usage: new HttpUsageRepository(),
     session: new HttpSessionRepository(),
     preferences: new HttpPreferencesRepository(),

@@ -132,8 +132,11 @@ export interface ExportRequestInput {
 export interface ExportRequest {
   id: string
   status: 'queued' | 'processing' | 'completed' | 'failed'
-  /** Download URL once status is 'completed'. */
+  /** Download URL once status is 'completed' (absolute; short-lived). */
   url?: string
+  /** Download path relative to the API base URL (preferred over `url`). */
+  path?: string
+  expiresAt?: string
   error?: string
 }
 

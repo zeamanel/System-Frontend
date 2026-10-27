@@ -105,6 +105,21 @@ describe('Assistant panel', () => {
     expect(screen.getAllByText(/Deposit: ______ Birr\./).length).toBeGreaterThan(0)
   })
 
+  it('"Check for problems" runs the document check, without the AI', async () => {
+    const { doc, template } = await createRentalDocument('Rent is payable by [payment deadline]. Deposit: ______ Birr.')
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    askAssistantMock.mockClear()
+
+    fireEvent.click(screen.getByTestId('assistant-check'))
+
+    const result = await screen.findByTestId('assistant-check-result')
+    expect(result).toHaveTextContent(/quick check only/i)
+    expect(result).toHaveTextContent('“[payment deadline]” still needs to be filled in.')
+    expect(result).toHaveTextContent(/blank line/i)
+    expect(askAssistantMock).not.toHaveBeenCalled()
+  })
+
   it('applies a proposal only on Apply, reports the save state, and undoes it', async () => {
     const { doc, template } = await createRentalDocument('The tenant will pay rent.')
     renderWorkspace(doc, template)

@@ -59,8 +59,10 @@ export type QueryParams = Record<string, string | number | boolean | undefined |
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
-  /** JSON-serialisable request body. */
+  /** JSON-serialisable request body, or FormData sent as multipart. */
   body?: unknown
+  /** `'blob'` returns the response body as a Blob (images). */
+  responseType?: 'json' | 'blob'
   /** Query parameters; undefined/null values are skipped. */
   query?: QueryParams
   /** Extra headers merged over the defaults. */
@@ -205,7 +207,8 @@ async function executeFetch(
     Accept: 'application/json',
     ...extraHeaders,
   }
-  if (body !== undefined) {
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData
+  if (body !== undefined && !isForm) {
     headers['Content-Type'] = 'application/json'
   }
   const token = await getCurrentIdToken(forceRefresh)
@@ -219,7 +222,7 @@ async function executeFetch(
     return await fetch(buildUrl(path, query, baseUrl), {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: isForm ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     })
   } catch (error) {
@@ -240,6 +243,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     baseUrl,
     auth = 'optional',
     authRecovery = true,
+    responseType = 'json',
   } = options
 
   let response = await executeFetch(
@@ -290,6 +294,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (response.status === 204) {
     return undefined as T
+  }
+  if (responseType === 'blob') {
+    return (await response.blob()) as T
   }
 
   const contentType = response.headers.get('content-type')

@@ -1,3 +1,4 @@
+import type { DocumentCheckResult } from '../document-check/check'
 import type { TrackedChange } from '../editor/tracked-change'
 
 /** What the assistant says right after it drafts a document (backend contract). */
@@ -63,6 +64,7 @@ export type AssistantMessage =
       status: 'applied' | 'undone'
     })
   | (MessageBase & { role: 'system'; kind: 'notice'; text: string; tone: 'info' | 'error' })
+  | (MessageBase & { role: 'assistant'; kind: 'check'; result: DocumentCheckResult })
 
 /** Plain-text projection of one block, as sent to the assistant. */
 export interface AssistantContextBlock {

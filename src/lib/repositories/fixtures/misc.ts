@@ -80,6 +80,11 @@ export const DEFAULT_ORGANIZATION_FIXTURE: OrganizationProfile = {
   address: 'Bole Road, Addis Ababa, Ethiopia',
   phone: '+251 91 234 5678',
   email: 'hello@tadessprint.example',
+  legalName: 'Tadesse Print Works PLC',
+  tin: '0012345678',
+  letterhead: { headerLines: ['Tadesse Print Works PLC', 'Bole Road, Addis Ababa'], footerLine: 'Tel +251 91 234 5678' },
+  bankDetails: { bankName: '', accountNumber: '', swift: '' },
+  signatories: [{ fullName: 'Tadesse Alemu', title: 'General Manager' }],
 }
 
 export const DEV_SESSION_USER: SessionUser = {

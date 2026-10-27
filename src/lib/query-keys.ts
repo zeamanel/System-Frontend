@@ -16,6 +16,7 @@ export const queryKeys = {
   documents: {
     all: ['documents'] as const,
     list: (search?: string) => ['documents', 'list', search ?? null] as const,
+    shared: (search?: string) => ['documents', 'shared', search ?? null] as const,
     recent: (limit: number) => ['documents', 'recent', limit] as const,
     detail: (id: string) => ['documents', 'detail', id] as const,
   },
@@ -31,9 +32,16 @@ export const queryKeys = {
   notifications: {
     all: ['notifications'] as const,
   },
+  features: ['features'] as const,
+  customers: {
+    all: ['customers'] as const,
+    list: (query: string) => ['customers', 'list', query] as const,
+  },
   organization: {
     all: ['organization'] as const,
+    members: ['organization', 'members'] as const,
   },
+  media: (id: string) => ['media', id] as const,
   usage: {
     all: ['usage'] as const,
   },

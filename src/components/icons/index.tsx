@@ -84,6 +84,22 @@ export function ChevronDownIcon({ size = 18, ...rest }: IconProps) {
   )
 }
 
+export function ChevronLeftIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  )
+}
+
+export function ChevronRightIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  )
+}
+
 export function ArrowLeftIcon({ size = 18, ...rest }: IconProps) {
   return (
     <svg {...svgProps(size)} {...rest}>
@@ -151,6 +167,17 @@ export function SparkIcon({ size = 18, ...rest }: IconProps) {
     <svg {...svgProps(size)} {...rest}>
       <path d="M12 3.5 13.9 9l5.6 2-5.6 2L12 18.5 10.1 13l-5.6-2 5.6-2L12 3.5Z" />
       <path d="M18.5 16.5 19.2 18.6 21.3 19.3 19.2 20 18.5 22.1 17.8 20 15.7 19.3 17.8 18.6Z" />
+    </svg>
+  )
+}
+
+export function UsersIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   )
 }

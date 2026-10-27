@@ -105,7 +105,7 @@ describe('EditorWorkspace', () => {
 
     window.sessionStorage.setItem('docuA4.test.documentSaveFail', 'true')
     await editFirstParagraph()
-    fireEvent.click(screen.getByRole('button', { name: /save|retry save/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^save$|retry save/i }))
 
     await waitFor(() => expect(saveStatus().dataset.status).toBe('error'))
     expect(screen.getByText('Save failed')).toBeInTheDocument()
@@ -221,16 +221,43 @@ describe('EditorWorkspace', () => {
     await waitFor(() => expect(printSpy).toHaveBeenCalled())
   })
 
+  it('asks before printing a document with problems, and can hand them to the assistant', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const created = await repos.documents.create({
+      title: 'Unfinished lease',
+      language: 'en',
+      answers: {},
+      content: 'The tenant [Tenant name] rents the premises.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    fireEvent.click(screen.getByRole('button', { name: /print/i }))
+    const dialog = await screen.findByTestId('print-check-dialog')
+    expect(dialog.textContent).toMatch(/\[Tenant name\]/)
+    expect(printSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('print-check-review'))
+    const result = await screen.findByTestId('assistant-check-result')
+    expect(result.textContent).toMatch(/fix before printing/i)
+    expect(printSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: /print/i }))
+    fireEvent.click(await screen.findByTestId('print-check-anyway'))
+    await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1))
+  })
+
   it('reports server PDF export honestly when the backend is missing', async () => {
     const { doc, template } = await loadDocument('doc-fixture-1')
     renderWorkspace(doc, template)
     await screen.findByTestId('editor-title-input')
 
     fireEvent.click(screen.getByRole('button', { name: /^export$/i }))
-    fireEvent.click(screen.getByRole('button', { name: /pdf \(server-rendered\)/i }))
+    fireEvent.click(screen.getByRole('button', { name: /download pdf/i }))
 
     const error = await screen.findByTestId('export-error')
-    expect(error.textContent).toMatch(/backend/i)
+    expect(error.textContent).toMatch(/needs the DocuA4 server/i)
     // The honest browser path remains available.
     expect(screen.getByRole('button', { name: /print \/ save as pdf/i })).toBeInTheDocument()
   })
@@ -364,7 +391,7 @@ describe('EditorWorkspace', () => {
     expect(fontSize).toHaveTextContent('10pt')
     expect(topMargin.value).toBe('15')
 
-    const letterhead = screen.getByRole('button', { name: /letterhead/i })
+    const letterhead = screen.getByRole('button', { name: /^(?!use organization).*letterhead/i })
     expect(letterhead).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(letterhead)
     expect(topMargin.value).toBe('38')

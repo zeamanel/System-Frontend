@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useI18n } from '../../i18n'
+import type { DocumentCheckIssue, DocumentCheckResult } from '../../lib/document-check/check'
 import { diffWords } from '../../lib/assistant/diff'
+import { useIssueText } from './check-issue-text'
 import type {
   AssistantMessage,
   AssistantOfflineInfo,
@@ -47,7 +49,7 @@ export function AssistantPanel({
     if (list && typeof list.scrollTo === 'function') {
       list.scrollTo({ top: list.scrollHeight })
     }
-  }, [assistant.messages.length, assistant.sending])
+  }, [assistant.messages.length, assistant.sending, assistant.checking])
 
   const submit = (text: string): void => {
     if (!text.trim() || assistant.sending) return
@@ -102,14 +104,18 @@ export function AssistantPanel({
             {t('assistant.sending')}
           </li>
         ) : null}
+        {assistant.checking ? (
+          <li className="assistant-msg assistant-msg--assistant assistant-msg--pending">{t('check.running')}</li>
+        ) : null}
       </ol>
 
       <div className="assistant-quick">
         <button
           type="button"
           className="assistant-chip"
-          disabled={assistant.sending}
-          onClick={() => submit(t('assistant.quick.reviewPrompt'))}
+          disabled={assistant.checking}
+          onClick={() => void assistant.runCheck()}
+          data-testid="assistant-check"
         >
           {t('assistant.quick.review')}
         </button>
@@ -261,6 +267,9 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
       )
     }
 
+    case 'check':
+      return <CheckResultView result={message.result} onShowBlock={onShowBlock} />
+
     case 'reply':
       return (
         <div className="assistant-reply" data-testid="assistant-reply">
@@ -305,6 +314,53 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
         </div>
       )
   }
+}
+
+function CheckResultView({
+  result,
+  onShowBlock,
+}: {
+  result: DocumentCheckResult
+  onShowBlock: (blockId: string) => void
+}) {
+  const { t } = useI18n()
+  const issueText = useIssueText()
+  const errors = result.issues.filter((issue) => issue.severity === 'error')
+  const warnings = result.issues.filter((issue) => issue.severity === 'warning')
+  const group = (label: string, issues: DocumentCheckIssue[], tone: 'error' | 'warning') =>
+    issues.length > 0 ? (
+      <div className={`assistant-notes__group assistant-check__group--${tone}`}>
+        <p className="assistant-notes__label">{label}</p>
+        <ul className="assistant-notes__list">
+          {issues.map((issue) => (
+            <li key={issue.id} className="assistant-check__issue">
+              <span>{issueText(issue)}</span>
+              {issue.blockId ? (
+                <button type="button" className="assistant-panel__link" onClick={() => onShowBlock(issue.blockId ?? '')}>
+                  {t('check.show')}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null
+
+  return (
+    <div className="assistant-notes assistant-check" data-testid="assistant-check-result">
+      <p className="assistant-notes__title">{t('check.title')}</p>
+      {result.local ? <p className="assistant-msg__notice assistant-msg__notice--info">{t('check.local')}</p> : null}
+      {result.issues.length === 0 ? (
+        <p className="assistant-msg__text">✓ {t('check.allGood')}</p>
+      ) : (
+        <p className="assistant-msg__text">
+          {t('check.summary', { errors: String(result.summary.errors), warnings: String(result.summary.warnings) })}
+        </p>
+      )}
+      {group(t('check.errors'), errors, 'error')}
+      {group(t('check.warnings'), warnings, 'warning')}
+    </div>
+  )
 }
 
 function OfflineView({ info, onShowBlock }: { info: AssistantOfflineInfo; onShowBlock: (blockId: string) => void }) {

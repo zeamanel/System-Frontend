@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '../../i18n'
+import { ToastProvider } from '../ui'
 import {
   GuidedFieldsPanel,
   ADDITIONAL_INSTRUCTIONS_FIELD_ID,
@@ -74,9 +76,13 @@ function renderPanel(props: Partial<React.ComponentProps<typeof GuidedFieldsPane
   return {
     user: userEvent.setup(),
     ...render(
-      <I18nProvider>
-        <GuidedFieldsPanel {...defaultProps} />
-      </I18nProvider>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <I18nProvider>
+          <ToastProvider>
+          <GuidedFieldsPanel {...defaultProps} />
+          </ToastProvider>
+        </I18nProvider>
+      </QueryClientProvider>,
     ),
     props: defaultProps,
   }
@@ -112,7 +118,9 @@ describe('GuidedFieldsPanel Independent Scroll Locking & Layout', () => {
 
   it('renders children inside the scrollable body', () => {
     render(
+      <QueryClientProvider client={new QueryClient()}>
       <I18nProvider>
+        <ToastProvider>
         <GuidedFieldsPanel
           template={mockTemplate}
           answers={{}}
@@ -128,7 +136,9 @@ describe('GuidedFieldsPanel Independent Scroll Locking & Layout', () => {
         >
           <div data-testid="nested-auxiliary-panel">Auxiliary Refine Panel</div>
         </GuidedFieldsPanel>
-      </I18nProvider>,
+        </ToastProvider>
+      </I18nProvider>
+      </QueryClientProvider>,
     )
 
     const body = screen.getByTestId('guided-fields-body')
@@ -390,4 +400,193 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
     // Previous customer's autocomplete suggestions are forgotten.
     expect(window.localStorage.getItem('docuA4.partyMemory.v1')).toBeNull()
   })
+
+  it('offers the organization name on organization fields, filled only on tap', async () => {
+    window.localStorage.clear()
+    const onAnswerChange = vi.fn()
+    renderPanel({
+      onAnswerChange,
+      template: {
+        ...mockTemplate,
+        questions: [{ id: 'employer_name', label: 'Employer', type: 'text', required: true }],
+      },
+    })
+    const chip = await screen.findByRole('button', { name: /from your organization: tadesse print works$/i })
+    expect(onAnswerChange).not.toHaveBeenCalled()
+    fireEvent.click(chip)
+    expect(onAnswerChange).toHaveBeenCalledWith('employer_name', 'Tadesse Print Works')
+  })
+
+  describe('saved customers', () => {
+    const saleTemplate: TemplateDetail = {
+      ...mockTemplate,
+      questions: [
+        { id: 'seller_name', label: 'Seller', type: 'text', required: true },
+        { id: 'buyer_name', label: 'Buyer', type: 'text', required: true },
+        {
+          id: 'buyer_phone',
+          label: 'Buyer phone',
+          type: 'text',
+          required: false,
+        },
+      ],
+    };
+
+    it('saves a customer only on request, then fills it into the chosen party', async () => {
+      window.localStorage.clear();
+      const onAnswerChange = vi.fn();
+      const { rerender, user } = renderPanel({
+        template: saleTemplate,
+        onAnswerChange,
+        answers: { buyer_name: 'Dawit Haile', buyer_phone: '0911223344' },
+      });
+
+      // Nothing is saved until the user asks.
+      expect(
+        JSON.parse(
+          window.localStorage.getItem('docuA4.fixture.customers') ?? '[]',
+        ),
+      ).toEqual([]);
+      const saveButtons = await screen.findAllByTestId('save-customer');
+      expect(saveButtons).toHaveLength(1);
+      await user.click(saveButtons[0]);
+      await waitFor(() => {
+        const saved = JSON.parse(
+          window.localStorage.getItem('docuA4.fixture.customers') ?? '[]',
+        ) as Array<{ name: string; phone: string }>;
+        expect(saved).toMatchObject([
+          { name: 'Dawit Haile', phone: '0911223344' },
+        ]);
+      });
+      // Already saved, nothing new to offer.
+      await waitFor(() =>
+        expect(screen.queryByTestId('save-customer')).not.toBeInTheDocument(),
+      );
+
+      // Use it for the seller on a fresh form.
+      rerender(
+        <QueryClientProvider client={new QueryClient()}>
+          <I18nProvider>
+            <ToastProvider>
+              <GuidedFieldsPanel
+                template={saleTemplate}
+                answers={{}}
+                onAnswerChange={onAnswerChange}
+                language='en'
+                onLanguageChange={vi.fn()}
+                hasContent={false}
+                generationPending={false}
+                generationFailed={false}
+                onGenerate={vi.fn()}
+                outline={[]}
+                onOutlineSelect={vi.fn()}
+              />
+            </ToastProvider>
+          </I18nProvider>
+        </QueryClientProvider>,
+      );
+      await user.click(
+        screen.getByRole('button', { name: /saved customers/i }),
+      );
+      const row = await screen.findByTestId('customer-row');
+      expect(row).toHaveTextContent('Dawit Haile');
+      await user.selectOptions(
+        screen.getByTestId('customer-target'),
+        'buyer_name',
+      );
+      onAnswerChange.mockClear();
+      await user.click(screen.getByRole('button', { name: 'Use' }));
+      expect(onAnswerChange).toHaveBeenCalledWith('buyer_name', 'Dawit Haile');
+      expect(onAnswerChange).toHaveBeenCalledWith('buyer_phone', '0911223344');
+      expect(onAnswerChange).not.toHaveBeenCalledWith(
+        'seller_name',
+        expect.anything(),
+      );
+    });
+
+    it('searches and forgets after confirmation', async () => {
+      window.localStorage.setItem(
+        'docuA4.fixture.customers',
+        JSON.stringify(
+          ['Abebe Kebede', 'Sara Haile'].map((name, index) => ({
+            id: `c${index}`,
+            name,
+            tin: '',
+            phone: '',
+            email: '',
+            address: '',
+            shared: false,
+            lastUsedAt: new Date(2026, 9, 26 - index).toISOString(),
+            expiresAt: new Date(2027, 9, 26).toISOString(),
+          })),
+        ),
+      );
+      const { user } = renderPanel({ template: saleTemplate });
+      await user.click(
+        screen.getByRole('button', { name: /saved customers/i }),
+      );
+      expect(await screen.findAllByTestId('customer-row')).toHaveLength(2);
+
+      await user.type(screen.getByTestId('customer-search'), 'sara');
+      await waitFor(() =>
+        expect(screen.getAllByTestId('customer-row')).toHaveLength(1),
+      );
+      expect(screen.getByTestId('customer-row')).toHaveTextContent(
+        'Sara Haile',
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Forget' }));
+      expect(screen.getByText('Forget Sara Haile?')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Keep' }));
+      expect(
+        JSON.parse(
+          window.localStorage.getItem('docuA4.fixture.customers') ?? '[]',
+        ),
+      ).toHaveLength(2);
+
+      await user.click(screen.getByRole('button', { name: 'Forget' }));
+      await user.click(screen.getAllByRole('button', { name: 'Forget' })[0]);
+      await waitFor(() => {
+        const left = JSON.parse(
+          window.localStorage.getItem('docuA4.fixture.customers') ?? '[]',
+        ) as Array<{ name: string }>;
+        expect(left.map((c) => c.name)).toEqual(['Abebe Kebede']);
+      });
+    });
+
+    it('adds the customer to the instructions for prompt-only documents', async () => {
+      window.localStorage.setItem(
+        'docuA4.fixture.customers',
+        JSON.stringify([
+          {
+            id: 'c1',
+            name: 'Abebe Kebede',
+            tin: '0012',
+            phone: '0911',
+            email: '',
+            address: 'Bole',
+            shared: false,
+            lastUsedAt: new Date().toISOString(),
+            expiresAt: new Date(2027, 9, 26).toISOString(),
+          },
+        ]),
+      );
+      const onAnswerChange = vi.fn();
+      const { user } = renderPanel({
+        template: { ...mockTemplate, questions: [] },
+        onAnswerChange,
+        answers: { additional_instructions: 'Make it formal.' },
+      });
+      await user.click(
+        screen.getByRole('button', { name: /saved customers/i }),
+      );
+      await user.click(
+        await screen.findByRole('button', { name: 'Add to instructions' }),
+      );
+      expect(onAnswerChange).toHaveBeenCalledWith(
+        ADDITIONAL_INSTRUCTIONS_FIELD_ID,
+        'Make it formal.\nCustomer: Abebe Kebede, TIN 0012, 0911, Bole',
+      );
+    });
+  });
 })

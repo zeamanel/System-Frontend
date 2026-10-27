@@ -1,0 +1,476 @@
+/* ---------- Design pages (fixed-size, printed as is) ---------- */
+
+.design-page {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #fbf8f0;
+  color: #1c1b17;
+  text-align: center;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.design-page *,
+.design-page *::before,
+.design-page *::after {
+  box-sizing: border-box;
+}
+
+.design-frame {
+  position: absolute;
+  pointer-events: none;
+}
+
+.design-corner-wrap {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+}
+
+.design-corner {
+  display: block;
+}
+
+.design-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.design-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.design-monogram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  color: #fbf8f0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.design-placeholder {
+  color: #9a9483;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Certificate */
+.design-logo {
+  display: block;
+  max-width: 150px;
+  max-height: 64px;
+  object-fit: contain;
+}
+
+/* Passport-style photo beside the recipient's name. */
+.design-photo {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  width: 104px;
+  height: 130px;
+  object-fit: cover;
+  border: 3px solid;
+  border-radius: 4px;
+  transform: translateY(-50%);
+  background: #ffffff;
+}
+
+.design-notice__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 84px;
+  height: 84px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.design-notice__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.design-certificate__content {
+  position: absolute;
+  inset: 70px 96px 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.design-certificate__content .design-row:first-child {
+  text-align: left;
+}
+
+.design-signatures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 32px;
+}
+
+/* Notice */
+.design-notice {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.design-notice__band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 130px;
+  padding: 28px 56px;
+  text-align: left;
+}
+
+.design-notice__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 26px;
+  padding: 40px 56px 32px;
+  min-height: 0;
+}
+
+.design-notice__position {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 24px;
+  border: 2px solid;
+  border-radius: 10px;
+}
+
+.design-notice__details {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.design-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.design-notice__deadline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-left: 6px solid;
+  border-radius: 6px;
+  font-size: 15px;
+  text-align: left;
+}
+
+.design-notice__footer-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.design-notice__stamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 190px;
+  height: 110px;
+  border: 1.5px dashed #8a8473;
+  border-radius: 8px;
+  color: #5b574c;
+  font-size: 12px;
+}
+
+.design-notice__bottom {
+  height: 18px;
+}
+
+/* Announcement */
+.design-announcement {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.design-announcement__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 26px 56px 14px;
+}
+
+.design-announcement__rule {
+  height: 3px;
+  margin: 0 56px;
+}
+
+.design-announcement__meta {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 56px 0;
+  font-size: 13px;
+  color: #5b574c;
+}
+
+.design-announcement__meta strong {
+  margin-left: 6px;
+  color: #1c1b17;
+}
+
+.design-announcement__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 24px;
+  padding: 26px 56px 34px;
+  min-height: 0;
+}
+
+.design-announcement__subject {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 24px;
+  border-radius: 8px;
+  color: #ffffff;
+}
+
+.design-announcement__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+  text-align: left;
+}
+
+.design-announcement__paragraph {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.65;
+  text-indent: 28px;
+}
+
+.design-announcement__divider {
+  align-self: center;
+  width: 120px;
+  height: 2px;
+  margin: 6px 0;
+}
+
+.design-announcement__details {
+  display: grid;
+  gap: 14px;
+}
+
+.design-announcement__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-top: 4px solid;
+  border-radius: 6px;
+}
+
+/* Certificate of appreciation */
+.design-appreciation {
+  display: flex;
+  background: #fbf8f0;
+}
+
+.design-appreciation__panel {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 300px;
+  padding: 64px 32px 48px;
+}
+
+.design-appreciation__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  padding: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.design-appreciation__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.design-appreciation__edge {
+  flex: none;
+  width: 8px;
+}
+
+.design-appreciation__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px 64px 48px;
+  min-width: 0;
+}
+
+.design-appreciation__signatures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+}
+
+/* Business cards (sizes in mm, so they print at true size) */
+.design-cards__grid {
+  position: absolute;
+  display: grid;
+}
+
+.design-cards__mark {
+  position: absolute;
+  background: #1c1b17;
+}
+
+.design-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 4mm 4mm 3.5mm 7mm;
+  background: #ffffff;
+  text-align: left;
+  font-size: 2.6mm;
+  line-height: 1.3;
+}
+
+/* Card edges show while editing only; printed cards are cut on the marks. */
+.design-cards--editing .design-card {
+  outline: 1px dashed #d6d1c4;
+  outline-offset: -0.5px;
+}
+
+.design-card__stripe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3mm;
+}
+
+.design-card__top {
+  display: flex;
+  align-items: center;
+  gap: 2.5mm;
+}
+
+.design-card__logo {
+  max-width: 18mm;
+  max-height: 11mm;
+  object-fit: contain;
+}
+
+.design-card__org {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 2.6mm;
+}
+
+.design-card__person {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4mm;
+}
+
+.design-card__contact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5mm;
+  font-size: 2.5mm;
+  color: #3b3830;
+}
+
+.design-card__label {
+  display: inline-block;
+  min-width: 6mm;
+  font-weight: 700;
+}
+
+/* ---------- Printing a design ----------
+   The workspace renders a print copy of the page straight under <body>
+   (a portal). While a design is open, printing shows only that copy, at
+   true size, on a sheet of exactly that size (see the @page rule the
+   workspace adds). */
+.design-print-portal {
+  display: none;
+}
+
+@media print {
+  html.design-printing body > *:not(.design-print-portal) {
+    display: none !important;
+  }
+
+  html.design-printing,
+  html.design-printing body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  html.design-printing .design-print-portal {
+    display: block !important;
+  }
+
+  /* A list prints one sheet per person. */
+  html.design-printing .design-print-portal > .design-page {
+    break-after: page;
+  }
+
+  html.design-printing .design-print-portal > .design-page:last-child {
+    break-after: auto;
+  }
+
+  html.design-printing .design-print-portal .design-placeholder {
+    visibility: hidden !important;
+  }
+}

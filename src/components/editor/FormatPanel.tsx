@@ -15,7 +15,9 @@ import type { DocumentPreset } from '../../lib/editor/model'
 import { MAX_FONT_SIZE_PT, MIN_FONT_SIZE_PT } from '../../lib/editor/types'
 import type { InlineCommand } from '../../lib/editor/commands'
 import { FONT_OPTIONS, type EthiopicSupport } from '../../lib/editor/fonts'
-import { Input, Select } from '../ui'
+import { Button, Input, Select, useToast } from '../ui'
+import { useOrganization } from '../../hooks/use-organization'
+import { hasLetterhead, letterheadPageSetup } from '../../lib/organization/letterhead'
 import {
   AlignCenterIcon,
   AlignJustifyIcon,
@@ -530,6 +532,8 @@ function renderPageSetup(model: DocumentModel, callbacks: FormatPanelCallbacks, 
         {t('editor.pageNumbers')}
       </label>
 
+      <LetterheadButton callbacks={callbacks} />
+
       <label className="editor-panel__check">
         <input
           type="checkbox"
@@ -693,7 +697,27 @@ function renderSignatureControls(
   )
 }
 
-
-
-
-
+/** Puts the organization letterhead into the page header and footer. */
+function LetterheadButton({ callbacks }: { callbacks: FormatPanelCallbacks }) {
+  const { t } = useI18n()
+  const toast = useToast()
+  const organization = useOrganization()
+  const letterhead = organization.data?.letterhead
+  if (organization.isPending) return null
+  if (!hasLetterhead(letterhead)) {
+    return <p className="editor-panel__hint">{t('editor.letterheadMissing')}</p>
+  }
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      data-testid="use-letterhead"
+      onClick={() => {
+        callbacks.onUpdatePageSetup(letterheadPageSetup(letterhead))
+        toast.push(t('editor.letterheadApplied'))
+      }}
+    >
+      {t('editor.useLetterhead')}
+    </Button>
+  )
+}

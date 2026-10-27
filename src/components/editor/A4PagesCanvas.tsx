@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { DocumentModel } from '../../lib/editor/types'
+import { sanitizeInlineHtml } from '../../lib/editor/sanitize'
 import { contentHeightMm } from '../../lib/editor/model'
 import { paginateBlockIds } from '../../lib/editor/paginate'
 import { fitWidthZoom } from '../../lib/editor/a4'
@@ -164,7 +165,7 @@ export function A4PagesCanvas({
             {model.page.headerEnabled ? (
               <header
                 className="doc-paper__header"
-                dangerouslySetInnerHTML={{ __html: model.page.headerHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(model.page.headerHtml) }}
               />
             ) : null}
 
@@ -199,7 +200,7 @@ export function A4PagesCanvas({
               {model.page.footerEnabled ? (
                 <div
                   className="doc-paper__footer-text"
-                  dangerouslySetInnerHTML={{ __html: model.page.footerHtml }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(model.page.footerHtml) }}
                 />
               ) : null}
               {model.page.showPageNumbers ? (

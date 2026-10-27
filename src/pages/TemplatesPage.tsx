@@ -25,6 +25,8 @@ import {
   SearchInput,
   Select,
 } from '../components/ui'
+import { DesignShelf } from '../components/designs'
+import { useFeatures } from '../hooks/use-features'
 
 type CategoryFilter = 'all' | TemplateCategory
 
@@ -68,6 +70,7 @@ const SORT_OPTIONS = ['relevance', 'popularity', 'recent', 'name'] as const
 
 export default function TemplatesPage() {
   const { t, locale } = useI18n()
+  const features = useFeatures()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<CategoryFilter>('all')
   const [documentType, setDocumentType] = useState<string>('all')
@@ -155,6 +158,8 @@ export default function TemplatesPage() {
   return (
     <div className="page">
       <PageHeader title={t('templates.title')} />
+
+      {features.designs ? <DesignShelf /> : null}
 
       <div className="category-pills" role="tablist" aria-label={t('templates.allCategories')}>
         {CATEGORIES.map((cat) => (

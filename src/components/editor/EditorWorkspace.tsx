@@ -53,11 +53,12 @@ import { compressImageDataUrl } from '../../lib/editor/image'
 import { isSafeUrl } from '../../lib/editor/sanitize'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
 import { triggerPrint } from '../../lib/editor/a4'
+import { downloadPdf, ExportDownloadError, exportDownloadUrl, pdfFileName } from '../../lib/export/download'
 import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { newId } from '../../lib/editor/ids'
 import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
 import { LANGUAGES } from '../../lib/languages'
-import { Button, useToast } from '../ui'
+import { Button, Dialog, useToast } from '../ui'
 import { A4PagesCanvas } from './A4PagesCanvas'
 import { BlockRefinePanel } from './BlockRefinePanel'
 import { EditorToolbar } from './EditorToolbar'
@@ -69,12 +70,19 @@ import type { EditorApi } from './editor-api'
 import { useDocumentEditor, type FieldSyncEvent } from './useDocumentEditor'
 import { AssistantPanel } from './AssistantPanel'
 import { useAssistant } from './useAssistant'
+import { useIssueText } from './check-issue-text'
+import type { DocumentCheckResult } from '../../lib/document-check/check'
 import { consumePendingNotes } from '../../lib/assistant/pending-notes'
 import { blockPlainText } from '../../lib/assistant/context'
 import { COMPACT_LAYOUT_QUERY, useMediaQuery } from '../../hooks/use-media-query'
 import { ChatIcon, DocumentIcon, PanelLeftIcon, SlidersIcon, XIcon } from '../icons'
 import './editor.css'
 import './editor-responsive.css'
+
+/** Printing goes ahead without the check if it takes longer than this. */
+const PRINT_CHECK_TIMEOUT_MS = 4000
+/** Problems listed in the print dialog; the rest are counted. */
+const PRINT_CHECK_LISTED = 5
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
@@ -301,6 +309,8 @@ export function EditorWorkspace({
   const highlightTimerRef = useRef<number | null>(null)
   const handleShowBlock = useCallback((blockId: string): void => {
     if (!blockId) return
+    // On phones and tablets the panels cover the page: go back to it first.
+    if (compact) closePanels()
     const element = Array.from(document.querySelectorAll<HTMLElement>('[data-block-id]')).find(
       (node) => node.getAttribute('data-block-id') === blockId,
     )
@@ -314,7 +324,7 @@ export function EditorWorkspace({
     highlightTimerRef.current = window.setTimeout(() => {
       element.classList.remove('doc-block--assistant-focus')
     }, 2500)
-  }, [])
+  }, [closePanels, compact])
 
   const selectedText = useMemo(() => {
     if (!activeBlock) return null
@@ -778,30 +788,69 @@ export function EditorWorkspace({
     [updateModel, toast, t],
   )
 
-  const handlePrint = useCallback((): void => {
+  // ---- print (with pre-print check) ----
+  const [printCheck, setPrintCheck] = useState<DocumentCheckResult | null>(null)
+  const issueText = useIssueText()
+  const { runCheck, postCheck } = assistant
+
+  const handlePrint = useCallback(async (): Promise<void> => {
     // Carry pending field edits into the text and let React render them
-    // before the browser snapshots the page.
+    // before checking and before the browser snapshots the page.
     editor.flushFieldSync()
     void editor.flush()
+    await new Promise((resolve) => window.setTimeout(resolve, 50))
+    let result: DocumentCheckResult | null = null
+    try {
+      // A slow or failed check never blocks printing.
+      result = await Promise.race([
+        runCheck({ post: false }),
+        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), PRINT_CHECK_TIMEOUT_MS)),
+      ])
+    } catch {
+      result = null
+    }
+    if (result && result.summary.errors > 0) {
+      setPrintCheck(result)
+      return
+    }
+    triggerPrint()
+  }, [editor, runCheck])
+
+  const reviewPrintProblems = useCallback((): void => {
+    if (printCheck) postCheck(printCheck)
+    setPrintCheck(null)
+    openAssistant()
+  }, [openAssistant, postCheck, printCheck])
+
+  const printAnyway = useCallback((): void => {
+    setPrintCheck(null)
+    // Let the dialog close before the browser snapshots the page.
     window.setTimeout(triggerPrint, 50)
-  }, [editor])
+  }, [])
 
   const handleExportServerPdf = useCallback(async (): Promise<void> => {
     setExportError(null)
-    await editor.flush()
+    // The PDF is rendered from the saved document: never export stale content.
+    if (!(await editor.flush())) {
+      setExportError(t('editor.exportNeedsSave'))
+      return
+    }
     try {
       const result = await exportMutation.mutateAsync({ documentId: doc.id, format: 'pdf' })
-      if (result.url && typeof window !== 'undefined') {
-        window.open(result.url, '_blank', 'noopener')
-      }
+      const url = exportDownloadUrl(result)
+      if (!url) throw new Error('missing download link')
+      await downloadPdf(url, pdfFileName(editor.title))
+      toast.push(t('editor.exportDownloaded'), { variant: 'success' })
     } catch (error) {
       setExportError(
-        error instanceof ExportUnavailableError || error instanceof Error
-          ? error.message
-          : t('editor.exportFailed'),
+        error instanceof ExportUnavailableError
+          ? t('editor.exportUnavailable')
+          : error instanceof ExportDownloadError && error.status === 410
+            ? t('editor.exportExpired')
+            : t('editor.exportFailed'),
       )
     }
-  }, [doc.id, editor, exportMutation, t])
+  }, [doc.id, editor, exportMutation, t, toast])
 
   const handleOutlineSelect = useCallback((blockId: string): void => {
     document
@@ -975,7 +1024,7 @@ export function EditorWorkspace({
         onSave={() => void editor.save()}
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
-        onPrint={handlePrint}
+        onPrint={() => void handlePrint()}
         onExportServerPdf={() => void handleExportServerPdf()}
         exportPending={exportMutation.isPending}
         exportError={exportError}
@@ -1225,6 +1274,40 @@ export function EditorWorkspace({
           <span>{t('assistant.tabFormat')}</span>
         </button>
       </nav>
+
+      <Dialog
+        open={printCheck !== null}
+        onClose={() => setPrintCheck(null)}
+        title={t('check.print.title')}
+        closeLabel={t('common.close')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={reviewPrintProblems} data-testid="print-check-review">
+              {t('check.print.review')}
+            </Button>
+            <Button variant="primary" onClick={printAnyway} data-testid="print-check-anyway">
+              {t('check.print.anyway')}
+            </Button>
+          </>
+        }
+      >
+        {printCheck ? (
+          <div data-testid="print-check-dialog">
+            <p>{t('check.print.body', { errors: String(printCheck.summary.errors) })}</p>
+            <ul className="print-check__list">
+              {printCheck.issues
+                .filter((issue) => issue.severity === 'error')
+                .slice(0, PRINT_CHECK_LISTED)
+                .map((issue) => (
+                  <li key={issue.id}>{issueText(issue)}</li>
+                ))}
+            </ul>
+            {printCheck.summary.errors > PRINT_CHECK_LISTED ? (
+              <p>{t('check.print.more', { count: String(printCheck.summary.errors - PRINT_CHECK_LISTED) })}</p>
+            ) : null}
+          </div>
+        ) : null}
+      </Dialog>
     </div>
   )
 }

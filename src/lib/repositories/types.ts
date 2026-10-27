@@ -85,6 +85,8 @@ export interface DocumentRecord {
   templateId: string | null
   templateTitle: string | null
   status: DocumentStatus
+  /** `design` documents never open in the text editor. Absent on older records: text. */
+  kind?: DocumentKind
   language: string
   /**
    * Optimistic-concurrency version from the backend (If-Match guard).
@@ -94,6 +96,12 @@ export interface DocumentRecord {
   version?: number
   createdAt: string
   updatedAt: string
+  /** Shared with the owner's organization (members can open and copy it). */
+  shared?: boolean
+  /** `view`: a colleague's shared document (read and copy only). Absent: own. */
+  access?: 'owner' | 'view'
+  /** Owner's name, on documents shared by a colleague. */
+  ownerName?: string
 }
 
 export interface DocumentDetailRecord extends DocumentRecord {
@@ -109,6 +117,8 @@ export interface DocumentVersionSnapshot {
 }
 
 export interface CreateDocumentPayload {
+  /** `design` for fixed-layout designs; text otherwise. */
+  kind?: DocumentKind
   title?: string
   templateId?: string
   documentTypeId?: string
@@ -153,14 +163,54 @@ export interface AppNotification {
   read: boolean
 }
 
+export type { DocumentKind } from '../editor/document-kind'
+import type { DocumentKind } from '../editor/document-kind'
+
 export type OrganizationType = 'print_shop' | 'office' | 'personal'
 
+export type OrganizationRole = 'owner' | 'admin' | 'member'
+
+export interface OrganizationSignatory {
+  fullName: string
+  title: string
+}
+
+export interface OrganizationLetterhead {
+  /** Up to four lines printed at the top of documents. */
+  headerLines: string[]
+  footerLine: string
+}
+
+export interface OrganizationBankDetails {
+  bankName: string
+  accountNumber: string
+  swift: string
+}
+
+/** Business memory: what fills documents and letterheads automatically. */
 export interface OrganizationProfile {
   name: string
   type: OrganizationType
   address: string
   phone: string
   email: string
+  legalName: string
+  tin: string
+  letterhead: OrganizationLetterhead
+  bankDetails: OrganizationBankDetails
+  signatories: OrganizationSignatory[]
+  /** The signed-in user's role; set by the backend (read-only). */
+  role?: OrganizationRole
+  /** Uploaded logo (media id); changed with OrganizationRepository.setLogo. */
+  logoMediaId?: string | null
+}
+
+export interface OrganizationMember {
+  userId: string
+  name: string
+  email: string
+  role: OrganizationRole
+  joinedAt: string
 }
 
 /**
@@ -287,6 +337,10 @@ export interface DocumentsRepository {
   /** Restore title/content/answers from a snapshot (bumps the version). */
   restoreVersion(id: string, version: number): Promise<DocumentDetailRecord>
   delete(id: string): Promise<void>
+  /** Documents shared with the user's organization (their own included). */
+  listShared(options?: { search?: string }): Promise<DocumentRecord[]>
+  /** Owner only: share with the organization, or make private again. */
+  setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord>
 }
 
 export interface GenerationRepository {
@@ -318,6 +372,35 @@ export interface NotificationsRepository {
 export interface OrganizationRepository {
   get(): Promise<OrganizationProfile | null>
   update(profile: OrganizationProfile): Promise<OrganizationProfile>
+  /** Members of the organization; null where members are not available (demo mode). */
+  listMembers(): Promise<OrganizationMember[] | null>
+  addMember(email: string, role: Exclude<OrganizationRole, 'owner'>): Promise<OrganizationMember[]>
+  setMemberRole(userId: string, role: OrganizationRole): Promise<OrganizationMember[]>
+  removeMember(userId: string): Promise<void>
+  /** Sets (media id of an uploaded logo) or removes (null) the organization logo. */
+  setLogo(mediaId: string | null): Promise<OrganizationProfile>
+}
+
+export type MediaKind = 'logo' | 'photo'
+
+/** An uploaded image (PNG, JPEG or WebP). */
+export interface MediaRecord {
+  id: string
+  kind: MediaKind
+  mime: string
+  size: number
+  width: number
+  height: number
+  /** Shared with the organization (false: personal). */
+  shared: boolean
+  createdAt: string
+}
+
+export interface MediaRepository {
+  upload(file: Blob, kind: MediaKind, fileName: string): Promise<MediaRecord>
+  /** The image bytes (images need auth, so they are shown as blob URLs). */
+  get(id: string): Promise<Blob>
+  remove(id: string): Promise<void>
 }
 
 export interface UsageRepository {
@@ -356,6 +439,7 @@ export interface Repositories {
   favorites: FavoritesRepository
   notifications: NotificationsRepository
   organization: OrganizationRepository
+  media: MediaRepository
   usage: UsageRepository
   session: SessionRepository
   preferences: PreferencesRepository

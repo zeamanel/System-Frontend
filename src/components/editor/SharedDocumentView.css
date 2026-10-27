@@ -1,0 +1,44 @@
+.shared-view {
+  display: flex;
+  flex-direction: column;
+  margin: calc(-1 * var(--space-8)) calc(-1 * var(--space-10));
+  height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+  overflow: hidden;
+}
+
+.shared-view .doc-canvas-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.shared-view__title {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.shared-view__notice {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 1023px) {
+  .shared-view {
+    margin: calc(-1 * var(--space-4));
+    height: auto;
+    min-height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+    overflow: visible;
+  }
+}
+
+@media print {
+  .shared-view {
+    display: block !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+}

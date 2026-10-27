@@ -73,7 +73,7 @@ All backend errors use the envelope `{ error: { code, message, ...extras } }`
 | Preferences | `GET/PATCH /preferences`, `POST /preferences/sync` | **Local-first**: localStorage persistence keeps working; remote sync skipped silently (dev-only `console.info`); no user-facing errors. |
 | Favorites | `GET /favorites/templates`, `POST/DELETE /favorites/templates/:id` | **Local-first**: stars work via localStorage; remote sync skipped silently; toggling never throws. |
 | Notifications | `GET /notifications`, `POST /notifications/read-all` | Real errors surface in the notifications menu's existing error state (never fabricated). |
-| Exports | `POST /exports` | Honest failure + browser print-to-PDF fallback (unchanged since Phase 4). |
+| Exports | — (shipped: `POST /exports` + short-lived download link) | "Download PDF" saves first, then downloads under the document title. Older backends without it: honest failure + browser print-to-PDF fallback. Designs are refused by the backend (422) and print from the browser. |
 | Usage counter | `GET /usage` (documentsThisMonth) | Usage widget shows "unavailable"; real AI usage is available via `GET /ai/usage` on the generation repository. |
 
 ### (b) Endpoints needing additive backend work (frontend works around them)
@@ -84,16 +84,38 @@ All backend errors use the envelope `{ error: { code, message, ...extras } }`
   catalogue grows.
 - **Relevance sorting** — fixture mode scores relevance heuristically; API
   mode degrades `sortBy=relevance` to the backend's popularity ordering.
-- **Generation result → document** — `GET /ai/generate/:id` returns raw
-  `content` with no `documentId`; the frontend creates the document itself
-  after completion (deterministic idempotency key). The backend could return
-  the created document id directly to remove the extra round-trip.
+- **Generation result → document** — shipped: the backend creates the
+  document with the job and returns its `documentId`; the frontend only
+  creates it itself for older backends (deterministic idempotency key).
 
-### (c) Backend Phase 6 territory (stubbed, intentionally)
+### (c) Shipped since
 
-- **Organizations** — `GET/PATCH /organization` do not exist; the repository
-  stub throws "not implemented" and the organization page shows its existing
-  error state.
+- **Organizations** — `GET/POST/PATCH /organization`, signatories and
+  members (docs/API.md §6 in the backend).
+- **Designs** — documents have `kind` (`text` | `design`). Designs open in
+  the design editor (`src/designs/`, loaded only for designs), never in the
+  text editor. `GET /features` (`{ designs }`, from the backend's
+  `FEATURE_DESIGNS` setting) decides whether the Designs shelf and the
+  dialog's Designs group show; an older backend or an error means off.
+  Demo mode always shows designs.
+- **Logos and photos** — `POST/GET/DELETE /media` (backend docs/API.md §9)
+  and `logoMediaId` on the organization. Images are shrunk in the browser
+  first (`src/lib/media/prepare.ts`: logos PNG ≤ 1000 px, photos JPEG
+  ≤ 1200 px) and shown as blob URLs because `GET /media/:id` needs auth.
+  Design content stores `images: { slot: mediaId }`; new designs start with
+  the organization logo. Demo mode keeps images in this browser only.
+- **Shared documents** — `PUT /documents/:id/sharing` and
+  `GET /documents?scope=shared` (backend docs/API.md §4). My Documents gets
+  "My documents / Shared with my organization" tabs and a share button per
+  own document. A colleague's document (`access: "view"`) opens read only —
+  text in `SharedDocumentView` (the editor's A4 pages, not editable), designs
+  in the design editor without its form — with Print and "Make my own
+  copy". An older backend (no `shared` flag) shows nothing as shared.
+- **Batch certificates** — design content may carry `batch.rows` (≤ 300,
+  one printed page per row; each row replaces the recipient names and
+  number). The list is read in the browser (`src/designs/batch.ts`: pasted
+  from Excel, typed, or a CSV file) and printed by the browser; all pages
+  are rendered only while printing, so editing stays fast.
 
 ## Contract mapping notes
 

@@ -1,4 +1,5 @@
 import type { Locale } from '../../i18n/locales'
+import { normalizeOrganization } from '../organization/profile'
 import {
   DEFAULT_FAVORITE_TEMPLATE_IDS,
   DEFAULT_ORGANIZATION_FIXTURE,
@@ -42,6 +43,9 @@ import type {
   TemplatesRepository,
   UpdateDocumentPayload,
   UsageRepository,
+  MediaKind,
+  MediaRecord,
+  MediaRepository,
 } from './types'
 import type {
   ExportRequest,
@@ -152,6 +156,7 @@ interface CustomDocumentRecord {
   title: string
   templateId: string | null
   status: 'draft' | 'generating' | 'ready' | 'error'
+  kind?: 'text' | 'design'
   language: string
   createdAt: string
   updatedAt: string
@@ -174,6 +179,11 @@ class FixtureDocumentsRepository implements DocumentsRepository {
     return readJson<string[]>('docuA4.fixture.deletedDocuments', [])
   }
 
+  /** Demo mode has one user: shared documents are their own, marked shared. */
+  private getSharedIds(): Set<string> {
+    return new Set(readJson<string[]>('docuA4.fixture.sharedDocuments', []))
+  }
+
   private async all(locale: Locale): Promise<DocumentRecord[]> {
     const templates = new Map(
       TEMPLATE_FIXTURES.map(
@@ -190,6 +200,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         templateId: doc.templateId,
         templateTitle: doc.templateId ? (templates.get(doc.templateId) ?? doc.templateId) : null,
         status: doc.status,
+        kind: doc.kind ?? 'text',
         language: doc.language,
         version: doc.version ?? 1,
         createdAt: doc.createdAt,
@@ -209,9 +220,24 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       ...documentTimestamps(fixture.ageHours),
     }))
 
-    return [...customDocs, ...defaultDocs].sort((a, b) =>
-      b.updatedAt.localeCompare(a.updatedAt),
-    )
+    const shared = this.getSharedIds()
+    return [...customDocs, ...defaultDocs]
+      .map((doc) => ({ ...doc, shared: shared.has(doc.id), access: 'owner' as const }))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  }
+
+  async listShared(options?: { search?: string }): Promise<DocumentRecord[]> {
+    return (await this.list(options)).filter((doc) => doc.shared)
+  }
+
+  async setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord> {
+    const doc = await this.get(id)
+    if (!doc) throw new Error('Document not found')
+    const ids = this.getSharedIds()
+    if (shared) ids.add(id)
+    else ids.delete(id)
+    writeJson('docuA4.fixture.sharedDocuments', [...ids])
+    return { ...doc, shared, access: 'owner' }
   }
 
   async list(options?: { search?: string }): Promise<DocumentRecord[]> {
@@ -232,6 +258,11 @@ class FixtureDocumentsRepository implements DocumentsRepository {
   }
 
   async get(id: string): Promise<DocumentDetailRecord | null> {
+    const record = await this.getStored(id)
+    return record ? { ...record, shared: this.getSharedIds().has(id), access: 'owner' } : null
+  }
+
+  private async getStored(id: string): Promise<DocumentDetailRecord | null> {
     const deleted = new Set(this.getDeletedIds())
     if (deleted.has(id)) return null
 
@@ -250,6 +281,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         templateId: custom.templateId,
         templateTitle: custom.templateId ? (templates.get(custom.templateId) ?? custom.templateId) : null,
         status: custom.status,
+        kind: custom.kind ?? 'text',
         language: custom.language,
         version: custom.version ?? 1,
         createdAt: custom.createdAt,
@@ -294,6 +326,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       title,
       templateId: payload.templateId ?? null,
       status: 'ready',
+      ...(payload.kind ? { kind: payload.kind } : {}),
       language: payload.language,
       version: 1,
       createdAt: nowIso,
@@ -394,6 +427,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       templateId: record.templateId,
       templateTitle: record.templateId ? (templates.get(record.templateId) ?? record.templateId) : null,
       status: record.status,
+      kind: record.kind ?? 'text',
       language: record.language,
       version: record.version ?? 1,
       createdAt: record.createdAt,
@@ -502,15 +536,94 @@ class FixtureNotificationsRepository implements NotificationsRepository {
 
 class FixtureOrganizationRepository implements OrganizationRepository {
   async get(): Promise<OrganizationProfile | null> {
-    return readJson<OrganizationProfile | null>(
+    const stored = readJson<OrganizationProfile | null>(
       'docuA4.fixture.organization',
       DEFAULT_ORGANIZATION_FIXTURE,
     )
+    return stored ? normalizeOrganization(stored) : null
   }
 
   async update(profile: OrganizationProfile): Promise<OrganizationProfile> {
-    writeJson('docuA4.fixture.organization', profile)
-    return profile
+    // As on the backend, the logo changes only through setLogo.
+    const { logoMediaId: _ignored, ...fields } = normalizeOrganization(profile)
+    const logoMediaId = (await this.get())?.logoMediaId
+    const saved = logoMediaId ? { ...fields, logoMediaId } : fields
+    writeJson('docuA4.fixture.organization', saved)
+    return saved
+  }
+
+  // Members need accounts on the backend: not available in demo mode.
+  async listMembers(): Promise<null> {
+    return null
+  }
+
+  async addMember(): Promise<never> {
+    throw new Error('Members are not available in demo mode.')
+  }
+
+  async setMemberRole(): Promise<never> {
+    throw new Error('Members are not available in demo mode.')
+  }
+
+  async removeMember(): Promise<void> {
+    throw new Error('Members are not available in demo mode.')
+  }
+
+  async setLogo(mediaId: string | null): Promise<OrganizationProfile> {
+    const { logoMediaId: _old, ...rest } = (await this.get()) ?? normalizeOrganization(null)
+    const saved = mediaId ? { ...rest, logoMediaId: mediaId } : rest
+    writeJson('docuA4.fixture.organization', saved)
+    return saved
+  }
+}
+
+const FIXTURE_MEDIA_PREFIX = 'docuA4.fixture.media.'
+const FIXTURE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+const FIXTURE_MEDIA_MAX_BYTES = 1024 * 1024
+
+/**
+ * Demo-mode images: kept in this browser only (memory, and localStorage when
+ * it has room), so designs and the logo work without a backend.
+ */
+class FixtureMediaRepository implements MediaRepository {
+  private readonly blobs = new Map<string, Blob>()
+
+  async upload(file: Blob, kind: MediaKind): Promise<MediaRecord> {
+    if (!FIXTURE_MEDIA_TYPES.includes(file.type)) throw new Error('Only PNG, JPEG or WebP images are accepted')
+    if (file.size > FIXTURE_MEDIA_MAX_BYTES) throw new Error('Images must be at most 1024 KB')
+    const id = crypto.randomUUID()
+    this.blobs.set(id, file)
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      let binary = ''
+      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+      globalThis.localStorage?.setItem(FIXTURE_MEDIA_PREFIX + id, JSON.stringify({ type: file.type, data: btoa(binary) }))
+    } catch {
+      // Storage full or unavailable: the image lasts until the page reloads.
+    }
+    return { id, kind, mime: file.type, size: file.size, width: 0, height: 0, shared: false, createdAt: new Date().toISOString() }
+  }
+
+  async get(id: string): Promise<Blob> {
+    const cached = this.blobs.get(id)
+    if (cached) return cached
+    const stored = readJson<{ type: string; data: string } | null>(FIXTURE_MEDIA_PREFIX + id, null)
+    if (!stored) throw new Error('Image not found')
+    const binary = atob(stored.data)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+    const blob = new Blob([bytes], { type: stored.type })
+    this.blobs.set(id, blob)
+    return blob
+  }
+
+  async remove(id: string): Promise<void> {
+    this.blobs.delete(id)
+    try {
+      globalThis.localStorage?.removeItem(FIXTURE_MEDIA_PREFIX + id)
+    } catch {
+      // Nothing stored.
+    }
   }
 }
 
@@ -768,6 +881,7 @@ export function createFixtureRepositories(): Repositories {
     favorites: new FixtureFavoritesRepository(),
     notifications: new FixtureNotificationsRepository(),
     organization: new FixtureOrganizationRepository(),
+    media: new FixtureMediaRepository(),
     usage: new FixtureUsageRepository(),
     session: new FixtureSessionRepository(),
     preferences: new FixturePreferencesRepository(),
