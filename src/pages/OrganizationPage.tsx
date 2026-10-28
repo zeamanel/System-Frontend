@@ -170,6 +170,7 @@ export default function OrganizationPage() {
                   id="org-tin"
                   label={t('organization.tin')}
                   hint={t('organization.tinHint')}
+                  hintMode="focus"
                   value={profile.tin}
                   onChange={(event) => update({ tin: event.target.value })}
                   inputMode="numeric"
@@ -208,9 +209,8 @@ export default function OrganizationPage() {
           </Card>
 
           <Card>
-            <CardTitle>{t('organization.section.letterhead')}</CardTitle>
+            <CardTitle info={t('organization.letterheadHint')}>{t('organization.section.letterhead')}</CardTitle>
             <CardBody>
-              <p className="org-form__hint">{t('organization.letterheadHint')}</p>
               <div className="org-form__stack">
                 {Array.from({ length: Math.min(headerLines.length + 1, MAX_HEADER_LINES) }, (_, index) => (
                   <Input
@@ -253,9 +253,8 @@ export default function OrganizationPage() {
           </Card>
 
           <Card>
-            <CardTitle>{t('organization.section.signatories')}</CardTitle>
+            <CardTitle info={t('organization.signatoriesHint')}>{t('organization.section.signatories')}</CardTitle>
             <CardBody>
-              <p className="org-form__hint">{t('organization.signatoriesHint')}</p>
               <ul className="org-signatories">
                 {profile.signatories.map((signatory, index) => (
                   <li key={index} className="org-signatories__row">
@@ -309,9 +308,8 @@ export default function OrganizationPage() {
           </Card>
 
           <Card>
-            <CardTitle>{t('organization.section.bank')}</CardTitle>
+            <CardTitle info={t('organization.bankHint')}>{t('organization.section.bank')}</CardTitle>
             <CardBody>
-              <p className="org-form__hint">{t('organization.bankHint')}</p>
               <div className="org-form__grid">
                 <Input
                   id="org-bank-name"
@@ -385,13 +383,12 @@ function LogoCard({ logoMediaId, exists, editable }: { logoMediaId: string | nul
 
   return (
     <Card className="org-logo">
-      <CardTitle>{t('organization.section.logo')}</CardTitle>
+      <CardTitle info={t('organization.logoHint')}>{t('organization.section.logo')}</CardTitle>
       <CardBody>
         {!exists ? (
           <p className="org-form__hint">{t('organization.logoNeedsOrganization')}</p>
         ) : (
           <>
-            <p className="org-form__hint">{t('organization.logoHint')}</p>
             <ImagePicker
               kind="logo"
               imageUrl={urls.logo}
@@ -456,7 +453,7 @@ function MembersCard({ role }: { role?: OrganizationRole }) {
 
   return (
     <Card className="org-members">
-      <CardTitle>{t('organization.section.members')}</CardTitle>
+      <CardTitle info={t('organization.membersHint')}>{t('organization.section.members')}</CardTitle>
       <CardBody>
         {members.isPending ? (
           <LoadingState label={t('common.loading')} />
@@ -466,7 +463,6 @@ function MembersCard({ role }: { role?: OrganizationRole }) {
           <p className="org-form__hint">{t('organization.membersDemo')}</p>
         ) : (
           <>
-            <p className="org-form__hint">{t('organization.membersHint')}</p>
             <ul className="org-members__list" data-testid="org-members">
               {members.data.map((member: OrganizationMember) => {
                 const isSelf = member.email.toLowerCase() === user?.email?.toLowerCase()
@@ -522,6 +518,7 @@ function MembersCard({ role }: { role?: OrganizationRole }) {
                   type="email"
                   label={t('organization.memberEmail')}
                   hint={t('organization.memberEmailHint')}
+                  hintMode="focus"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   autoComplete="off"

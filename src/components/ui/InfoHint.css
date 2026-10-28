@@ -1,0 +1,51 @@
+.info-hint {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.info-hint__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* A comfortable tap target without making the label row taller. */
+  width: 22px;
+  height: 22px;
+  margin: -3px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: help;
+}
+
+.info-hint__button:hover,
+.info-hint__button[aria-expanded='true'] {
+  color: var(--color-text);
+  background: var(--color-surface-muted);
+}
+
+.info-hint__button:focus-visible {
+  outline: 2px solid var(--color-focus, var(--color-primary));
+  outline-offset: 1px;
+}
+
+.info-hint__bubble {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-text-inverse);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular, 400);
+  line-height: var(--leading-normal, 1.45);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}

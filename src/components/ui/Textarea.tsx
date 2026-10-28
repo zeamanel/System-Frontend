@@ -2,19 +2,20 @@ import './controls.css'
 
 import { forwardRef } from 'react'
 import type { TextareaHTMLAttributes, ReactNode } from 'react'
-import { Field } from './Field'
+import { Field, type HintMode } from './Field'
 
 export interface TextareaProps
   extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: ReactNode
   hint?: ReactNode
+  hintMode?: HintMode
   error?: ReactNode
   bare?: boolean
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   function Textarea(
-    { id, label, hint, error, bare = false, className, required, ...rest },
+    { id, label, hint, hintMode, error, bare = false, className, required, ...rest },
     ref,
   ) {
     if (bare) {
@@ -29,7 +30,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     }
 
     return (
-      <Field id={id} label={label} hint={hint} error={error} required={required}>
+      <Field id={id} label={label} hint={hint} hintMode={hintMode} error={error} required={required}>
         {(aria) => (
           <textarea
             ref={ref}

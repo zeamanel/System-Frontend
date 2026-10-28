@@ -279,6 +279,12 @@
   border-bottom: none;
 }
 
+.editor-panel__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .editor-panel__title {
   margin: 0;
   font-size: var(--text-xs);
