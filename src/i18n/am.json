@@ -130,7 +130,6 @@
   "search.clear": "ፍለጋ አጽዳ",
   "settings.title": "ቅንብሮች",
   "settings.language": "ቋንቋ",
-  "settings.languageHelp": "በሥራ ቦታው ውስጥ ጥቅም ላይ የሚውለውን ቋንቋ ይምረጡ።",
   "settings.country": "ሀገር",
   "settings.countryHelp": "በሰነዶች ውስጥ ለክልላዊ ቅርጸቶች (እንደ ገንዘብ እና ቀን) ጥቅም ላይ ይውላል።",
   "settings.data": "የመረጃ ምንጭ",
@@ -174,7 +173,6 @@
   "flow.docTitle": "የሰነድ ርዕስ",
   "flow.docTitlePlaceholder": "ለሰነዱ ርዕስ ያስገቡ",
   "flow.language": "የሰነድ ቋንቋ",
-  "flow.languageHelp": "ሰነዱ የሚዘጋጅበት ቋንቋ።",
   "flow.region": "አስተዳደራዊ ክልል",
   "flow.regionHelp": "የክልል ወይም የአካባቢ ሁኔታ (አማራጭ)።",
   "flow.noRegion": "አገር አቀፍ / አጠቃላይ",
@@ -253,7 +251,6 @@
   "editor.refineApply": "በአንቀጹ ላይ ተግብር",
   "editor.refineDiscard": "አስወግድ",
   "editor.refineError": "ማሻሻያው አልተሳካም።",
-  "editor.fieldsHint": "መልሶችዎ መፍጠሪያን ይመራሉ፤ በድጋሚ ሲፈጠር ይጠበቃሉ።",
   "editor.fieldsRequired": "አስፈላጊ",
   "editor.fieldsOptional": "አማራጭ",
   "editor.fields.mapTelegramId": "ከመታወቂያ ሙላ",
@@ -271,7 +268,6 @@
   "editor.fieldPlaceholder": "መልስዎ…",
   "editor.fieldMultilineHint": "በየመስመሩ አንድ ነጥብ በሰነዱ ውስጥ ዝርዝር ይሆናል።",
   "editor.noTemplate": "ከዚህ ሰነድ ጋር ቅጽ አልተያያዘም፤ ስለዚህ የመመሪያ መስኮች አይገኙም። ይዘቱን በቀጥታ ማስተካከል ይችላሉ።",
-  "editor.languageHelp": "ይህ ሰነድ ሲፈጠር የሚጠቀምበት ቋንቋ።",
   "editor.generate": "ይዘት ፍጠር",
   "editor.regenerate": "ይዘት በድጋሚ ፍጠር",
   "editor.regenerateConfirm": "በድጋሚ መፍጠር ነባሩን የሰነድ ይዘት ይተካል። ከታች ያሉ መልሶችዎ ይጠበቃሉ።",
@@ -827,5 +823,6 @@
   "history.saveFirst": "የቅርብ ጊዜ ለውጦችዎ ሊቀመጡ ስላልቻሉ ምንም አልተመለሰም። እንደገና ይሞክሩ።",
   "history.empty": "እስካሁን ቀደም ያሉ ስሪቶች የሉም። ሲያስተካክሉ ስሪቶች ይቀመጣሉ።",
   "editor.fields.mapTelegramHint": "ስሙን፣ የመታወቂያ ቁጥሩን፣ ስልኩንና አድራሻውን በቴሌግራም ከተቃኘ መታወቂያ ይሙሉ።",
-  "editor.fields.mapTelegramShort": "ከመታወቂያ"
+  "editor.fields.mapTelegramShort": "ከመታወቂያ",
+  "common.moreInfo": "ተጨማሪ መረጃ"
 }

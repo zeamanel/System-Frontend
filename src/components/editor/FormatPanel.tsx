@@ -155,6 +155,7 @@ export function FormatPanel({
           id="format-font"
           label={t('editor.font')}
           hint={fontSupportNote(model.font)}
+          hintMode="always"
           value={model.font}
           options={FONT_OPTIONS.map((option) => ({
             value: option.key,

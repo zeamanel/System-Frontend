@@ -1,6 +1,7 @@
 import './Card.css'
 
 import type { HTMLAttributes, ReactNode } from 'react'
+import { InfoHint } from './InfoHint'
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   /** Adds hover affordance for clickable cards. */
@@ -33,12 +34,20 @@ export function CardHeader({
   return <div className={['card__header', className].filter(Boolean).join(' ')} {...rest} />
 }
 
-export function CardTitle({
-  className,
-  ...rest
-}: HTMLAttributes<HTMLHeadingElement>) {
+export interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
+  /** What this section is for: an ⓘ beside the title, instead of a paragraph under it. */
+  info?: ReactNode
+}
+
+export function CardTitle({ className, info, ...rest }: CardTitleProps) {
+  const heading = <h3 className={['card__title', className].filter(Boolean).join(' ')} {...rest} />
+  if (!info) return heading
+  // The ⓘ sits beside the heading, not in it, so the heading's name stays clean.
   return (
-    <h3 className={['card__title', className].filter(Boolean).join(' ')} {...rest} />
+    <div className="card__title-row">
+      {heading}
+      <InfoHint>{info}</InfoHint>
+    </div>
   )
 }
 

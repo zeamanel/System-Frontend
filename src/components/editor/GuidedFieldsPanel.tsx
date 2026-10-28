@@ -673,6 +673,7 @@ export function GuidedFieldsPanel({
                           </>
                         }
                         hint={t('editor.fieldMultilineHint')}
+                        hintMode="focus"
                         error={invalid[question.id] ? t('editor.fieldRequired') : undefined}
                         value={currentValue}
                         rows={3}
@@ -887,7 +888,6 @@ export function GuidedFieldsPanel({
         <Select
           id="editor-language-select"
           label={t('flow.language')}
-          hint={t('editor.languageHelp')}
           options={languageOptions}
           value={language}
           onChange={(event) => onLanguageChange(event.target.value)}

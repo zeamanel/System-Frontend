@@ -11,6 +11,12 @@
   color: var(--color-text);
 }
 
+.field__label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .field__required {
   margin-left: var(--space-1);
   color: var(--color-error);
@@ -26,4 +32,25 @@
   font-size: var(--text-sm);
   color: var(--color-error);
   line-height: var(--leading-normal);
+}
+
+/* Shown only while the control is being used; takes no room otherwise. */
+.field__hint--focus {
+  max-height: 0;
+  margin-top: calc(-1 * var(--space-2));
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.15s ease, opacity 0.15s ease, margin-top 0.15s ease;
+}
+
+.field:focus-within .field__hint--focus {
+  max-height: 8em;
+  margin-top: 0;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field__hint--focus {
+    transition: none;
+  }
 }

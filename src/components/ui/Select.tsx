@@ -3,7 +3,7 @@ import './controls.css'
 import { forwardRef } from 'react'
 import type { SelectHTMLAttributes, ReactNode } from 'react'
 import { ChevronDownIcon } from '../icons'
-import { Field } from './Field'
+import { Field, type HintMode } from './Field'
 import type { FieldControlAria } from './Field'
 
 export interface SelectOption {
@@ -16,6 +16,7 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   options: SelectOption[]
   label?: ReactNode
   hint?: ReactNode
+  hintMode?: HintMode
   error?: ReactNode
   /** Placeholder option rendered first (value must be ""). */
   placeholder?: string
@@ -31,6 +32,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     options,
     label,
     hint,
+    hintMode,
     error,
     placeholder,
     bare = false,
@@ -78,7 +80,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   }
 
   return (
-    <Field id={id} label={label} hint={hint} error={error} required={required}>
+    <Field id={id} label={label} hint={hint} hintMode={hintMode} error={error} required={required}>
       {(aria) => renderControl(aria)}
     </Field>
   )

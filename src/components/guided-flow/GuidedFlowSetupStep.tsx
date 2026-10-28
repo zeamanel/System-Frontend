@@ -74,6 +74,7 @@ export function GuidedFlowSetupStep({
             id="doc-title-input"
             label={t('flow.docTitle')}
             hint={`${template.title} — ${new Date().toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US')}`}
+            hintMode="always"
             value={docTitle}
             onChange={(e) => onDocTitleChange(e.target.value)}
             placeholder={t('flow.docTitlePlaceholder')}
@@ -82,7 +83,6 @@ export function GuidedFlowSetupStep({
           <Select
             id="doc-lang-select"
             label={t('flow.language')}
-            hint={t('flow.languageHelp')}
             options={langOptions}
             value={language}
             onChange={(e) => onLanguageChange(e.target.value as DocumentLanguage)}

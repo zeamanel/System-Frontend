@@ -4,7 +4,7 @@ import { isDocumentLanguage } from '../../lib/languages'
 import { refineBlockContent, type RefineAction } from '../../lib/editor/refine-block'
 import { escapePlainText } from '../../lib/editor/sanitize'
 import type { Block } from '../../lib/editor/types'
-import { Button, Spinner } from '../ui'
+import { Button, InfoHint, Spinner } from '../ui'
 
 export interface BlockRefinePanelProps {
   block: Block | null
@@ -134,13 +134,15 @@ export function BlockRefinePanel({
 
   return (
     <section className="editor-panel__section" aria-labelledby="format-refine">
-      <h2 id="format-refine" className="editor-panel__title">
-        {t('editor.refineTitle')}
-      </h2>
+      <div className="editor-panel__title-row">
+        <h2 id="format-refine" className="editor-panel__title">
+          {t('editor.refineTitle')}
+        </h2>
+        <InfoHint>{t('editor.refineHint')}</InfoHint>
+      </div>
 
       {!isTextBlock ? (
         <>
-          <p className="editor-panel__hint">{t('editor.refineHint')}</p>
           <form
             className="editor-refine-form"
             onSubmit={(event) => {

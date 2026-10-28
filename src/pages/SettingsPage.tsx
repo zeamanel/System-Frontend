@@ -86,7 +86,6 @@ export default function SettingsPage() {
             <Select
               id="settings-language"
               label={t('settings.language')}
-              hint={t('settings.languageHelp')}
               value={locale}
               onChange={(event) => {
                 const code = event.target.value as Locale
