@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '../../i18n'
 import { ToastProvider } from '../ui'
+import * as telegramApi from '../../lib/api/endpoints/telegram-bridge'
 import {
   GuidedFieldsPanel,
   ADDITIONAL_INSTRUCTIONS_FIELD_ID,
@@ -56,6 +57,10 @@ const mockTemplate: TemplateDetail = {
     },
   ],
 }
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 function renderPanel(props: Partial<React.ComponentProps<typeof GuidedFieldsPanel>> = {}) {
   const defaultProps = {
@@ -362,7 +367,7 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
     )
   })
 
-  it('renders a compact single-line header without hint and edge Map dropdown inside input container', async () => {
+  it('renders a compact single-line header without hint and an edge "Fill from ID" dropdown inside the input container', async () => {
     renderPanel()
 
     // Header has title and refresh button, but no subtitle hint
@@ -372,10 +377,40 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
     expect(screen.getByTestId('refresh-telegram-vault-btn')).toBeInTheDocument()
     expect(screen.queryByText(/answers drive generation/i)).toBeNull()
 
-    // Select dropdown is positioned inside input container with 'Map' placeholder
+    // The picker sits inside the input container, named for what it does (not "Map").
     const select = await screen.findByTestId('party-telegram-select-tenant_name-0')
     expect(select.closest('.guided-field__input-with-addon')).not.toBeNull()
-    expect(select).toHaveTextContent(/Map/i)
+    expect(select).toHaveTextContent(/Fill from ID/i)
+    expect(select).not.toHaveTextContent(/^Map/i)
+    expect(select).toHaveAccessibleName('Fill from scanned ID')
+    expect(select).toHaveAttribute('title', expect.stringContaining('ID card scanned through Telegram'))
+  })
+
+  it('hides the "Fill from ID" picker, for the main field and co-parties, until an ID has been scanned', async () => {
+    vi.spyOn(telegramApi, 'listTelegramMediaVault').mockResolvedValue([])
+    const { user } = renderPanel()
+    // Let the (empty) vault load, then check no picker is offered and no input space is reserved for one.
+    await waitFor(() => expect(telegramApi.listTelegramMediaVault).toHaveBeenCalled())
+    expect(screen.queryByTestId('party-telegram-select-tenant_name-0')).toBeNull()
+    expect(screen.queryByText(/Fill from ID/i)).toBeNull()
+
+    // A co-party row has none either.
+    await user.click(screen.getByTestId('header-add-party-btn'))
+    expect(await screen.findByTestId('co-party-input-tenant_name-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('party-telegram-select-tenant_name-1')).toBeNull()
+    expect(screen.queryByRole('combobox', { name: /fill from scanned id/i })).toBeNull()
+  })
+
+  it('shows the picker as soon as the vault has a scanned ID', async () => {
+    vi.spyOn(telegramApi, 'listTelegramMediaVault').mockResolvedValue([
+      { qalId: '5521', fullName: 'Selam Tesfaye', accountLabel: 'Selam', idNumber: '12345', phone: '0911', address: 'Bole', text: '' } as never,
+    ])
+    const { user } = renderPanel()
+    const select = await screen.findByTestId('party-telegram-select-tenant_name-0')
+    expect(within(select).getByText(/Selam Tesfaye \(ID: 5521\)/)).toBeInTheDocument()
+    // Co-party rows get the picker too.
+    await user.click(screen.getByTestId('header-add-party-btn'))
+    expect(await screen.findByTestId('party-telegram-select-tenant_name-1')).toBeInTheDocument()
   })
 
   it('SEC-12: New customer starts a fresh document and never clears the open one', async () => {

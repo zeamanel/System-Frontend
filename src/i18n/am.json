@@ -256,7 +256,7 @@
   "editor.fieldsHint": "መልሶችዎ መፍጠሪያን ይመራሉ፤ በድጋሚ ሲፈጠር ይጠበቃሉ።",
   "editor.fieldsRequired": "አስፈላጊ",
   "editor.fieldsOptional": "አማራጭ",
-  "editor.fields.mapTelegramId": "አያይዝ",
+  "editor.fields.mapTelegramId": "ከመታወቂያ ሙላ",
   "editor.fields.addCoParty": "+ ተጨማሪ ተዋዋይ/አካል ጨምር",
   "editor.fields.removeCoParty": "አካል አስወግድ",
   "editor.fields.linkedTelegramBadge": "ከቴሌግራም የተያያዘ",
@@ -825,5 +825,7 @@
   "history.restored": "ስሪት {version} ተመልሷል።",
   "history.restoreFailed": "ያ ስሪት ሊመለስ አልቻለም። እንደገና ይሞክሩ።",
   "history.saveFirst": "የቅርብ ጊዜ ለውጦችዎ ሊቀመጡ ስላልቻሉ ምንም አልተመለሰም። እንደገና ይሞክሩ።",
-  "history.empty": "እስካሁን ቀደም ያሉ ስሪቶች የሉም። ሲያስተካክሉ ስሪቶች ይቀመጣሉ።"
+  "history.empty": "እስካሁን ቀደም ያሉ ስሪቶች የሉም። ሲያስተካክሉ ስሪቶች ይቀመጣሉ።",
+  "editor.fields.mapTelegramHint": "ስሙን፣ የመታወቂያ ቁጥሩን፣ ስልኩንና አድራሻውን በቴሌግራም ከተቃኘ መታወቂያ ይሙሉ።",
+  "editor.fields.mapTelegramShort": "ከመታወቂያ"
 }

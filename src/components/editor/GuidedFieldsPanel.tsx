@@ -186,6 +186,8 @@ export function GuidedFieldsPanel({
       document.removeEventListener('mousedown', handlePointerDown)
     }
   }, [addPartyMenuOpen])
+  // The "fill from scanned ID" picker is only useful when an ID has been scanned.
+  const hasScannedIds = telegramProfiles.length > 0
   const isPromptOnly = questions.length === 0
   const missingRequiredIds = questions
     .filter((q) => q.required && !(answers[q.id] ?? '').trim())
@@ -623,30 +625,32 @@ export function GuidedFieldsPanel({
                           aria-invalid={invalid[question.id] ? true : undefined}
                         />
                       )}
-                      <select
-                        data-testid={`party-telegram-select-${fieldKey}-0`}
-                        className="guided-fields-panel__party-select"
-                        value={primarySlot?.profile?.qalId ?? ''}
-                        aria-label={t('editor.fields.mapTelegramId')}
-                        title={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
-                        data-tooltip={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
-                        onChange={(e) =>
-                          handleTelegramSelect(
-                            fieldKey,
-                            0,
-                            e.target.value,
-                            question.label,
-                            currentValue,
-                          )
-                        }
-                      >
-                        <option value="">{t('editor.fields.mapTelegramId')}</option>
-                        {telegramProfiles.map((acc) => (
-                          <option key={acc.qalId} value={acc.qalId}>
-                            {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
-                          </option>
-                        ))}
-                      </select>
+                      {hasScannedIds ? (
+                        <select
+                          data-testid={`party-telegram-select-${fieldKey}-0`}
+                          className="guided-fields-panel__party-select"
+                          value={primarySlot?.profile?.qalId ?? ''}
+                          aria-label={t('editor.fields.mapTelegramId')}
+                          title={t('editor.fields.mapTelegramHint')}
+                          data-tooltip={t('editor.fields.mapTelegramHint')}
+                          onChange={(e) =>
+                            handleTelegramSelect(
+                              fieldKey,
+                              0,
+                              e.target.value,
+                              question.label,
+                              currentValue,
+                            )
+                          }
+                        >
+                          <option value="">{t('editor.fields.mapTelegramShort')}</option>
+                          {telegramProfiles.map((acc) => (
+                            <option key={acc.qalId} value={acc.qalId}>
+                              {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
                     </div>
 
                     {invalid[question.id] ? (
@@ -771,30 +775,32 @@ export function GuidedFieldsPanel({
                               )
                             }
                           />
-                          <select
-                            data-testid={`party-telegram-select-${fieldKey}-${idx}`}
-                            className="guided-fields-panel__party-select"
-                            value={coSlot.profile?.qalId ?? ''}
-                            aria-label={t('editor.fields.mapTelegramId')}
-                            title={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
-                            data-tooltip={`${t('editor.fields.mapTelegramId')}: ${t('editor.fields.linkedTelegramBadge')}`}
-                            onChange={(e) =>
-                              handleTelegramSelect(
-                                fieldKey,
-                                idx,
-                                e.target.value,
-                                question.label,
-                                currentValue,
-                              )
-                            }
-                          >
-                            <option value="">{t('editor.fields.mapTelegramId')}</option>
-                            {telegramProfiles.map((acc) => (
-                              <option key={acc.qalId} value={acc.qalId}>
-                                {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
-                              </option>
-                            ))}
-                          </select>
+                          {hasScannedIds ? (
+                            <select
+                              data-testid={`party-telegram-select-${fieldKey}-${idx}`}
+                              className="guided-fields-panel__party-select"
+                              value={coSlot.profile?.qalId ?? ''}
+                              aria-label={t('editor.fields.mapTelegramId')}
+                              title={t('editor.fields.mapTelegramHint')}
+                              data-tooltip={t('editor.fields.mapTelegramHint')}
+                              onChange={(e) =>
+                                handleTelegramSelect(
+                                  fieldKey,
+                                  idx,
+                                  e.target.value,
+                                  question.label,
+                                  currentValue,
+                                )
+                              }
+                            >
+                              <option value="">{t('editor.fields.mapTelegramShort')}</option>
+                              {telegramProfiles.map((acc) => (
+                                <option key={acc.qalId} value={acc.qalId}>
+                                  {acc.fullName || acc.accountLabel} (ID: {acc.qalId})
+                                </option>
+                              ))}
+                            </select>
+                          ) : null}
                         </div>
                         {coSlot.profile ? (
                           <div

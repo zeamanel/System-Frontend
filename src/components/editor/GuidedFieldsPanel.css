@@ -128,24 +128,29 @@
 }
 
 .guided-field__input-with-addon {
-  position: relative;
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  gap: 6px;
   width: 100%;
+}
+
+/* The field takes the width the picker leaves (nothing is reserved when there is no picker). */
+.guided-field__input-with-addon > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .guided-field__input-with-addon input,
 .guided-field__input-with-addon textarea {
   width: 100%;
-  padding-right: 74px;
 }
 
+/* "Fill from ID": sits beside the field, as tall as it. */
 .guided-fields-panel__party-select {
-  position: absolute;
-  right: 3px;
-  top: 3px;
-  height: calc(100% - 6px);
-  max-width: 68px;
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 104px;
+  min-height: 34px;
   padding: 0 4px;
   font-size: 12px;
   font-weight: 600;
@@ -159,9 +164,6 @@
   text-overflow: ellipsis;
   outline: none;
   transition: all 0.15s ease-in-out;
-  display: flex;
-  align-items: center;
-  z-index: 1;
 }
 
 .guided-fields-panel__party-select:hover {

@@ -256,7 +256,7 @@
   "editor.fieldsHint": "Answers drive generation and are kept when you regenerate.",
   "editor.fieldsRequired": "Required",
   "editor.fieldsOptional": "Optional",
-  "editor.fields.mapTelegramId": "Map",
+  "editor.fields.mapTelegramId": "Fill from scanned ID",
   "editor.fields.addCoParty": "+ Add another party",
   "editor.fields.removeCoParty": "Remove party",
   "editor.fields.linkedTelegramBadge": "Linked Telegram ID",
@@ -825,5 +825,7 @@
   "history.restored": "Restored version {version}.",
   "history.restoreFailed": "That version could not be restored. Try again.",
   "history.saveFirst": "Your latest changes could not be saved, so nothing was restored. Try again.",
-  "history.empty": "No earlier versions yet. Versions are kept as you edit."
+  "history.empty": "No earlier versions yet. Versions are kept as you edit.",
+  "editor.fields.mapTelegramHint": "Fill the name, ID number, phone and address from an ID card scanned through Telegram.",
+  "editor.fields.mapTelegramShort": "Fill from ID"
 }
