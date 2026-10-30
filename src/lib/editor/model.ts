@@ -7,6 +7,7 @@
  */
 
 import { DesignContentError, isDesignContent } from './document-kind'
+import { sanitizeDocumentStyle } from './styles'
 import type {
   Block,
   DocumentModel,
@@ -1038,8 +1039,11 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
     }
   }
 
+  const style = sanitizeDocumentStyle(input.style)
+  const { style: _unchecked, ...rest } = input
   return {
-    ...input,
+    ...rest,
+    ...(style ? { style } : {}),
     page: {
       ...input.page,
       headerHtml: sanitizeInlineHtml(String(input.page?.headerHtml ?? '')),

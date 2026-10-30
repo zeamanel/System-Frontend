@@ -1162,6 +1162,85 @@ figure.doc-block--image-right {
 
 /* ---------- Print: the screen pages ARE the print pages ---------- */
 
+/* ---------- Document styles ----------
+   Decorations only: the font, margins and title alignment a style uses are
+   set on the model when it is chosen. The server PDF draws the same frames,
+   rules and colours (system-backend src/lib/export/pdf.ts); keep them in step. */
+
+.doc-paper--style-legal-frame::before,
+.doc-paper--style-legal-frame::after,
+.doc-paper--style-formal-border::before,
+.doc-paper--style-formal-border::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.doc-paper--style-legal-frame::before {
+  inset: 10mm;
+  border: 0.75pt solid #1f2937;
+}
+
+.doc-paper--style-legal-frame::after {
+  inset: 11.5mm;
+  border: 0.35pt solid #1f2937;
+}
+
+.doc-paper--style-formal-border::before {
+  inset: 9mm;
+  border: 2.5pt solid #8a6a1f;
+}
+
+.doc-paper--style-formal-border::after {
+  inset: 12mm;
+  border: 0.6pt solid #8a6a1f;
+}
+
+/* Framed pages: header and footer sit inside the frame. */
+.doc-paper--style-legal-frame .doc-paper__header,
+.doc-paper--style-formal-border .doc-paper__header {
+  padding-top: 15mm;
+}
+
+.doc-paper--style-legal-frame .doc-paper__footer,
+.doc-paper--style-formal-border .doc-paper__footer {
+  padding-bottom: 15mm;
+}
+
+.doc-paper--style-formal-border .doc-heading--1 {
+  color: #6b4f12;
+  letter-spacing: 0.04em;
+}
+
+/* Executive letterhead: logo and organization lines in a band with a navy rule. */
+.doc-paper__header--band {
+  display: flex;
+  align-items: center;
+  gap: 4mm;
+  color: var(--color-text);
+  border-bottom: 1.5pt solid #1e3a8a;
+}
+
+.doc-paper__logo {
+  height: 16mm;
+  max-width: 45mm;
+  object-fit: contain;
+  flex: none;
+}
+
+.doc-paper__header-text {
+  min-width: 0;
+}
+
+.doc-paper--style-executive-letterhead .doc-paper__footer {
+  border-top: 0.75pt solid #1e3a8a;
+}
+
+.doc-paper--style-executive-letterhead .doc-heading--1 {
+  color: #1e3a8a;
+}
+
 @media print {
   @page {
     size: A4;

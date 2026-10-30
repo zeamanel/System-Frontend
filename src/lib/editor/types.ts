@@ -132,6 +132,15 @@ export interface PageSetup {
   orientation?: PageOrientation
 }
 
+/** A named look for a text document (frames, letterhead band, fonts). */
+export type DocumentStyleId = 'standard' | 'legal-frame' | 'executive-letterhead' | 'formal-border'
+
+export interface DocumentStyle {
+  id: Exclude<DocumentStyleId, 'standard'>
+  /** Executive letterhead: the organization logo shown in the header band. */
+  logoMediaId?: string
+}
+
 export interface DocumentModel {
   schema: 'docuA4.document'
   version: 1
@@ -141,6 +150,8 @@ export interface DocumentModel {
   /** Base body size in points. */
   fontSize: number
   page: PageSetup
+  /** Absent means the plain standard look. */
+  style?: DocumentStyle
   blocks: Block[]
 }
 

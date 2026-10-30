@@ -5,6 +5,8 @@ import { contentHeightMm } from '../../lib/editor/model'
 import { paginateBlocks, type PageSlice, type SplittableBlock } from '../../lib/editor/paginate'
 import { fitWidthZoom } from '../../lib/editor/a4'
 import { fontStack } from '../../lib/editor/fonts'
+import { documentStyleId } from '../../lib/editor/styles'
+import { useMediaUrls } from '../../hooks/use-media'
 import { findEditable, focusEditable, type EditableRef } from './caret'
 import { BlockView, type BlockLabels } from './blocks/BlockView'
 import type { EditorApi } from './editor-api'
@@ -64,6 +66,10 @@ export function A4PagesCanvas({
   }, [model.blocks])
 
   const isLandscape = model.page.orientation === 'landscape'
+  const styleId = documentStyleId(model)
+  const isLetterhead = styleId === 'executive-letterhead'
+  const { urls: media } = useMediaUrls({ logo: isLetterhead ? model.style?.logoMediaId : null })
+  const showHeader = model.page.headerEnabled || Boolean(isLetterhead && media.logo)
   const contentHeightPx = contentHeightMm(model.page.margins, model.page.orientation) * (96 / 25.4)
 
   const measureAndPaginate = useCallback(() => {
@@ -187,6 +193,7 @@ export function A4PagesCanvas({
               'doc-paper',
               'a4-sheet',
               isLandscape ? 'doc-paper--landscape a4-sheet--landscape' : null,
+              styleId !== 'standard' ? `doc-paper--style-${styleId}` : null,
             ]
               .filter(Boolean)
               .join(' ')}
@@ -194,7 +201,17 @@ export function A4PagesCanvas({
             data-orientation={isLandscape ? 'landscape' : 'portrait'}
             aria-label={`${pageAriaLabel} ${pageIndex + 1}`}
           >
-            {model.page.headerEnabled ? (
+            {showHeader && isLetterhead ? (
+              <header className="doc-paper__header doc-paper__header--band">
+                {media.logo ? <img className="doc-paper__logo" src={media.logo} alt="" /> : null}
+                {model.page.headerEnabled ? (
+                  <div
+                    className="doc-paper__header-text"
+                    dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(model.page.headerHtml) }}
+                  />
+                ) : null}
+              </header>
+            ) : showHeader ? (
               <header
                 className="doc-paper__header"
                 dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(model.page.headerHtml) }}

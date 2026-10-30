@@ -32,6 +32,7 @@ import {
   serializeModel,
 } from '../../lib/editor/model'
 import type { DocumentModel } from '../../lib/editor/types'
+import { contentHasOwnLook, keepLook } from '../../lib/editor/styles'
 import { diffBlocks, sameBlock, type TrackedChange, type RevertResult } from '../../lib/editor/tracked-change'
 
 export type { TrackedChange, RevertResult }
@@ -91,6 +92,11 @@ function clearBuffer(documentId: string): void {
   } catch {
     // Non-fatal
   }
+}
+
+export interface AdoptOptions {
+  /** Regenerated text: keep the current style, font and page set-up. */
+  keepLook?: boolean
 }
 
 export interface UseDocumentEditorOptions {
@@ -292,13 +298,16 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     [markDirty],
   )
 
-  const adoptSnapshot = useCallback((snapshot: DocumentDetailRecord): void => {
+  const adoptSnapshot = useCallback((snapshot: DocumentDetailRecord, options?: AdoptOptions): void => {
     dirtyRef.current = false
     pendingSyncRef.current.clear()
     syncBaselineRef.current = { ...(snapshot.answers ?? {}) }
-    setModelState(
+    const fresh =
       parseDocumentContent(snapshot.content, snapshot.language) ??
-        createEmptyDocument(snapshot.language),
+      createEmptyDocument(snapshot.language)
+    // Generated text arrives without a look: keep the style and page set-up the user chose.
+    setModelState((current) =>
+      options?.keepLook && !contentHasOwnLook(snapshot.content) ? keepLook(fresh, current) : fresh,
     )
     setTitleState(snapshot.title)
     setAnswersState(snapshot.answers ?? {})

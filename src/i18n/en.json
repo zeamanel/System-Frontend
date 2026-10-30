@@ -824,5 +824,19 @@
   "history.empty": "No earlier versions yet. Versions are kept as you edit.",
   "editor.fields.mapTelegramHint": "Fill the name, ID number, phone and address from an ID card scanned through Telegram.",
   "editor.fields.mapTelegramShort": "Fill from ID",
-  "common.moreInfo": "More information"
+  "common.moreInfo": "More information",
+  "styles.button": "Style",
+  "styles.title": "Page style",
+  "styles.intro": "Change how the page looks. Your text stays the same and stays editable.",
+  "styles.suggested": "Suggested",
+  "styles.applied": "Style applied",
+  "styles.standard.title": "Standard Clean",
+  "styles.standard.description": "Plain page, sans-serif text, 20 mm margins.",
+  "styles.legalFrame.title": "Classic Legal Frame",
+  "styles.legalFrame.description": "Serif text inside a fine double frame, centred title. For contracts and agreements.",
+  "styles.letterhead.title": "Executive Letterhead",
+  "styles.letterhead.description": "Your logo and organization details in a header band. For letters and certificates of service.",
+  "styles.letterheadHint": "Add a logo and letterhead lines under Organization to fill the band.",
+  "styles.formalBorder.title": "Formal Border",
+  "styles.formalBorder.description": "A gold double border with a centred title. For certificates and formal notices."
 }

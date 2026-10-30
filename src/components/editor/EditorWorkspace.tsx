@@ -61,6 +61,9 @@ import { LANGUAGES } from '../../lib/languages'
 import { Button, Dialog, useToast } from '../ui'
 import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
+import { StylePickerDialog } from './StylePickerDialog'
+import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/editor/styles'
+import { useOrganization } from '../../hooks/use-organization'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../../lib/query-keys'
 import { BlockRefinePanel } from './BlockRefinePanel'
@@ -146,6 +149,9 @@ export function EditorWorkspace({
   const pendingFocusRef = useRef<{ ref: EditableRef; position: 'start' | 'end' } | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [styleOpen, setStyleOpen] = useState(false)
+  const organization = useOrganization()
+  const organizationProfile = organization.data ?? null
   const queryClient = useQueryClient()
   const [imageError, setImageError] = useState<string | null>(null)
   // Format stays the default tab; the panel switches to the assistant when
@@ -650,7 +656,7 @@ export function EditorWorkspace({
     void (async () => {
       const fresh = await refresh()
       if (!cancelled && fresh) {
-        editor.adoptSnapshot(fresh)
+        editor.adoptSnapshot(fresh, { keepLook: true })
         toast.push(t('editor.regenerated'))
         showGenerationNotes()
       }
@@ -1028,6 +1034,7 @@ export function EditorWorkspace({
         onTogglePreview={() => setPreviewMode((current) => !current)}
         onSave={() => void editor.save()}
         onShowHistory={() => setHistoryOpen(true)}
+        onChooseStyle={() => setStyleOpen(true)}
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
@@ -1147,6 +1154,21 @@ export function EditorWorkspace({
         <SectionsOutline outline={outline} onSelect={handleOutlineSelect} />
         </GuidedFieldsPanel>
       </aside>
+
+      <StylePickerDialog
+        open={styleOpen}
+        onClose={() => setStyleOpen(false)}
+        current={documentStyleId(editor.model)}
+        suggested={suggestedStyles(template?.documentTypeId)}
+        letterheadIncomplete={
+          !organizationProfile?.logoMediaId ||
+          !organizationProfile.letterhead.headerLines.some((line) => line.trim())
+        }
+        onChoose={(id) => {
+          editor.updateModel((current) => applyDocumentStyle(current, id, organizationProfile))
+          toast.push(t('styles.applied'))
+        }}
+      />
 
       <VersionHistoryDialog
         open={historyOpen}

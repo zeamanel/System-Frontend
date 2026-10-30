@@ -530,3 +530,14 @@ export function PaperclipIcon({ size = 18, ...rest }: IconProps) {
     </svg>
   )
 }
+
+/** A framed page: document styles. */
+export function PageStyleIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <rect x="5" y="3" width="14" height="18" rx="1.5" />
+      <rect x="7.5" y="5.5" width="9" height="13" rx="0.5" />
+      <path d="M10 9h4M9.5 12h5M9.5 14.5h5" />
+    </svg>
+  )
+}
