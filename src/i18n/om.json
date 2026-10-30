@@ -838,5 +838,9 @@
   "styles.letterhead.description": "Asxaa fi odeeffannoo dhaabbata keessanii baandii mataa keessatti. Xalayaa fi ragaa tajaajilaatiif.",
   "styles.letterheadHint": "Baandii kana guutuuf, Dhaabbata jalatti asxaa fi sarara mataa xalayaa dabalaa.",
   "styles.formalBorder.title": "Daangaa Idilee",
-  "styles.formalBorder.description": "Daangaa dachaa warqee fakkaatu, mata-dureen gidduu irratti. Waraqaa ragaa fi beeksisa idileetiif."
+  "styles.formalBorder.description": "Daangaa dachaa warqee fakkaatu, mata-dureen gidduu irratti. Waraqaa ragaa fi beeksisa idileetiif.",
+  "styles.design.title": "Dizaayinii giraafikii filattuu?",
+  "styles.design.body": "{design} deebii duraan galchitaniin guutamee bana. Galmeen kun akkuma jiru ta'a.",
+  "styles.design.open": "Dizaayinii Giraafikiin Bani",
+  "styles.design.saveFirst": "Jijjiiramni keessan dhumaa olkaa'amuu waan hin dandeenyeef, dizaayiniin hin banamne. Irra deebi'aa yaalaa."
 }

@@ -838,5 +838,9 @@
   "styles.letterhead.description": "Your logo and organization details in a header band. For letters and certificates of service.",
   "styles.letterheadHint": "Add a logo and letterhead lines under Organization to fill the band.",
   "styles.formalBorder.title": "Formal Border",
-  "styles.formalBorder.description": "A gold double border with a centred title. For certificates and formal notices."
+  "styles.formalBorder.description": "A gold double border with a centred title. For certificates and formal notices.",
+  "styles.design.title": "Prefer a graphic design?",
+  "styles.design.body": "Opens the {design} with the answers you already entered. This document stays as it is.",
+  "styles.design.open": "Open in Graphic Design",
+  "styles.design.saveFirst": "Your latest changes could not be saved, so the design was not opened. Try again."
 }

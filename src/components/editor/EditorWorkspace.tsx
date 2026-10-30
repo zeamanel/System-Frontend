@@ -64,6 +64,9 @@ import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
 import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/editor/styles'
 import { useOrganization } from '../../hooks/use-organization'
+import { useFeatures } from '../../hooks/use-features'
+import { designLinkFor } from '../../designs/links'
+import { DESIGN_CATALOG } from '../../designs/catalog'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../../lib/query-keys'
 import { BlockRefinePanel } from './BlockRefinePanel'
@@ -152,6 +155,9 @@ export function EditorWorkspace({
   const [styleOpen, setStyleOpen] = useState(false)
   const organization = useOrganization()
   const organizationProfile = organization.data ?? null
+  const features = useFeatures()
+  const designLink = features.designs ? designLinkFor(template?.documentTypeId) : null
+  const linkedDesign = designLink ? DESIGN_CATALOG.find((entry) => entry.id === designLink.designId) : undefined
   const queryClient = useQueryClient()
   const [imageError, setImageError] = useState<string | null>(null)
   // Format stays the default tab; the panel switches to the assistant when
@@ -1168,6 +1174,21 @@ export function EditorWorkspace({
           editor.updateModel((current) => applyDocumentStyle(current, id, organizationProfile))
           toast.push(t('styles.applied'))
         }}
+        graphicDesign={
+          designLink && linkedDesign
+            ? {
+                designId: designLink.designId,
+                name: t(linkedDesign.titleKey),
+                title: [t(linkedDesign.titleKey), editor.title].filter(Boolean).join(' — '),
+                fields: () => designLink.fill(editor.answers),
+                beforeOpen: async () => {
+                  if (await editor.saveAll()) return true
+                  toast.push(t('styles.design.saveFirst'), { variant: 'error' })
+                  return false
+                },
+              }
+            : undefined
+        }
       />
 
       <VersionHistoryDialog
