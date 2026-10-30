@@ -838,5 +838,9 @@
   "styles.letterhead.description": "የድርጅትዎ አርማና መረጃ በራስጌ ባንድ ውስጥ። ለደብዳቤዎችና ለስራ ልምድ ማስረጃዎች።",
   "styles.letterheadHint": "ባንዱን ለመሙላት በድርጅት ገጽ ላይ አርማና የደብዳቤ ራስጌ መስመሮችን ያክሉ።",
   "styles.formalBorder.title": "መደበኛ ድንበር",
-  "styles.formalBorder.description": "ወርቃማ ድርብ ድንበር፣ መሃል ላይ ርዕስ። ለምስክር ወረቀቶችና መደበኛ ማስታወቂያዎች።"
+  "styles.formalBorder.description": "ወርቃማ ድርብ ድንበር፣ መሃል ላይ ርዕስ። ለምስክር ወረቀቶችና መደበኛ ማስታወቂያዎች።",
+  "styles.design.title": "ግራፊክ ዲዛይን ይመርጣሉ?",
+  "styles.design.body": "{design}ን አስቀድመው ባስገቡት መልስ ተሞልቶ ይከፍታል። ይህ ሰነድ እንዳለ ይቆያል።",
+  "styles.design.open": "በግራፊክ ዲዛይን ክፈት",
+  "styles.design.saveFirst": "የቅርብ ለውጦችዎ ሊቀመጡ ስላልቻሉ ዲዛይኑ አልተከፈተም። እንደገና ይሞክሩ።"
 }
