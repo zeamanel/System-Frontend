@@ -1,5 +1,6 @@
 import './pages.css'
 
+import { WriteAnythingStrip } from '../components/templates/WriteAnythingStrip'
 import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
@@ -158,6 +159,8 @@ export default function TemplatesPage() {
   return (
     <div className="page">
       <PageHeader title={t('templates.title')} />
+
+      <WriteAnythingStrip />
 
       {features.designs ? <DesignShelf /> : null}
 
