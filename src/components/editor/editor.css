@@ -40,6 +40,23 @@
   grid-template-columns: 0 minmax(0, 1fr) 0;
 }
 
+/* Each part keeps its own column: a closed (display: none) side panel must
+   not let the page slide into its zero-width column (closing the fields
+   panel used to shrink the page to 32px). */
+@media (min-width: 961px) {
+  .editor-workspace > .editor-side--left {
+    grid-column: 1;
+  }
+
+  .editor-workspace > .doc-canvas-scroll {
+    grid-column: 2;
+  }
+
+  .editor-workspace > .editor-side--right {
+    grid-column: 3;
+  }
+}
+
 .editor-workspace > .editor-toolbar {
   position: sticky;
   top: 0;
@@ -96,6 +113,45 @@
   border-color: var(--color-border);
   background-color: var(--color-surface-muted);
   outline: none;
+}
+
+/* Desktop: one toolbar row. The title takes the room that is left (it used
+   to wrap the toolbar onto three rows and cut the title to ~100px). */
+@media (min-width: 961px) {
+  .editor-toolbar,
+  .editor-toolbar__group--start,
+  .editor-toolbar__group--end {
+    flex-wrap: nowrap;
+  }
+
+  .editor-toolbar__group--end {
+    flex-shrink: 0;
+  }
+
+  .editor-toolbar__title {
+    flex: 1 1 220px;
+    min-width: 120px;
+    max-width: 480px;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Laptop widths: secondary actions become icons (their aria-label and
+   title keep them named); Save, Export and Print keep their words. */
+@media (min-width: 961px) and (max-width: 1799px) {
+  .editor-toolbar .editor-toolbar__label,
+  .editor-toolbar .editor-toolbar__vault-btn-label {
+    display: none;
+  }
+
+  .editor-toolbar__group--end > .popover .editor-toolbar__label {
+    display: inline;
+  }
+
+  .editor-toolbar__back,
+  .editor-toolbar__group--end .btn--ghost {
+    padding-inline: var(--space-2);
+  }
 }
 
 .editor-save-status {
@@ -1104,27 +1160,32 @@ figure.doc-block--image-right {
 
 /* ---------- Responsive ---------- */
 
+/* Small laptops and landscape tablets (961-1180px): the fields stay docked
+   beside the page (they used to float over it and hide the document on
+   load); Format and Assistant slide in from the right when asked for. */
 @media (max-width: 1180px) {
   .editor-workspace,
-  .editor-workspace:not(.editor-workspace--left-open) {
-    grid-template-columns: minmax(0, 1fr) var(--editor-right-width);
+  .editor-workspace:not(.editor-workspace--right-open),
+  .editor-workspace--left-open:not(.editor-workspace--right-open) {
+    grid-template-columns: var(--editor-left-width) minmax(0, 1fr);
   }
 
-  .editor-workspace--left-open .editor-side--left {
+  .editor-workspace:not(.editor-workspace--left-open),
+  .editor-workspace:not(.editor-workspace--left-open):not(.editor-workspace--right-open) {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+
+  .editor-workspace--right-open .editor-side--right {
     position: fixed;
     z-index: 60;
     top: var(--header-height, var(--topbar-height, 56px));
     bottom: 0;
-    left: 0;
+    right: 0;
     width: min(320px, 85vw);
     height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
     max-height: none;
-    border-right: 1px solid var(--color-border);
+    border-left: 1px solid var(--color-border);
     box-shadow: var(--shadow-md);
-  }
-
-  .editor-workspace:not(.editor-workspace--right-open) {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1156,6 +1217,18 @@ figure.doc-block--image-right {
     height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
     max-height: none;
     border-left: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+  }
+  .editor-workspace--left-open .editor-side--left {
+    position: fixed;
+    z-index: 60;
+    top: var(--header-height, var(--topbar-height, 56px));
+    bottom: 0;
+    left: 0;
+    width: min(320px, 85vw);
+    height: calc(100vh - var(--header-height, var(--topbar-height, 56px)));
+    max-height: none;
+    border-right: 1px solid var(--color-border);
     box-shadow: var(--shadow-md);
   }
 }

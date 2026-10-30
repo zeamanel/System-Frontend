@@ -53,8 +53,8 @@ export function TemplateCard({
           </span>
           <span className="template-card__meta">
             <span className="template-card__tags">
-              <Badge variant="neutral">{categoryLabel}</Badge>
-              <Badge variant="neutral">{template.documentTypeId.toUpperCase()}</Badge>
+              <Badge variant="neutral" title={categoryLabel}>{categoryLabel}</Badge>
+              <Badge variant="neutral" title={template.documentTypeId.toUpperCase()}>{template.documentTypeId.toUpperCase()}</Badge>
               <Badge variant="neutral">{template.language.toUpperCase()}</Badge>
               {template.region ? (
                 <Badge variant="neutral">{template.region}</Badge>

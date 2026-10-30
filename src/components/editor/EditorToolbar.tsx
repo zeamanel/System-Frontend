@@ -100,6 +100,7 @@ export function EditorToolbar({
           icon={<ArrowLeftIcon size={16} />}
           onClick={onBack}
           aria-label={t('editor.back')}
+          title={t('editor.back')}
           className="editor-toolbar__back"
         >
           <span className="editor-toolbar__label">{t('editor.back')}</span>
@@ -241,6 +242,7 @@ function renderToolbarEnd(props: {
         aria-pressed={props.previewMode}
         onClick={props.onTogglePreview}
         aria-label={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
+        title={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
       >
         <span className="editor-toolbar__label">
           {props.previewMode ? t('editor.previewOff') : t('editor.preview')}
@@ -253,6 +255,7 @@ function renderToolbarEnd(props: {
           icon={<PageStyleIcon size={16} />}
           onClick={props.onChooseStyle}
           aria-label={t('styles.button')}
+          title={t('styles.button')}
           className="editor-toolbar__style"
           data-testid="editor-style"
         >
@@ -266,6 +269,7 @@ function renderToolbarEnd(props: {
           icon={<HistoryIcon size={16} />}
           onClick={props.onShowHistory}
           aria-label={t('editor.history')}
+          title={t('editor.history')}
           className="editor-toolbar__history"
           data-testid="editor-history"
         >

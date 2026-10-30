@@ -309,7 +309,7 @@ function TelegramBridgeButtonInner({
         aria-label={t('documents.connectTelegram')}
         data-testid="telegram-bridge-button"
       >
-        {t('documents.connectTelegram')}
+        {compact ? <span className="editor-toolbar__label">{t('documents.connectTelegram')}</span> : t('documents.connectTelegram')}
       </Button>
 
       <Dialog

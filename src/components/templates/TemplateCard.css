@@ -113,6 +113,15 @@
   align-items: center;
   gap: var(--space-1);
   flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* A long tag ends in "…" instead of widening the card (and the page). */
+.template-card__tags .badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .template-card__footer {

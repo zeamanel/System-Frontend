@@ -122,7 +122,8 @@ function OpenLocalFileButtonInner({
         title={t('documents.openFile')}
         aria-label={t('documents.openFile')}
       >
-        {t('documents.openFile')}
+        {/* In the editor toolbar the text can shrink to the icon (the aria-label keeps the name). */}
+        {compact ? <span className="editor-toolbar__label">{t('documents.openFile')}</span> : t('documents.openFile')}
       </Button>
     </>
   )
