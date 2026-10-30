@@ -11,6 +11,7 @@ import {
   DownloadIcon,
   EyeIcon,
   HistoryIcon,
+  PageStyleIcon,
   PanelLeftIcon,
   PanelRightIcon,
   PrinterIcon,
@@ -26,6 +27,8 @@ export interface EditorToolbarProps {
   onSave: () => void
   /** Opens the version history (absent: no history button). */
   onShowHistory?: () => void
+  /** Opens the style picker (absent: no style button, e.g. read-only views). */
+  onChooseStyle?: () => void
   onReloadLatest: () => void
   onOverwrite: () => void
   onPrint: () => void
@@ -68,6 +71,7 @@ export function EditorToolbar({
   onTogglePreview,
   onSave,
   onShowHistory,
+  onChooseStyle,
   onReloadLatest,
   onOverwrite,
   onPrint,
@@ -173,6 +177,7 @@ export function EditorToolbar({
         onTogglePreview,
         onSave,
         onShowHistory,
+        onChooseStyle,
         onPrint,
         onExportServerPdf,
         exportPending,
@@ -197,6 +202,7 @@ function renderToolbarEnd(props: {
   onTogglePreview: () => void
   onSave: () => void
   onShowHistory?: () => void
+  onChooseStyle?: () => void
   onPrint: () => void
   onExportServerPdf: () => void
   exportPending: boolean
@@ -240,6 +246,19 @@ function renderToolbarEnd(props: {
           {props.previewMode ? t('editor.previewOff') : t('editor.preview')}
         </span>
       </Button>
+
+      {props.onChooseStyle ? (
+        <Button
+          variant="ghost"
+          icon={<PageStyleIcon size={16} />}
+          onClick={props.onChooseStyle}
+          aria-label={t('styles.button')}
+          className="editor-toolbar__style"
+          data-testid="editor-style"
+        >
+          <span className="editor-toolbar__label">{t('styles.button')}</span>
+        </Button>
+      ) : null}
 
       {props.onShowHistory ? (
         <Button

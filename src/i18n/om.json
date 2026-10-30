@@ -824,5 +824,19 @@
   "history.empty": "No earlier versions yet. Versions are kept as you edit.",
   "editor.fields.mapTelegramHint": "Fill the name, ID number, phone and address from an ID card scanned through Telegram.",
   "editor.fields.mapTelegramShort": "Fill from ID",
-  "common.moreInfo": "More information"
+  "common.moreInfo": "More information",
+  "styles.button": "Bifa",
+  "styles.title": "Bifa fuulaa",
+  "styles.intro": "Akkaataa fuulli itti mul'atu jijjiiraa. Barreeffamni keessan akkuma jiru ta'a, gulaaluunis ni danda'ama.",
+  "styles.suggested": "Kan gorfame",
+  "styles.applied": "Bifni hojiirra oole",
+  "styles.standard.title": "Idilee Qulqulluu",
+  "styles.standard.description": "Fuula salphaa, qubee sans-serif, moggaa 20 mm.",
+  "styles.legalFrame.title": "Gulantaa Seeraa Durii",
+  "styles.legalFrame.description": "Qubee serif gulantaa dachaa qal’aa keessatti, mata-dureen gidduu irratti. Waliigaltee fi kontiraataaf.",
+  "styles.letterhead.title": "Mataa Xalayaa Dhaabbataa",
+  "styles.letterhead.description": "Asxaa fi odeeffannoo dhaabbata keessanii baandii mataa keessatti. Xalayaa fi ragaa tajaajilaatiif.",
+  "styles.letterheadHint": "Baandii kana guutuuf, Dhaabbata jalatti asxaa fi sarara mataa xalayaa dabalaa.",
+  "styles.formalBorder.title": "Daangaa Idilee",
+  "styles.formalBorder.description": "Daangaa dachaa warqee fakkaatu, mata-dureen gidduu irratti. Waraqaa ragaa fi beeksisa idileetiif."
 }

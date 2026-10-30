@@ -72,6 +72,30 @@ describe('EditorWorkspace', () => {
     expect(screen.getByLabelText('Page 1')).toBeInTheDocument()
   })
 
+  it('applies a page style from the Style button and saves it with the document', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    fireEvent.click(screen.getByTestId('editor-style'))
+    const option = await screen.findByTestId('style-option-legal-frame')
+    // The rental agreement suggests the legal frame.
+    expect(within(option).getByText('Suggested')).toBeInTheDocument()
+    fireEvent.click(option)
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Page 1')).toHaveClass('doc-paper--style-legal-frame'),
+    )
+    expect(saveStatus()).toHaveTextContent(/unsaved|saving|saved/i)
+
+    // Back to the plain look.
+    fireEvent.click(screen.getByTestId('editor-style'))
+    fireEvent.click(await screen.findByTestId('style-option-standard'))
+    await waitFor(() =>
+      expect(screen.getByLabelText('Page 1')).not.toHaveClass('doc-paper--style-legal-frame'),
+    )
+  })
+
   it('marks the document unsaved on edit, autosaves, and clears the buffer', async () => {
     vi.useFakeTimers()
     const { doc, template } = await loadDocument('doc-fixture-1')
