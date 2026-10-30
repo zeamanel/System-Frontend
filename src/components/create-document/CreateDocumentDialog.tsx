@@ -12,6 +12,7 @@ import { DesignSheetIcon } from '../designs'
 import { DESIGN_CATALOG } from '../../designs/catalog'
 import { useFeatures } from '../../hooks/use-features'
 import { useCreateDesign } from '../../hooks/use-create-design'
+import { splitCustomTemplate } from '../../lib/templates/custom'
 
 export interface CreateDocumentDialogProps {
   open: boolean
@@ -46,12 +47,16 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
           t(design.descriptionKey).toLowerCase().includes(needle),
       )
     : []
-  const items = (templates.data ?? []).filter(
+  // The open "write anything" template is always the first choice, whatever
+  // the filter says: it is the way out when no template fits.
+  const { custom, rest } = splitCustomTemplate(templates.data ?? [])
+  const items = rest.filter(
     (template) =>
       !needle ||
       template.title.toLowerCase().includes(needle) ||
       template.description.toLowerCase().includes(needle),
   )
+  const CustomIcon = custom ? templateIcon(custom.iconKey) : null
 
   return (
     <Dialog
@@ -82,6 +87,26 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
           clearLabel={t('search.clear')}
           loading={templates.isPending}
         />
+        {custom && CustomIcon ? (
+          <button
+            type="button"
+            className="create-dialog__item create-dialog__item--pinned"
+            data-testid="create-dialog-custom"
+            onClick={() => {
+              onClose()
+              void startTemplateDocument(custom)
+            }}
+          >
+            <span className="create-dialog__item-icon">
+              <CustomIcon size={17} />
+            </span>
+            <span className="create-dialog__item-text">
+              <span className="create-dialog__item-title">{custom.title}</span>
+              <span className="create-dialog__item-description">{custom.description}</span>
+            </span>
+            <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
+          </button>
+        ) : null}
         {designs.length > 0 ? (
           <div className="create-dialog__group" data-testid="create-dialog-designs">
             <p className="create-dialog__group-title">{t('designs.shelfTitle')}</p>

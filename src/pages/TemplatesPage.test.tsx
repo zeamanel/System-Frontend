@@ -176,4 +176,10 @@ describe('TemplatesPage Filtering & Multilingual Browser', () => {
     expect(await screen.findAllByRole('tab')).not.toHaveLength(0)
     expect(screen.queryByTestId('design-shelf')).not.toBeInTheDocument()
   })
+
+  it('always pins the open "Write anything" template above the grid', async () => {
+    renderTemplatesPage()
+    const strip = await screen.findByTestId('templates-write-anything')
+    expect(within(strip).getByText('Write anything')).toBeInTheDocument()
+  })
 })
