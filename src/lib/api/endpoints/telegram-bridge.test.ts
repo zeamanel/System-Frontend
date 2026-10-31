@@ -212,12 +212,9 @@ describe('telegram-bridge endpoint client', () => {
       await getTelegramBotHealth({ client, dataSource: 'http' })
       expect(mockGet).toHaveBeenCalledWith('/telegram-bridge/health', { auth: 'optional' })
 
-      await syncTelegramWebhook('https://test', { client, dataSource: 'http' })
-      expect(mockPost).toHaveBeenCalledWith(
-        '/telegram-bridge/sync-webhook',
-        { publicBaseUrl: 'https://test' },
-        { auth: 'optional' },
-      )
+      // Never sends this site's origin: the backend registers its own address.
+      await syncTelegramWebhook({ client, dataSource: 'http' })
+      expect(mockPost).toHaveBeenCalledWith('/telegram-bridge/sync-webhook', {}, { auth: 'optional' })
     })
   })
 

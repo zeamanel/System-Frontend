@@ -75,7 +75,8 @@ export default function TelegramFilesPage() {
   const handleSyncWebhook = async () => {
     setSyncingWebhook(true)
     try {
-      await syncTelegramWebhook(window.location.origin)
+      // The backend registers its own address; this site (Pages) cannot receive Telegram's POSTs.
+      await syncTelegramWebhook()
       const updatedHealth = await getTelegramBotHealth().catch(() => null)
       if (updatedHealth) setBotHealth(updatedHealth)
     } catch (err) {
