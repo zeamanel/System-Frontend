@@ -55,3 +55,19 @@ describe('BlockView ranges (a block continued across pages)', () => {
     expect(rows[1].querySelector('[contenteditable="true"]')).not.toBeNull()
   })
 })
+
+describe('BlockView table column widths', () => {
+  it('sizes columns from columnWidths, also on a continued page', () => {
+    const wide = { ...table, columnCount: 2, columnWidths: [70, 30], rows: (table as Extract<Block, { type: 'table' }>).rows.map((row) => ({ ...row, cells: [...row.cells, { id: `${row.id}-2`, html: 'x' }] })) } as Block
+    for (const range of [undefined, { from: 3, to: 6 }]) {
+      const { container, unmount } = render(<BlockView block={wide} editable active={false} api={api} labels={labels} range={range} />)
+      expect(Array.from(container.querySelectorAll('col')).map((col) => col.style.width)).toEqual(['70%', '30%'])
+      unmount()
+    }
+  })
+
+  it('leaves equal columns when no widths are set', () => {
+    const { container } = render(<BlockView block={table} editable active={false} api={api} labels={labels} />)
+    expect(container.querySelector('colgroup')).toBeNull()
+  })
+})

@@ -282,6 +282,13 @@ function renderTable(
   const repeatedHeader = from > 0 && block.headerRow ? block.rows[0] : null
   return (
     <table data-block-id={block.id} className={[blockClass, from > 0 ? 'doc-block--continued' : null].filter(Boolean).join(' ')}>
+      {block.columnWidths ? (
+        <colgroup>
+          {block.columnWidths.map((width, index) => (
+            <col key={index} style={{ width: `${width}%` }} />
+          ))}
+        </colgroup>
+      ) : null}
       <tbody>
         {repeatedHeader ? (
           <tr className="doc-table__head" data-repeated-header="true" aria-hidden="true">
