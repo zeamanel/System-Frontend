@@ -159,6 +159,49 @@ describe('Assistant panel', () => {
     )
   })
 
+  it('inserts a proposed new clause after its block, and Undo removes it', async () => {
+    const { doc, template } = await createRentalDocument('The tenant will pay rent.')
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    const blockId = firstParagraphId()
+    const NEW_CLAUSE = 'Either party may end this agreement with 30 days written notice.'
+    // Top-level blocks only (a block's editing surface carries the id too).
+    const blockIds = () =>
+      [...document.querySelectorAll('[data-block-id]')]
+        .filter((el) => !el.parentElement?.closest('[data-block-id]'))
+        .map((el) => el.getAttribute('data-block-id'))
+    const before = blockIds()
+
+    askAssistantMock.mockResolvedValueOnce({
+      reply: 'The agreement has no termination clause.',
+      questions: [],
+      proposals: [
+        { kind: 'insert', blockId: '', afterBlockId: blockId, newText: NEW_CLAUSE, reason: 'Missing termination clause.' },
+      ],
+      fieldUpdates: [],
+    } satisfies AssistantReply)
+    fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Add a termination clause' } })
+    fireEvent.click(screen.getByTestId('assistant-send'))
+
+    const proposal = await screen.findByTestId('assistant-proposal')
+    expect(proposal).toHaveTextContent('Proposed new clause')
+    expect(within(proposal).getByTestId('assistant-proposal-where')).toHaveTextContent('Goes after: “The tenant will pay rent.”')
+    expect(askAssistantMock.mock.calls.at(-1)?.[0]).toMatchObject({ allowInsert: true })
+    // Proposed, not inserted.
+    expect(blockIds()).toEqual(before)
+
+    fireEvent.click(within(proposal).getByTestId('assistant-proposal-accept'))
+    await waitFor(() => expect(blockIds()).toHaveLength(before.length + 1))
+    const ids = blockIds()
+    const insertedId = ids[ids.indexOf(blockId) + 1]
+    expect(document.querySelector(`[data-block-id="${insertedId}"]`)).toHaveTextContent(NEW_CLAUSE)
+    // The original paragraph is untouched.
+    expect(document.querySelector(`[data-block-id="${blockId}"]`)).toHaveTextContent('The tenant will pay rent.')
+
+    fireEvent.click(within(proposal).getByTestId('assistant-proposal-undo'))
+    await waitFor(() => expect(blockIds()).toEqual(before))
+  })
+
   it('asks for confirmation when the paragraph changed after the suggestion', async () => {
     const { doc, template } = await createRentalDocument('Original clause text.')
     renderWorkspace(doc, template)

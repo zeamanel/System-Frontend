@@ -302,13 +302,22 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
             <ProposalCard
               key={`${message.id}-p-${index}`}
               proposal={proposal}
-              currentText={assistant.currentBlockText(proposal.blockId)}
+              currentText={
+                proposal.kind === 'insert'
+                  ? proposal.afterBlockId
+                    ? assistant.currentBlockText(proposal.afterBlockId)
+                    : ''
+                  : assistant.currentBlockText(proposal.blockId)
+              }
               saveStatus={saveStatus}
               lastSavedAt={lastSavedAt}
               onAccept={() => assistant.acceptProposal(message.id, index)}
               onReject={() => assistant.rejectProposal(message.id, index)}
               onUndo={() => assistant.undoProposal(message.id, index)}
-              onShow={() => onShowBlock(proposal.blockId)}
+              onShow={() => {
+                const target = proposalShowTarget(proposal)
+                if (target) onShowBlock(target)
+              }}
             />
           ))}
         </div>
@@ -454,6 +463,12 @@ function QuestionItem({
   )
 }
 
+/** Where "Show in document" goes: the new paragraph once inserted, else the block it goes after. */
+function proposalShowTarget(proposal: AssistantProposal): string {
+  if (proposal.kind !== 'insert') return proposal.blockId
+  return proposal.change?.added?.[0] ?? proposal.afterBlockId ?? ''
+}
+
 function ProposalCard({
   proposal,
   currentText,
@@ -474,8 +489,12 @@ function ProposalCard({
   onShow: () => void
 }) {
   const { t } = useI18n()
-  const stale = proposal.status === 'pending' && currentText !== null && currentText !== proposal.baseText
-  const segments = diffWords(proposal.baseText, proposal.newText)
+  const isInsert = proposal.kind === 'insert'
+  // An insert has nothing to go stale: the anchor only says where it goes.
+  const stale = !isInsert && proposal.status === 'pending' && currentText !== null && currentText !== proposal.baseText
+  const segments = isInsert
+    ? [{ type: 'added' as const, text: proposal.newText }]
+    : diffWords(proposal.baseText, proposal.newText)
 
   let appliedState: string | null = null
   if (proposal.status === 'accepted') {
@@ -493,9 +512,19 @@ function ProposalCard({
 
   return (
     <div className={`assistant-proposal assistant-proposal--${proposal.status}`} data-testid="assistant-proposal">
-      <p className="assistant-notes__label">{t('assistant.proposal.title')}</p>
+      <p className="assistant-notes__label">{t(isInsert ? 'assistant.proposal.insertTitle' : 'assistant.proposal.title')}</p>
       {proposal.reason ? <p className="assistant-msg__text">{proposal.reason}</p> : null}
-      <p className="assistant-diff" aria-label={t('assistant.proposal.title')}>
+      {isInsert && currentText !== null ? (
+        <p className="assistant-proposal__where" data-testid="assistant-proposal-where">
+          {proposal.afterBlockId && currentText
+            ? t('assistant.proposal.insertAfter', { text: truncate(currentText, 60) })
+            : t('assistant.proposal.insertAtEnd')}
+        </p>
+      ) : null}
+      <p
+        className={`assistant-diff${isInsert ? ' assistant-diff--insert' : ''}`}
+        aria-label={t(isInsert ? 'assistant.proposal.insertTitle' : 'assistant.proposal.title')}
+      >
         {segments.map((segment, index) =>
           segment.type === 'same' ? (
             <span key={index}>{segment.text}</span>

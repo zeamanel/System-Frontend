@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { askAssistant } from '../../lib/assistant/client'
 import { runDocumentCheck, type DocumentCheckResult } from '../../lib/document-check/check'
-import { applyTextProposal, blockPlainText, findPlaceholders, toAssistantBlocks } from '../../lib/assistant/context'
+import { applyTextProposal, blockPlainText, insertTextProposal, findPlaceholders, toAssistantBlocks } from '../../lib/assistant/context'
 import type {
   AssistantMessage,
   AssistantNotes,
@@ -193,6 +193,7 @@ export function useAssistant({
             blocks,
             answers,
             history,
+            allowInsert: true,
           },
           { model, questions, signal: controller.signal },
         )
@@ -203,11 +204,15 @@ export function useAssistant({
           kind: 'reply',
           text: reply.reply,
           questions: reply.questions,
-          proposals: reply.proposals.map((p) => ({
-            ...p,
-            baseText: textById.get(p.blockId) ?? '',
-            status: 'pending' as const,
-          })),
+          proposals: reply.proposals.map((p) => {
+            const kind = p.kind === 'insert' ? ('insert' as const) : ('replace' as const)
+            return {
+              ...p,
+              kind,
+              baseText: kind === 'insert' ? '' : (textById.get(p.blockId) ?? ''),
+              status: 'pending' as const,
+            }
+          }),
           fieldUpdates: reply.fieldUpdates,
           offline: reply.offline,
         })
@@ -228,13 +233,24 @@ export function useAssistant({
       if (!message || message.kind !== 'reply') return
       const proposal = message.proposals[index]
       if (!proposal || proposal.status !== 'pending') return
-      const target = editorRef.current.model.blocks.find((b) => b.id === proposal.blockId)
-      if (!target || (target.type !== 'paragraph' && target.type !== 'heading')) {
-        notice(labels.blockGone, 'error')
-        return
+      const blocks = editorRef.current.model.blocks
+      if (proposal.kind === 'insert') {
+        const after = proposal.afterBlockId ?? ''
+        if (after && !blocks.some((b) => b.id === after)) {
+          notice(labels.blockGone, 'error')
+          return
+        }
+      } else {
+        const target = blocks.find((b) => b.id === proposal.blockId)
+        if (!target || (target.type !== 'paragraph' && target.type !== 'heading')) {
+          notice(labels.blockGone, 'error')
+          return
+        }
       }
       const change = editorRef.current.applyTrackedChange((current) =>
-        applyTextProposal(current, proposal.blockId, proposal.newText),
+        proposal.kind === 'insert'
+          ? insertTextProposal(current, proposal.afterBlockId ?? '', proposal.newText)
+          : applyTextProposal(current, proposal.blockId, proposal.newText),
       )
       update(messageId, (m) =>
         m.kind !== 'reply'

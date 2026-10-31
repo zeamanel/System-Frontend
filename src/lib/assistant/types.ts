@@ -17,7 +17,11 @@ export interface AssistantQuestion {
 
 /** A block-scoped change the assistant proposes; applied only on Accept. */
 export interface AssistantProposal {
+  /** "replace" rewrites `blockId`; "insert" adds a new paragraph after `afterBlockId`. */
+  kind: 'replace' | 'insert'
   blockId: string
+  /** Insert only: the block the new clause goes after ('' = at the end). */
+  afterBlockId?: string
   newText: string
   reason: string
   /** Block text when the assistant saw it; differs from now → edited since. */
@@ -80,6 +84,8 @@ export interface AssistantRequestInput {
   blocks: AssistantContextBlock[]
   answers: Record<string, string>
   history: Array<{ role: 'user' | 'assistant'; text: string }>
+  /** This client can apply new-clause (insert) proposals. */
+  allowInsert?: boolean
 }
 
 /** Why the AI was not reached, plus what the offline check found. */
@@ -92,7 +98,7 @@ export interface AssistantOfflineInfo {
 export interface AssistantReply {
   reply: string
   questions: AssistantQuestion[]
-  proposals: Array<{ blockId: string; newText: string; reason: string }>
+  proposals: Array<{ kind?: 'replace' | 'insert'; blockId: string; afterBlockId?: string; newText: string; reason: string }>
   fieldUpdates: AssistantFieldUpdate[]
   offline?: AssistantOfflineInfo
 }

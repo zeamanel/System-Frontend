@@ -3,7 +3,7 @@ import { RateLimitError } from '../api'
 import { createEmptyDocument, createParagraph } from '../editor/model'
 import { diffBlocks } from '../editor/tracked-change'
 import { askAssistant, localDocumentCheck } from './client'
-import { applyTextProposal, findPlaceholders, toAssistantBlocks } from './context'
+import { applyTextProposal, findPlaceholders, insertTextProposal, toAssistantBlocks } from './context'
 import { diffWords } from './diff'
 import { consumePendingNotes, stashPendingNotes } from './pending-notes'
 
@@ -44,6 +44,18 @@ describe('assistant context', () => {
     const html = (next.blocks[1] as { html: string }).html
     expect(html).not.toContain('<b>')
     expect(html).toContain('&lt;b&gt;')
+  })
+
+  it('inserts a new clause after a block, or at the end, as an added block', () => {
+    const model = docWith('One.', 'Two.')
+    const afterFirst = insertTextProposal(model, model.blocks[0].id, 'New <i>clause</i>')
+    expect(afterFirst.blocks.map((b) => (b as { html: string }).html)).toEqual(['One.', 'New &lt;i&gt;clause&lt;/i&gt;', 'Two.'])
+    const change = diffBlocks(model, afterFirst)
+    expect(change?.added).toEqual([afterFirst.blocks[1].id])
+    expect(change?.before).toEqual({})
+
+    const atEnd = insertTextProposal(model, '', 'Last.')
+    expect(atEnd.blocks.map((b) => (b as { html: string }).html)).toEqual(['One.', 'Two.', 'Last.'])
   })
 })
 
