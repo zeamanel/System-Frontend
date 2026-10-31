@@ -15,10 +15,15 @@
  *   macOS and Android all render Ethiopic through system font linking even
  *   when none of the named families resolve).
  *
- * Two Ethiopic faces are bundled with the app (src/assets/fonts, loaded by
- * `styles/fonts.css` only when a document uses them): 'Abyssinica SIL' and
- * 'Ethiopic WashRa'. They always resolve, so they never need probing. The
- * backend PDF embeds the same files, so print matches the screen.
+ * Four Ethiopic families are bundled with the app (Noto Sans / Serif Ethiopic
+ * from @fontsource, imported in main.tsx; Abyssinica SIL and WashRa from
+ * src/assets/fonts, declared in `styles/fonts.css`; all downloaded only when
+ * a document needs them):
+ * 'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Abyssinica SIL' and
+ * 'Ethiopic WashRa'. Every stack carries one of them, so Amharic renders the
+ * same on any device and never needs probing. The backend PDF embeds the same
+ * faces, so print matches the screen. Nyala stays a name-only fallback (it is
+ * proprietary to Microsoft and is never shipped).
  *
  * `probeEthiopicSupport` reports which stacks demonstrably resolve Ethiopic
  * glyphs via `document.fonts.check`, so the UI can tell the truth about
@@ -44,6 +49,7 @@ export const FONT_OPTIONS: readonly FontOption[] = [
       "'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, " +
       "'Noto Sans Ethiopic', 'Nyala', 'Abyssinica SIL', sans-serif",
     ethiopicFamilies: ['Noto Sans Ethiopic', 'Nyala', 'Abyssinica SIL'],
+    bundled: true,
   },
   {
     key: 'serif',
@@ -51,6 +57,7 @@ export const FONT_OPTIONS: readonly FontOption[] = [
       "Georgia, 'Times New Roman', 'Noto Serif Ethiopic', 'Abyssinica SIL', " +
       "'Nyala', serif",
     ethiopicFamilies: ['Noto Serif Ethiopic', 'Abyssinica SIL', 'Nyala'],
+    bundled: true,
   },
   {
     key: 'mono',
@@ -58,6 +65,7 @@ export const FONT_OPTIONS: readonly FontOption[] = [
       "ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, 'Noto Sans Ethiopic', " +
       "'Nyala', monospace",
     ethiopicFamilies: ['Noto Sans Ethiopic', 'Nyala'],
+    bundled: true,
   },
   {
     key: 'abyssinica',
@@ -88,9 +96,9 @@ export type EthiopicSupport = 'yes' | 'no' | 'unknown'
  */
 export function probeEthiopicSupport(): Record<FontKey, EthiopicSupport> {
   const result: Record<FontKey, EthiopicSupport> = {
-    sans: 'unknown',
-    serif: 'unknown',
-    mono: 'unknown',
+    sans: 'yes',
+    serif: 'yes',
+    mono: 'yes',
     abyssinica: 'yes',
     washra: 'yes',
   }

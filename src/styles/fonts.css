@@ -1,5 +1,5 @@
 /*
- * Bundled Ethiopic fonts (SIL Open Font License; see src/assets/fonts).
+ * Bundled Ethiopic fonts (SIL Open Font License; see src/assets/fonts/OFL.txt).
  * A browser downloads a face only when a document uses it, so these cost
  * nothing until someone picks the font. Document text falls back to the
  * system stack until the file arrives (font-display: swap).

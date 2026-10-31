@@ -35,14 +35,20 @@ describe('Ethiopic availability probe', () => {
     const css = readFileSync(resolve(__dirname, '../../styles/fonts.css'), 'utf8')
     expect(css).toContain("font-family: 'Abyssinica SIL'")
     expect(css.match(/font-family: 'Ethiopic WashRa'/g)).toHaveLength(2)
-    for (const file of css.match(/[\w-]+\.ttf/g) ?? []) {
+    // Noto Sans / Serif Ethiopic come from @fontsource, loaded for every page.
+    const main = readFileSync(resolve(__dirname, '../../main.tsx'), 'utf8')
+    for (const face of ['noto-sans-ethiopic/400', 'noto-sans-ethiopic/600', 'noto-serif-ethiopic/400', 'noto-serif-ethiopic/700']) {
+      expect(main).toContain(`@fontsource/${face}.css`)
+    }
+    // The licence text travels with the font files.
+    expect(readFileSync(resolve(__dirname, '../../assets/fonts/OFL.txt'), 'utf8')).toContain('SIL OPEN FONT LICENSE Version 1.1')
+    for (const file of css.match(/[\w-]+\.(?:ttf|woff2)/g) ?? []) {
       expect(existsSync(resolve(__dirname, '../../assets/fonts', file)), file).toBe(true)
     }
   })
 
-  it('reports unknown rather than guessing when FontFaceSet is unavailable', () => {
-    const support = probeEthiopicSupport()
-    // The two bundled Ethiopic fonts always resolve; system stacks stay unknown.
-    expect(support).toEqual({ sans: 'unknown', serif: 'unknown', mono: 'unknown', abyssinica: 'yes', washra: 'yes' })
+  it('reports every font Ethiopic-ready because each stack carries a bundled face', () => {
+    expect(probeEthiopicSupport()).toEqual({ sans: 'yes', serif: 'yes', mono: 'yes', abyssinica: 'yes', washra: 'yes' })
+    for (const option of FONT_OPTIONS) expect(option.bundled, option.key).toBe(true)
   })
 })
