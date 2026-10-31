@@ -541,3 +541,13 @@ export function PageStyleIcon({ size = 18, ...rest }: IconProps) {
     </svg>
   )
 }
+
+/** A receipt with a torn bottom edge: invoices, tax and money documents. */
+export function ReceiptIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21V3Z" />
+      <path d="M9 8h6M9 11.5h6M9 15h4" />
+    </svg>
+  )
+}

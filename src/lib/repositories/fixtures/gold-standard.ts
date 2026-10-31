@@ -613,6 +613,55 @@ const RAW_GOLD_STANDARD_TEMPLATES: TemplateFixture[] = [
     updatedAt: '2026-10-22T00:00:00Z',
   },
 
+  // Monthly VAT report (figures are calculated by the backend before generation).
+  {
+    id: 'd7e8f9a0-0031-4000-8000-000000000031',
+    slug: 'monthly-vat-report',
+    documentTypeId: 'vat_monthly_report',
+    category: 'business_finance',
+    iconKey: 'receipt',
+    popularity: 78,
+    titles: {
+      en: 'Monthly VAT Report',
+      am: 'የወር የተጨማሪ እሴት ታክስ (ተ.እ.ታ) ሪፖርት',
+      om: "Gabaasa VAT Ji'aa",
+    },
+    descriptions: {
+      en: 'Monthly VAT working report for the Ministry of Revenues declaration: sales, output VAT, purchases, input VAT and the net VAT payable or credit, calculated by DocuA4 at 15% from your totals or invoice lists.',
+      am: 'ለገቢዎች ሚኒስቴር የወር ዲክላራሲዮን የሚረዳ የተ.እ.ታ ሪፖርት፤ ሽያጭ፣ የሽያጭ ተ.እ.ታ፣ ግዢ፣ የግዢ ተ.እ.ታ እና የሚከፈለው ወይም የሚተላለፈው ተ.እ.ታ ከድምሮችዎ ወይም ከደረሰኞች ዝርዝርዎ በ15% በDocuA4 ይሰላል።',
+      om: "Gabaasa VAT ji'aa labsii Ministeera Galiiwwaniif gargaaru: gurgurtaa, VAT gurgurtaa, bittaa, VAT bittaa fi VAT kaffalamu ykn dabarfamu, DocuA4-n 15%n ni herrega.",
+    },
+    country: 'ET',
+    language: 'am',
+    supportedLanguages: ['am', 'en', 'om'],
+    version: '1.0',
+    status: 'available',
+    canUse: true,
+    preview: {
+      sampleSnippet: 'የወር የተጨማሪ እሴት ታክስ ሪፖርት — የሽያጭ ተ.እ.ታ፣ የግዢ ተ.እ.ታ እና የሚከፈለው ተ.እ.ታ...',
+      summary: 'Monthly VAT working report with DocuA4-calculated output VAT, input VAT and net VAT payable or credit.',
+      pageCount: 2,
+      sections: ['Taxpayer & Tax Period', 'Sales & Output VAT', 'Purchases & Input VAT', 'VAT Computation', 'Invoice Annex', 'Declaration & Signature'],
+    },
+    questions: [
+      { id: 'taxpayer_name', label: { en: 'Business / Taxpayer Name', am: 'የግብር ከፋዩ (ድርጅቱ) ስም', om: 'Maqaa daldalaa / kaffalaa gibiraa' }, required: true },
+      { id: 'taxpayer_tin', label: { en: 'Taxpayer Identification Number (TIN)', am: 'የግብር ከፋይ መለያ ቁጥር (TIN)', om: 'Lakkoofsa eenyummaa kaffalaa gibiraa (TIN)' }, required: true },
+      { id: 'tax_period', label: { en: 'Tax Period (month and year, e.g. Tikimt 2019)', am: 'የግብር ዘመን (ወርና ዓመት፣ ለምሳሌ ጥቅምት 2019)', om: "Yeroo gibiraa (ji'a fi bara)" }, required: true },
+      { id: 'vat_registration_number', label: { en: 'VAT Registration Number', am: 'የተ.እ.ታ ምዝገባ ቁጥር', om: 'Lakkoofsa galmee VAT' }, required: false },
+      { id: 'tax_office', label: { en: 'Tax Office / Branch', am: 'ግብር ከፋዩ የሚስተናገድበት የግብር ቅርንጫፍ ጽ/ቤት', om: 'Waajjira gibiraa / damee' }, required: false },
+      { id: 'taxable_sales_etb', label: { en: 'Total Taxable Sales, excluding VAT (ETB)', am: 'ታክስ የሚከፈልባቸው ሽያጮች ድምር፣ ተ.እ.ታን ሳይጨምር (ብር)', om: 'Waliigala gurgurtaa gibirri irratti kaffalamu, VAT malee (Br)' }, required: false },
+      { id: 'sales_items', label: { en: 'Sales invoices: one per line, amount (excluding VAT) last', am: 'የሽያጭ ደረሰኞች፦ በየመስመሩ አንድ፣ ተ.እ.ታ ያልተጨመረበት መጠን በመጨረሻ', om: 'Nagahee gurgurtaa: sarara tokkotti tokko, hanga (VAT malee) dhuma irratti' }, required: false, type: 'textarea' },
+      { id: 'zero_rated_sales_etb', label: { en: 'Zero-Rated Sales, e.g. exports (ETB)', am: 'ዜሮ ምጣኔ የሚከፈልባቸው ሽያጮች፣ ለምሳሌ ኤክስፖርት (ብር)', om: 'Gurgurtaa zeeroo, fkn. alergii (Br)' }, required: false },
+      { id: 'exempt_sales_etb', label: { en: 'VAT-Exempt Sales (ETB)', am: 'ከተ.እ.ታ ነጻ የሆኑ ሽያጮች (ብር)', om: 'Gurgurtaa VAT irraa bilisa (Br)' }, required: false },
+      { id: 'taxable_purchases_etb', label: { en: 'Purchases with VAT Invoices, excluding VAT (ETB)', am: 'የተ.እ.ታ ደረሰኝ ያላቸው ግዢዎች ድምር፣ ተ.እ.ታን ሳይጨምር (ብር)', om: 'Bittaa nagahee VAT qabu, VAT malee (Br)' }, required: false },
+      { id: 'purchase_items', label: { en: 'Purchase invoices: one per line, amount (excluding VAT) last', am: 'የግዢ ደረሰኞች፦ በየመስመሩ አንድ፣ ተ.እ.ታ ያልተጨመረበት መጠን በመጨረሻ', om: 'Nagahee bittaa: sarara tokkotti tokko, hanga (VAT malee) dhuma irratti' }, required: false, type: 'textarea' },
+      { id: 'previous_credit_etb', label: { en: 'VAT Credit Carried from Last Month (ETB)', am: 'ካለፈው ወር የተላለፈ የተ.እ.ታ ተቀናሽ (ብር)', om: "VAT ji'a darbe irraa dabarfame (Br)" }, required: false },
+      { id: 'prepared_by', label: { en: 'Prepared By (name and title)', am: 'ያዘጋጀው (ስምና የሥራ ኃላፊነት)', om: 'Kan qopheesse (maqaa fi gahee)' }, required: false },
+    ],
+    createdAt: '2026-10-31T00:00:00Z',
+    updatedAt: '2026-10-31T00:00:00Z',
+  },
+
   // 14. Work Experience Certificate
   {
     id: 'd7e8f9a0-0024-4000-8000-000000000024',
