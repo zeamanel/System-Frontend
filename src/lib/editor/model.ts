@@ -97,6 +97,18 @@ export function createList(items: InlineHtml[] = [], ordered = false, indent: In
   }
 }
 
+/**
+ * Valid column widths for a table, or undefined (equal columns): one positive
+ * number per column, scaled to sum to 100 and rounded to 0.1%.
+ */
+export function normalizeColumnWidths(raw: unknown, columnCount: number): number[] | undefined {
+  if (!Array.isArray(raw) || raw.length !== columnCount || columnCount < 1) return undefined
+  const values = raw.map(Number)
+  if (values.some((value) => !Number.isFinite(value) || value <= 0)) return undefined
+  const total = values.reduce((sum, value) => sum + value, 0)
+  return values.map((value) => Math.round((value / total) * 1000) / 10)
+}
+
 export function createTable(rowCount = 2, columnCount = 2, headerRow = true): TableBlock {
   return {
     id: newId('blk'),
@@ -843,8 +855,9 @@ export function removeTableRow(model: DocumentModel, id: string): DocumentModel 
 export function addTableColumn(model: DocumentModel, id: string): DocumentModel {
   return updateBlock(model, id, (block) => {
     if (block.type !== 'table' || block.columnCount >= 20) return block
+    const { columnWidths: _widths, ...rest } = block
     return {
-      ...block,
+      ...rest,
       columnCount: block.columnCount + 1,
       rows: block.rows.map((row) => ({
         ...row,
@@ -857,8 +870,9 @@ export function addTableColumn(model: DocumentModel, id: string): DocumentModel 
 export function removeTableColumn(model: DocumentModel, id: string): DocumentModel {
   return updateBlock(model, id, (block) => {
     if (block.type !== 'table' || block.columnCount <= 1) return block
+    const { columnWidths: _widths, ...rest } = block
     return {
-      ...block,
+      ...rest,
       columnCount: block.columnCount - 1,
       rows: block.rows.map((row) => ({ ...row, cells: row.cells.slice(0, -1) })),
     }
@@ -1080,13 +1094,16 @@ function sanitizeComplexBlock(raw: Record<string, unknown>): Block[] {
             .filter((row) => row.cells.length > 0)
         : []
       if (rows.length === 0) return []
+      const columnCount = Math.min(20, Math.max(1, Number(raw.columnCount ?? 1) || 1))
+      const columnWidths = normalizeColumnWidths(raw.columnWidths, columnCount)
       return [
         {
           id: String(raw.id),
           type: 'table',
           headerRow: Boolean(raw.headerRow),
-          columnCount: Math.min(20, Math.max(1, Number(raw.columnCount ?? 1) || 1)),
+          columnCount,
           rows,
+          ...(columnWidths ? { columnWidths } : {}),
         },
       ]
     }
@@ -1292,12 +1309,15 @@ export function mapBackendBlock(raw: unknown): Block | null {
               }))
             : [],
         }))
+        const columnCount = Math.min(20, Math.max(1, Number(raw.columnCount ?? 1) || 1))
+        const columnWidths = normalizeColumnWidths(raw.columnWidths, columnCount)
         return {
           id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
           type: 'table',
           headerRow: Boolean(raw.headerRow),
-          columnCount: Math.min(20, Math.max(1, Number(raw.columnCount ?? 1) || 1)),
+          columnCount,
           rows,
+          ...(columnWidths ? { columnWidths } : {}),
         }
       }
       const headers = Array.isArray(raw.headers) ? raw.headers : []
@@ -1317,12 +1337,15 @@ export function mapBackendBlock(raw: unknown): Block | null {
           })
         }
       }
+      const columnCount = Math.min(20, Math.max(headers.length, ...dataRows.map((r) => (Array.isArray(r) ? r.length : 0)), 1))
+      const columnWidths = normalizeColumnWidths(raw.columnWidths, columnCount)
       return {
         id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
         type: 'table',
         headerRow: headers.length > 0,
-        columnCount: Math.min(20, Math.max(headers.length, ...dataRows.map((r) => (Array.isArray(r) ? r.length : 0)), 1)),
+        columnCount,
         rows,
+        ...(columnWidths ? { columnWidths } : {}),
       }
     }
     case 'page-break':

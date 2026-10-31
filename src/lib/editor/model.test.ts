@@ -17,6 +17,9 @@ import {
   mapBackendBlocks,
   mapBackendPayload,
   mergeWithPrevious,
+  normalizeColumnWidths,
+  addTableColumn,
+  removeTableColumn,
   moveBlock,
   parseDocumentContent,
   plainTextToBlocks,
@@ -716,3 +719,30 @@ describe('page orientation (portrait vs landscape)', () => {
     expect(portraitDeserialized?.page.orientation).toBe('portrait')
   })
 })
+
+describe('table column widths', () => {
+  it('keeps valid widths from a backend payload and through save and reload', () => {
+    const block = mapBackendBlock({ type: 'table', headers: ['Description', 'Box', 'Amount'], rows: [['TAXABLE SALES', '5', '462,000.00']], columnWidths: [66, 9, 25] })
+    expect(block).toMatchObject({ type: 'table', columnCount: 3, columnWidths: [66, 9, 25] })
+    const model = modelWith(block as DocumentModel['blocks'][number])
+    const reloaded = deserializeModel(serializeModel(model), 'en')
+    expect(reloaded?.blocks[0]).toMatchObject({ columnWidths: [66, 9, 25] })
+  })
+
+  it('scales widths to 100% and ignores invalid ones', () => {
+    expect(normalizeColumnWidths([2, 1, 1], 3)).toEqual([50, 25, 25])
+    expect(normalizeColumnWidths([50, 50], 3)).toBeUndefined()
+    expect(normalizeColumnWidths([50, -1, 51], 3)).toBeUndefined()
+    expect(normalizeColumnWidths('wide', 1)).toBeUndefined()
+    const block = mapBackendBlock({ type: 'table', headers: ['A', 'B'], rows: [], columnWidths: [100] })
+    expect(block).not.toHaveProperty('columnWidths')
+  })
+
+  it('goes back to equal columns when a column is added or removed', () => {
+    const table = { ...createTable(2, 2), columnWidths: [70, 30] }
+    const model = modelWith(table)
+    expect(addTableColumn(model, table.id).blocks[0]).not.toHaveProperty('columnWidths')
+    expect(removeTableColumn(model, table.id).blocks[0]).not.toHaveProperty('columnWidths')
+  })
+})
+

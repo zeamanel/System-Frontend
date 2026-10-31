@@ -67,6 +67,11 @@ export interface TableBlock extends BlockBase {
   headerRow: boolean
   columnCount: number
   rows: TableRow[]
+  /**
+   * Column widths in percent of the table width (one per column, summing to
+   * 100). Absent: equal columns. Dropped when a column is added or removed.
+   */
+  columnWidths?: number[]
 }
 
 export interface SignatureParty {
