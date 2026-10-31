@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FONT_OPTIONS, fontStack, probeEthiopicSupport } from './fonts'
 import type { FontKey } from './types'
@@ -27,8 +29,20 @@ describe('font registry', () => {
 })
 
 describe('Ethiopic availability probe', () => {
+  it('offers the bundled Abyssinica SIL and WashRa fonts, backed by @font-face files', () => {
+    expect(fontStack('abyssinica')).toContain("'Abyssinica SIL'")
+    expect(fontStack('washra')).toContain("'Ethiopic WashRa'")
+    const css = readFileSync(resolve(__dirname, '../../styles/fonts.css'), 'utf8')
+    expect(css).toContain("font-family: 'Abyssinica SIL'")
+    expect(css.match(/font-family: 'Ethiopic WashRa'/g)).toHaveLength(2)
+    for (const file of css.match(/[\w-]+\.ttf/g) ?? []) {
+      expect(existsSync(resolve(__dirname, '../../assets/fonts', file)), file).toBe(true)
+    }
+  })
+
   it('reports unknown rather than guessing when FontFaceSet is unavailable', () => {
     const support = probeEthiopicSupport()
-    expect(support).toEqual({ sans: 'unknown', serif: 'unknown', mono: 'unknown' })
+    // The two bundled Ethiopic fonts always resolve; system stacks stay unknown.
+    expect(support).toEqual({ sans: 'unknown', serif: 'unknown', mono: 'unknown', abyssinica: 'yes', washra: 'yes' })
   })
 })

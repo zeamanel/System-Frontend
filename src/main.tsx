@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { detectInitialLocale, loadLocale } from './i18n'
 import './styles/tokens.css'
+import './styles/fonts.css'
 import './styles/base.css'
 
 const rootElement = document.getElementById('root')

@@ -15,6 +15,11 @@
  *   macOS and Android all render Ethiopic through system font linking even
  *   when none of the named families resolve).
  *
+ * Two Ethiopic faces are bundled with the app (src/assets/fonts, loaded by
+ * `styles/fonts.css` only when a document uses them): 'Abyssinica SIL' and
+ * 'Ethiopic WashRa'. They always resolve, so they never need probing. The
+ * backend PDF embeds the same files, so print matches the screen.
+ *
  * `probeEthiopicSupport` reports which stacks demonstrably resolve Ethiopic
  * glyphs via `document.fonts.check`, so the UI can tell the truth about
  * availability instead of guessing.
@@ -28,6 +33,8 @@ export interface FontOption {
   stack: string
   /** Named families in the stack that can render Ethiopic. */
   ethiopicFamilies: string[]
+  /** The Ethiopic face ships with the app, so support is certain. */
+  bundled?: boolean
 }
 
 export const FONT_OPTIONS: readonly FontOption[] = [
@@ -52,6 +59,18 @@ export const FONT_OPTIONS: readonly FontOption[] = [
       "'Nyala', monospace",
     ethiopicFamilies: ['Noto Sans Ethiopic', 'Nyala'],
   },
+  {
+    key: 'abyssinica',
+    stack: "Georgia, 'Times New Roman', 'Abyssinica SIL', 'Noto Serif Ethiopic', 'Nyala', serif",
+    ethiopicFamilies: ['Abyssinica SIL'],
+    bundled: true,
+  },
+  {
+    key: 'washra',
+    stack: "'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, 'Ethiopic WashRa', 'Noto Sans Ethiopic', sans-serif",
+    ethiopicFamilies: ['Ethiopic WashRa'],
+    bundled: true,
+  },
 ]
 
 const ETHIOPIC_PROBE_CHAR = '፩'
@@ -68,13 +87,20 @@ export type EthiopicSupport = 'yes' | 'no' | 'unknown'
  * test environments) so callers never overclaim.
  */
 export function probeEthiopicSupport(): Record<FontKey, EthiopicSupport> {
-  const result: Record<FontKey, EthiopicSupport> = { sans: 'unknown', serif: 'unknown', mono: 'unknown' }
+  const result: Record<FontKey, EthiopicSupport> = {
+    sans: 'unknown',
+    serif: 'unknown',
+    mono: 'unknown',
+    abyssinica: 'yes',
+    washra: 'yes',
+  }
   const fonts = (globalThis as { document?: Document }).document?.fonts as
     | { check(spec: string, text?: string): boolean }
     | undefined
   if (!fonts || typeof fonts.check !== 'function') return result
 
   for (const option of FONT_OPTIONS) {
+    if (option.bundled) continue
     let supported = false
     for (const family of option.ethiopicFamilies) {
       try {
