@@ -1,0 +1,33 @@
+/*
+ * Bundled Ethiopic fonts (SIL Open Font License; see src/assets/fonts/OFL.txt).
+ * A browser downloads a face only when a document uses it, so these cost
+ * nothing until someone picks the font. Document text falls back to the
+ * system stack until the file arrives (font-display: swap).
+ */
+@font-face {
+  font-family: 'Abyssinica SIL';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F;
+  src: url('../assets/fonts/AbyssinicaSIL-Regular.ttf') format('truetype');
+}
+
+/* WashRa ships as SemiBold and Bold: SemiBold is the regular weight. */
+@font-face {
+  font-family: 'Ethiopic WashRa';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F;
+  src: url('../assets/fonts/EthiopicWashRa-SemiBold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Ethiopic WashRa';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F;
+  src: url('../assets/fonts/EthiopicWashRa-Bold.ttf') format('truetype');
+}

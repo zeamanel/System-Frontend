@@ -552,24 +552,20 @@ export async function getTelegramBotHealth(
 
 /**
  * Synchronizes or heals the Telegram bot webhook.
- * In HTTP mode: POST /api/v1/telegram-bridge/sync-webhook
+ * In HTTP mode: POST /api/v1/telegram-bridge/sync-webhook. The backend points
+ * the webhook at its own address; the caller never chooses it.
  */
 export async function syncTelegramWebhook(
-  publicBaseUrl?: string,
   options?: TelegramBridgeOptions,
 ): Promise<SyncTelegramWebhookResponse> {
   if (isFixtureMode(options)) {
     return {
       ok: true,
-      webhookUrl: `${publicBaseUrl ?? 'https://docua4.test'}/admin/telegram/webhook`,
+      webhookUrl: 'https://api.docua4.test/admin/telegram/webhook',
       description: 'Webhook synchronized (fixture mode)',
     }
   }
 
   const client = options?.client ?? apiClient
-  return client.post<SyncTelegramWebhookResponse>(
-    '/telegram-bridge/sync-webhook',
-    { publicBaseUrl },
-    { auth: 'optional' },
-  )
+  return client.post<SyncTelegramWebhookResponse>('/telegram-bridge/sync-webhook', {}, { auth: 'optional' })
 }

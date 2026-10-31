@@ -268,6 +268,8 @@
   "editor.font_sans": "ዘመናዊ ጌጣጌጥ የሌለው",
   "editor.font_serif": "የተለመደ ሰሪፍ",
   "editor.font_mono": "አንድ ስፋት ፊደል",
+  "editor.font_abyssinica": "አቢሲኒካ SIL (ባህላዊ)",
+  "editor.font_washra": "ወሽራ (ጥበባዊ)",
   "editor.fontEthiopicYes": "ለግዕዝ ዝግጁ — አማርኛን በቀጥታ ያሳያል።",
   "editor.fontEthiopicNo": "በዚህ ክፍት ውስጥ የግዕዝ ፊደል አልተገኘም — ስርዓቱ አማርኛን በመመለሻ ያሳያል።",
   "editor.fontEthiopicUnknown": "የተተከሉ ፊደላትን ይጠቀማል፤ አማርኛ ወደ ስርዓቱ የግዕዝ ድጋፍ ይመለሳል።",

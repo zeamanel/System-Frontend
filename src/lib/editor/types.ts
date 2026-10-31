@@ -109,7 +109,7 @@ export type Block =
 
 export type BlockType = Block['type']
 
-export type FontKey = 'sans' | 'serif' | 'mono'
+export type FontKey = 'sans' | 'serif' | 'mono' | 'abyssinica' | 'washra'
 
 /** Page margins in millimetres. */
 export interface PageMargins {
