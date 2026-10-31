@@ -10,8 +10,6 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  max-width: var(--content-max-width);
-  margin: 0 auto;
 }
 
 .app-shell__main {
@@ -44,7 +42,10 @@
   .app-shell:not(.app-shell--editor) .app-shell__main {
     padding-bottom: calc(var(--space-5) + 64px + env(safe-area-inset-bottom, 0px));
   }
+}
 
+/* The drawer is used up to 960px (tablets too): tapping beside it closes it. */
+@media (max-width: 960px) {
   .app-shell__scrim {
     display: block;
     position: fixed;

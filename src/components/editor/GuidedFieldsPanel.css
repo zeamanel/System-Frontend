@@ -406,3 +406,23 @@
   background: var(--color-primary-subtle);
   border-color: var(--color-primary);
 }
+
+/* Short desktop screens (e.g. 1366x768 laptops): the fixed footer left the
+   questions a sliver of height. Scroll the panel as one column instead:
+   questions first, then instructions and Regenerate. */
+@media (min-width: 961px) and (max-height: 860px) {
+  .guided-fields-panel {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .guided-fields-panel__body {
+    flex: none;
+    overflow: visible;
+  }
+
+  .guided-fields-panel__footer {
+    max-height: none;
+    overflow: visible;
+  }
+}
