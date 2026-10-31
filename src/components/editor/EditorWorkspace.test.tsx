@@ -426,57 +426,14 @@ describe('EditorWorkspace', () => {
     expect(letterhead).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('refines one block surgically with a preview, apply, and discard', async () => {
-    const created = await repos.documents.create({
-      title: 'Refine target',
-      templateId: 'rental-agreement',
-      language: 'en',
-      content:
-        'LEASE TERMS\n\nThe tenant will pay 35,000 birr every month.\n\nThe landlord keeps the deposit safe.',
-    })
-    const { doc, template } = await loadDocument(created.id)
+  it('has no separate Refine clause box: rewording and new clauses go through the Assistant', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
     renderWorkspace(doc, template)
     await screen.findByTestId('editor-title-input')
-
-    // Deterministic blocks: all-caps heading + two paragraphs.
-    const blockEls = () => Array.from(document.querySelectorAll('.doc-block[data-block-id]'))
-    expect(blockEls().length).toBe(3)
-    const before = blockEls().map((el) => el.textContent)
-
-    // Focus the middle paragraph on the A4 canvas.
-    const middle = blockEls()[1]
-    const surface =
-      middle.querySelector<HTMLElement>('[data-block-id]') ?? (middle as HTMLElement)
-    fireEvent.focus(surface)
-
-    // Non-destructive preview: the proposal appears, the canvas is untouched.
-    fireEvent.click(screen.getByRole('button', { name: /formalize/i }))
-    const preview = await screen.findByTestId('editor-refine-preview')
-    expect(preview.innerHTML).toContain('shall pay')
-    expect(blockEls()[1].textContent).toContain('will pay')
-
-    // Apply: only the focused block changes; siblings stay byte-identical.
-    fireEvent.click(screen.getByRole('button', { name: /apply to block/i }))
-    await waitFor(() => expect(blockEls()[1].textContent).toContain('shall pay'))
-    expect(blockEls()[1].textContent).toContain('35,000')
-    expect(blockEls()[1].textContent).not.toContain('will pay')
-    const after = blockEls().map((el) => el.textContent)
-    expect(after[0]).toBe(before[0])
-    expect(after[2]).toBe(before[2])
-
-    // Discard: a second proposal is dismissed without touching the block.
-    fireEvent.change(screen.getByPlaceholderText(/add a 5-day notice/i), {
-      target: { value: 'add 10% late fee' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /^refine block$/i }))
-    const secondPreview = await screen.findByTestId('editor-refine-preview')
-    expect(secondPreview.innerHTML).toContain('late fee')
-    fireEvent.click(screen.getByRole('button', { name: /discard/i }))
-    await waitFor(() =>
-      expect(screen.queryByTestId('editor-refine-preview')).not.toBeInTheDocument(),
-    )
-    expect(blockEls()[1].textContent).not.toContain('late fee')
-    expect(blockEls()[1].textContent).toContain('shall pay')
+    expect(screen.queryByRole('heading', { name: /refine clause/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /draft clause/i })).not.toBeInTheDocument()
+    // The bilingual one-click translation stays, but only in bilingual mode.
+    expect(screen.queryByRole('button', { name: /fill second column translation/i })).not.toBeInTheDocument()
   })
 
   it('toggles bilingual side-by-side mode, edits the secondary column, and fills translation', async () => {
@@ -569,43 +526,6 @@ describe('EditorWorkspace', () => {
     )
   })
 
-  it('drafts and inserts a new clause when no block is selected in BlockRefinePanel', async () => {
-    const created = await repos.documents.create({
-      title: 'New clause draft',
-      templateId: 'rental-agreement',
-      language: 'en',
-      content:
-        'RENTAL TERMS\n\nThe tenant will pay 20,000 birr every month.',
-    })
-    const { doc, template } = await loadDocument(created.id)
-    renderWorkspace(doc, template)
-    await screen.findByTestId('editor-title-input')
-
-    // Initially no block is selected; the refine panel prompt is available with "Draft clause"
-    const input = screen.getByPlaceholderText(/e\.g\. write a late payment penalty clause/i)
-    expect(input).toBeInTheDocument()
-    const draftButton = screen.getByRole('button', { name: /draft clause/i })
-    expect(draftButton).toBeInTheDocument()
-
-    // Type new clause instructions
-    fireEvent.change(input, {
-      target: { value: 'Security deposit will pay 40,000 birr upon signing' },
-    })
-    fireEvent.click(draftButton)
-
-    // The proposal appears in the preview
-    const preview = await screen.findByTestId('editor-refine-preview')
-    expect(preview.innerHTML).toContain('shall pay')
-
-    // Click Apply to insert the new clause into the document
-    fireEvent.click(screen.getByRole('button', { name: /apply to block/i }))
-
-    // Canvas now contains the newly inserted clause
-    await waitFor(() => {
-      expect(screen.getAllByText(/40,000 birr upon signing/i).length).toBeGreaterThan(0)
-    })
-  })
-
   it('toggles page orientation between portrait and landscape from the format panel', async () => {
     const { doc, template } = await loadDocument('doc-fixture-1')
     renderWorkspace(doc, template)
@@ -655,10 +575,11 @@ describe('EditorWorkspace', () => {
     expect(screen.queryByLabelText(/first party/i)).toBeNull()
     expect(screen.queryByLabelText(/second party/i)).toBeNull()
 
-    // The Additional details or instructions textarea is present and 5 rows tall
-    const promptInput = screen.getByLabelText(/additional details or instructions/i)
-    expect(promptInput).toBeInTheDocument()
-    expect(promptInput).toHaveAttribute('rows', '5')
+    // The instructions lead the panel (top, large), with no footer below the list.
+    const promptInput = screen.getByLabelText(/what should this document say/i)
+    expect(promptInput).toHaveAttribute('rows', '10')
+    expect(within(screen.getByTestId('guided-fields-prompt')).getByRole('button', { name: /generate content/i })).toBeInTheDocument()
+    expect(screen.queryByTestId('guided-fields-footer')).toBeNull()
 
     // Type the prompt into the textarea
     fireEvent.change(promptInput, {
@@ -683,6 +604,9 @@ describe('EditorWorkspace', () => {
     const canvas = document.querySelector('.doc-pages')
     expect(canvas?.textContent).toContain('900,000 Birr')
     expect(canvas?.textContent).toContain('2022 Toyota Corolla')
+    // After generating, the instructions stay at the top to refine and regenerate.
+    const promptAfter = within(screen.getByTestId('guided-fields-prompt')).getByLabelText<HTMLTextAreaElement>(/what should this document say/i)
+    expect(promptAfter.value).toContain('Toyota Corolla')
   })
 
   it('connects to phone via Telegram bridge, applies profile into answers and loads content onto canvas', async () => {
@@ -723,7 +647,7 @@ describe('EditorWorkspace', () => {
 
     // Verify additional instructions has received the Telegram profile summary
     const instructionsArea = screen.getByLabelText(
-      /additional details or instructions/i,
+      /what should this document say/i,
     ) as HTMLTextAreaElement
     expect(instructionsArea.value).toContain('Abebe Bikila')
     expect(instructionsArea.value).toContain('+251911223344')
@@ -761,7 +685,7 @@ describe('EditorWorkspace', () => {
 
     // Verify additional instructions has received Almaz Kebede
     const instructionsArea = screen.getByLabelText(
-      /additional details or instructions/i,
+      /what should this document say/i,
     ) as HTMLTextAreaElement
     expect(instructionsArea.value).toContain('Almaz Kebede')
     expect(instructionsArea.value).toContain('ET-AA-481516')

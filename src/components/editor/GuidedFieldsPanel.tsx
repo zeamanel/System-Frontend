@@ -454,6 +454,80 @@ export function GuidedFieldsPanel({
     onNewCustomer?.()
   }
 
+
+  /** Instructions, language and Generate: the footer, or the top of the panel for prompt-only templates. */
+  const generateControls = (
+    <>
+        <div className="editor-panel__field">
+          <Textarea
+            id={`field-${ADDITIONAL_INSTRUCTIONS_FIELD_ID}`}
+            rows={isPromptOnly ? 10 : 3}
+            autoFocus={isPromptOnly && !hasContent}
+            label={
+              isPromptOnly ? (
+                t('editor.promptOnlyLabel')
+              ) : (
+                <>
+                  {t('editor.additionalInstructionsLabel')}
+                  <Badge variant="neutral">{t('wizard.optionalTag')}</Badge>
+                </>
+              )
+            }
+            placeholder={t(isPromptOnly ? 'editor.promptOnlyPlaceholder' : 'editor.additionalInstructionsPlaceholder')}
+            value={answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID] ?? ''}
+            onChange={(event) =>
+              onAnswerChange(ADDITIONAL_INSTRUCTIONS_FIELD_ID, event.target.value)
+            }
+          />
+        </div>
+
+        <Select
+          id="editor-language-select"
+          label={t('flow.language')}
+          options={languageOptions}
+          value={language}
+          onChange={(event) => onLanguageChange(event.target.value)}
+        />
+
+        {confirming ? (
+          <div className="editor-panel__confirm" role="alertdialog" aria-label={t('editor.regenerate')}>
+            <p>{t('editor.regenerateConfirm')}</p>
+            <div className="editor-panel__confirm-actions">
+              <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleConfirmGenerate}>
+                {t('editor.regenerateConfirmAction')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="secondary"
+            fullWidth
+            icon={<SparkIcon size={15} />}
+            loading={generationPending}
+            disabled={generationPending || (isPromptOnly && !answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID]?.trim())}
+            onClick={handleGenerateClick}
+          >
+            {hasContent ? t('editor.regenerate') : t('editor.generate')}
+          </Button>
+        )}
+
+        {generationPending ? (
+          <p className="editor-panel__status editor-panel__status--muted" data-testid="editor-generating">
+            <Spinner size={14} /> {t('editor.generating')}
+          </p>
+        ) : null}
+
+        {generationFailed ? (
+          <p className="editor-panel__status editor-panel__status--error" role="alert">
+            <AlertIcon size={14} /> {t('editor.generateFailed')}
+          </p>
+        ) : null}
+    </>
+  )
+
   return (
     <section
       className="editor-panel__section guided-fields-panel"
@@ -541,6 +615,13 @@ export function GuidedFieldsPanel({
       </header>
 
       <div className="guided-fields-panel__body" data-testid="guided-fields-body">
+        {isPromptOnly ? (
+          // "Write anything": the instructions are the whole form, so they lead the panel
+          // and stay there after generating (to refine and regenerate).
+          <div className="guided-fields-panel__prompt" data-testid="guided-fields-prompt">
+            {generateControls}
+          </div>
+        ) : null}
         <div className="guided-fields-panel__list">
           <SavedCustomers
             questions={questions}
@@ -865,71 +946,11 @@ export function GuidedFieldsPanel({
         {children}
       </div>
 
-      <footer className="guided-fields-panel__footer" data-testid="guided-fields-footer">
-        <div className="editor-panel__field">
-          <Textarea
-            id={`field-${ADDITIONAL_INSTRUCTIONS_FIELD_ID}`}
-            rows={isPromptOnly ? 5 : 3}
-            autoFocus={isPromptOnly && !hasContent}
-            label={
-              <>
-                {t('editor.additionalInstructionsLabel')}
-                <Badge variant="neutral">{t('wizard.optionalTag')}</Badge>
-              </>
-            }
-            placeholder={t('editor.additionalInstructionsPlaceholder')}
-            value={answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID] ?? ''}
-            onChange={(event) =>
-              onAnswerChange(ADDITIONAL_INSTRUCTIONS_FIELD_ID, event.target.value)
-            }
-          />
-        </div>
-
-        <Select
-          id="editor-language-select"
-          label={t('flow.language')}
-          options={languageOptions}
-          value={language}
-          onChange={(event) => onLanguageChange(event.target.value)}
-        />
-
-        {confirming ? (
-          <div className="editor-panel__confirm" role="alertdialog" aria-label={t('editor.regenerate')}>
-            <p>{t('editor.regenerateConfirm')}</p>
-            <div className="editor-panel__confirm-actions">
-              <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleConfirmGenerate}>
-                {t('editor.regenerateConfirmAction')}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <Button
-            variant="secondary"
-            fullWidth
-            icon={<SparkIcon size={15} />}
-            loading={generationPending}
-            disabled={generationPending || (isPromptOnly && !answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID]?.trim())}
-            onClick={handleGenerateClick}
-          >
-            {hasContent ? t('editor.regenerate') : t('editor.generate')}
-          </Button>
-        )}
-
-        {generationPending ? (
-          <p className="editor-panel__status editor-panel__status--muted" data-testid="editor-generating">
-            <Spinner size={14} /> {t('editor.generating')}
-          </p>
-        ) : null}
-
-        {generationFailed ? (
-          <p className="editor-panel__status editor-panel__status--error" role="alert">
-            <AlertIcon size={14} /> {t('editor.generateFailed')}
-          </p>
-        ) : null}
-      </footer>
+      {isPromptOnly ? null : (
+        <footer className="guided-fields-panel__footer" data-testid="guided-fields-footer">
+          {generateControls}
+        </footer>
+      )}
     </section>
   )
 }

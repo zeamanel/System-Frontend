@@ -69,7 +69,7 @@ import { designLinkFor } from '../../designs/links'
 import { DESIGN_CATALOG } from '../../designs/catalog'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../../lib/query-keys'
-import { BlockRefinePanel } from './BlockRefinePanel'
+import { BilingualFillPanel } from './BilingualFillPanel'
 import { EditorToolbar } from './EditorToolbar'
 import { FormatPanel, type FormatPanelCallbacks } from './FormatPanel'
 import { GuidedFieldsPanel, SectionsOutline } from './GuidedFieldsPanel'
@@ -1120,43 +1120,16 @@ export function EditorWorkspace({
             </Button>
           </div>
         ) : null}
-        <BlockRefinePanel
-          block={activeBlock}
-          documentLanguage={editor.language}
-          templateId={doc.templateId ?? template?.id ?? undefined}
-          onApply={(blockId, html) =>
-            updateModel((current) =>
-              updateBlock(current, blockId, (b) =>
-                b.type === 'paragraph' || b.type === 'heading' ? { ...b, html } : b,
-              ),
-            )
-          }
-          onInsertBlock={(html) => {
-            const newParagraph = createParagraph(html)
-            updateModel((current) => {
-              let targetIndex = current.blocks.length
-              for (let i = current.blocks.length - 1; i >= 0; i--) {
-                if (current.blocks[i].type === 'signature') {
-                  targetIndex = i
-                } else {
-                  break
-                }
-              }
-              const nextBlocks = [
-                ...current.blocks.slice(0, targetIndex),
-                newParagraph,
-                ...current.blocks.slice(targetIndex),
-              ]
-              return withBlocks(current, () => nextBlocks)
-            })
-            setActiveRef({ blockId: newParagraph.id })
-            queueFocus({ blockId: newParagraph.id }, 'end')
-          }}
-          bilingual={Boolean(model.page.bilingual)}
-          onApplySecondary={(blockId, html) =>
-            updateModel((current) => updateSecondaryText(current, blockId, html))
-          }
-        />
+        {model.page.bilingual ? (
+          <BilingualFillPanel
+            block={activeBlock}
+            documentLanguage={editor.language}
+            templateId={doc.templateId ?? template?.id ?? undefined}
+            onApplySecondary={(blockId, html) =>
+              updateModel((current) => updateSecondaryText(current, blockId, html))
+            }
+          />
+        ) : null}
         <SectionsOutline outline={outline} onSelect={handleOutlineSelect} />
         </GuidedFieldsPanel>
       </aside>

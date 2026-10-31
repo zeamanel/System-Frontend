@@ -62,6 +62,20 @@
   box-shadow: 0 -2px 8px rgb(13 13 16 / 0.04);
 }
 
+/* "Write anything": the instructions lead the panel, with room to write. */
+.guided-fields-panel__prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.guided-fields-panel__prompt textarea {
+  min-height: 12rem;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  resize: vertical;
+}
+
 /* ============================================================
    Telegram Party ID Integration & Multi-Party Repeaters
    ============================================================ */

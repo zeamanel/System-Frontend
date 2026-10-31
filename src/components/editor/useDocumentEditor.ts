@@ -259,16 +259,27 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
       let reverted = 0
       let skipped = 0
       const current = modelRef.current
-      const blocks = current.blocks.map((block) => {
+      const added = new Set(change.added ?? [])
+      const blocks = current.blocks.flatMap((block) => {
         const after = change.after[block.id]
+        if (!after) return [block]
+        if (added.has(block.id)) {
+          // An inserted block: remove it unless it was edited since.
+          if (sameBlock(block, after)) {
+            reverted += 1
+            return []
+          }
+          skipped += 1
+          return [block]
+        }
         const before = change.before[block.id]
-        if (!after || !before) return block
+        if (!before) return [block]
         if (sameBlock(block, after)) {
           reverted += 1
-          return before
+          return [before]
         }
         skipped += 1
-        return block
+        return [block]
       })
       if (reverted > 0) {
         const next = { ...current, blocks }

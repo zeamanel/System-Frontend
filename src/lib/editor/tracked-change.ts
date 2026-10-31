@@ -14,6 +14,8 @@ export interface TrackedChange {
   id: string
   before: Record<string, Block>
   after: Record<string, Block>
+  /** Ids of blocks the change added (their state is in `after`); Undo removes them. */
+  added?: string[]
 }
 
 export interface RevertResult {
@@ -33,14 +35,23 @@ export function diffBlocks(before: DocumentModel, after: DocumentModel): Tracked
   const beforeById = new Map(before.blocks.map((b) => [b.id, b]))
   const changeBefore: Record<string, Block> = {}
   const changeAfter: Record<string, Block> = {}
+  const added: string[] = []
   for (const block of after.blocks) {
     const previous = beforeById.get(block.id)
-    if (previous && previous !== block && !sameBlock(previous, block)) {
+    if (!previous) {
+      added.push(block.id)
+      changeAfter[block.id] = block
+    } else if (previous !== block && !sameBlock(previous, block)) {
       changeBefore[block.id] = previous
       changeAfter[block.id] = block
     }
   }
   if (Object.keys(changeAfter).length === 0) return null
   trackedChangeCounter += 1
-  return { id: `change-${Date.now()}-${trackedChangeCounter}`, before: changeBefore, after: changeAfter }
+  return {
+    id: `change-${Date.now()}-${trackedChangeCounter}`,
+    before: changeBefore,
+    after: changeAfter,
+    ...(added.length > 0 ? { added } : {}),
+  }
 }

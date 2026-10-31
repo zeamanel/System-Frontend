@@ -1,4 +1,5 @@
 import { escapePlainText, inlineHtmlToText, sanitizeInlineHtml } from '../editor/sanitize'
+import { createParagraph } from '../editor/model'
 import type { Block, DocumentModel } from '../editor/types'
 import type { AssistantContextBlock } from './types'
 
@@ -47,6 +48,16 @@ export function applyTextProposal(model: DocumentModel, blockId: string, newText
         : block,
     ),
   }
+}
+
+/** Insert an accepted new-clause proposal as a paragraph after `afterBlockId` ('' → at the end). */
+export function insertTextProposal(model: DocumentModel, afterBlockId: string, newText: string): DocumentModel {
+  const html = sanitizeInlineHtml(escapePlainText(newText))
+  const paragraph = createParagraph(html)
+  const index = afterBlockId ? model.blocks.findIndex((block) => block.id === afterBlockId) : model.blocks.length - 1
+  const blocks = [...model.blocks]
+  blocks.splice(index + 1, 0, paragraph)
+  return { ...model, blocks }
 }
 
 /** Bracketed placeholders ("[payment deadline]") or blank lines ("______"). */
