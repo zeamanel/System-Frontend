@@ -269,7 +269,7 @@
   "editor.font_serif": "Classic serif",
   "editor.font_mono": "Monospace",
   "editor.font_abyssinica": "Abyssinica SIL (aadaa)",
-  "editor.font_washra": "WashRa (suuraa)",
+  "editor.font_washra": "WashRa (mata-duree)",
   "editor.fontEthiopicYes": "Ethiopic-ready — renders Amharic directly.",
   "editor.fontEthiopicNo": "No Ethiopic font in this stack detected — the system fallback will render Amharic.",
   "editor.fontEthiopicUnknown": "Uses installed fonts; Amharic falls back to system Ethiopic support.",
