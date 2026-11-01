@@ -71,3 +71,19 @@ describe('BlockView table column widths', () => {
     expect(container.querySelector('colgroup')).toBeNull()
   })
 })
+
+describe('BlockView table column alignment', () => {
+  it('aligns cells per column, including a repeated header', () => {
+    const aligned = { ...table, columnCount: 2, columnAlign: ['left', 'right'], rows: (table as Extract<Block, { type: 'table' }>).rows.map((row) => ({ ...row, cells: [...row.cells, { id: `${row.id}-2`, html: '1.00' }] })) } as Block
+    for (const range of [undefined, { from: 3, to: 6 }]) {
+      const { container, unmount } = render(<BlockView block={aligned} editable active={false} api={api} labels={labels} range={range} />)
+      for (const tr of Array.from(container.querySelectorAll('tr'))) {
+        const [first, second] = Array.from(tr.querySelectorAll('td'))
+        expect(first.style.textAlign).toBe('')
+        expect(second.style.textAlign).toBe('right')
+      }
+      unmount()
+    }
+  })
+})
+

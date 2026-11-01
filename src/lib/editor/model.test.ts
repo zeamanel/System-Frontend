@@ -18,6 +18,7 @@ import {
   mapBackendPayload,
   mergeWithPrevious,
   normalizeColumnWidths,
+  normalizeColumnAlign,
   addTableColumn,
   removeTableColumn,
   moveBlock,
@@ -743,6 +744,31 @@ describe('table column widths', () => {
     const model = modelWith(table)
     expect(addTableColumn(model, table.id).blocks[0]).not.toHaveProperty('columnWidths')
     expect(removeTableColumn(model, table.id).blocks[0]).not.toHaveProperty('columnWidths')
+  })
+})
+
+describe('table column alignment', () => {
+  it('keeps valid alignment from a backend payload and through save and reload', () => {
+    const block = mapBackendBlock({ type: 'table', headers: ['Description', 'Box', 'Amount'], rows: [['Sales', '5', '462,000.00']], columnAlign: ['left', 'center', 'right'] })
+    expect(block).toMatchObject({ columnAlign: ['left', 'center', 'right'] })
+    const reloaded = deserializeModel(serializeModel(modelWith(block as DocumentModel['blocks'][number])), 'en')
+    expect(reloaded?.blocks[0]).toMatchObject({ columnAlign: ['left', 'center', 'right'] })
+  })
+
+  it('ignores invalid alignment and drops all-left', () => {
+    expect(normalizeColumnAlign(['left', 'middle'], 2)).toBeUndefined()
+    expect(normalizeColumnAlign(['right'], 2)).toBeUndefined()
+    expect(normalizeColumnAlign(['left', 'left'], 2)).toBeUndefined()
+    expect(normalizeColumnAlign(['left', 'right'], 2)).toEqual(['left', 'right'])
+  })
+
+  it('keeps alignment when columns are added or removed', () => {
+    const table = { ...createTable(2, 3), columnAlign: ['left', 'center', 'right'] as const }
+    const model = modelWith({ ...table, columnAlign: [...table.columnAlign] })
+    expect(addTableColumn(model, table.id).blocks[0]).toMatchObject({ columnAlign: ['left', 'center', 'right', 'left'] })
+    expect(removeTableColumn(model, table.id).blocks[0]).toMatchObject({ columnAlign: ['left', 'center'] })
+    const twoCols = modelWith({ ...createTable(2, 2), columnAlign: ['left', 'right'] })
+    expect(removeTableColumn(twoCols, twoCols.blocks[0].id).blocks[0]).not.toHaveProperty('columnAlign')
   })
 })
 

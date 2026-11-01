@@ -72,7 +72,14 @@ export interface TableBlock extends BlockBase {
    * 100). Absent: equal columns. Dropped when a column is added or removed.
    */
   columnWidths?: number[]
+  /**
+   * Text alignment per column (one per column), e.g. right-aligned amounts.
+   * Absent: every column left-aligned.
+   */
+  columnAlign?: TableColumnAlign[]
 }
+
+export type TableColumnAlign = 'left' | 'center' | 'right'
 
 export interface SignatureParty {
   id: string
