@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createFixtureRepositories } from './fixture-repositories'
+import { deserializeModel } from '../editor/model'
 
 const repositories = createFixtureRepositories()
 
@@ -122,6 +123,27 @@ describe('fixture generation repository', () => {
     const createdDoc = await repositories.documents.get(completed.documentId!)
     expect(createdDoc?.content).toContain('Ministry of Trade')
     expect(createdDoc?.content).toContain('License Inquiry')
+  })
+
+  it('builds the VAT return worksheet in code, with exact boxes and table layout', async () => {
+    const template = await repositories.templates.get('vat-return-worksheet', 'en')
+    expect(template?.questions.some((q) => q.id === 'taxable_sales')).toBe(true)
+    const job = await repositories.generation.createRequest({
+      documentType: 'vat-return-worksheet',
+      language: 'en',
+      answers: { taxpayer_name: 'Damota Trading', taxpayer_tin: '0024688556', tax_period: 'Mar, 2024', taxable_sales: '462,000' },
+    })
+    await new Promise((resolve) => setTimeout(resolve, 650))
+    const completed = await repositories.generation.getRequest(job.id)
+    const doc = await repositories.documents.get(completed.documentId!)
+    const model = deserializeModel(doc!.content, 'en')!
+    const tables = model.blocks.filter((b) => b.type === 'table')
+    const boxTable = tables.find((t) => t.type === 'table' && t.rows.some((r) => r.cells[1]?.html === '200'))
+    expect(boxTable).toMatchObject({ columnWidths: [66, 10, 24], columnAlign: ['left', 'center', 'right'] })
+    const row = (box: string) => tables.flatMap((t) => (t.type === 'table' ? t.rows : [])).find((r) => r.cells[1]?.html === box)
+    expect(row('10')?.cells[2].html).toBe('69,300.00')
+    expect(row('200')?.cells[2].html).toBe('69,300.00')
+    expect(doc!.content).toContain('Section 3 — Taxpayer Certification')
   })
 
   it('regenerates an existing document in place when documentId is provided', async () => {
