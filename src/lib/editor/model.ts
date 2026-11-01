@@ -26,6 +26,7 @@ import type {
   SignatureBlock,
   SignatureParty,
   TableBlock,
+  TableColumnAlign,
   TextAlign,
 } from './types'
 import {
@@ -107,6 +108,15 @@ export function normalizeColumnWidths(raw: unknown, columnCount: number): number
   if (values.some((value) => !Number.isFinite(value) || value <= 0)) return undefined
   const total = values.reduce((sum, value) => sum + value, 0)
   return values.map((value) => Math.round((value / total) * 1000) / 10)
+}
+
+const COLUMN_ALIGNS = new Set(['left', 'center', 'right'])
+
+/** Valid per-column alignment, or undefined (all left): one entry per column. */
+export function normalizeColumnAlign(raw: unknown, columnCount: number): TableColumnAlign[] | undefined {
+  if (!Array.isArray(raw) || raw.length !== columnCount || columnCount < 1) return undefined
+  if (!raw.every((value) => typeof value === 'string' && COLUMN_ALIGNS.has(value))) return undefined
+  return raw.every((value) => value === 'left') ? undefined : (raw as TableColumnAlign[])
 }
 
 export function createTable(rowCount = 2, columnCount = 2, headerRow = true): TableBlock {
@@ -858,6 +868,7 @@ export function addTableColumn(model: DocumentModel, id: string): DocumentModel 
     const { columnWidths: _widths, ...rest } = block
     return {
       ...rest,
+      ...(block.columnAlign ? { columnAlign: [...block.columnAlign, 'left' as const] } : {}),
       columnCount: block.columnCount + 1,
       rows: block.rows.map((row) => ({
         ...row,
@@ -870,9 +881,11 @@ export function addTableColumn(model: DocumentModel, id: string): DocumentModel 
 export function removeTableColumn(model: DocumentModel, id: string): DocumentModel {
   return updateBlock(model, id, (block) => {
     if (block.type !== 'table' || block.columnCount <= 1) return block
-    const { columnWidths: _widths, ...rest } = block
+    const { columnWidths: _widths, columnAlign, ...rest } = block
+    const keptAlign = normalizeColumnAlign(columnAlign?.slice(0, -1), block.columnCount - 1)
     return {
       ...rest,
+      ...(keptAlign ? { columnAlign: keptAlign } : {}),
       columnCount: block.columnCount - 1,
       rows: block.rows.map((row) => ({ ...row, cells: row.cells.slice(0, -1) })),
     }
@@ -1096,6 +1109,7 @@ function sanitizeComplexBlock(raw: Record<string, unknown>): Block[] {
       if (rows.length === 0) return []
       const columnCount = Math.min(20, Math.max(1, Number(raw.columnCount ?? 1) || 1))
       const columnWidths = normalizeColumnWidths(raw.columnWidths, columnCount)
+      const columnAlign = normalizeColumnAlign(raw.columnAlign, columnCount)
       return [
         {
           id: String(raw.id),
@@ -1104,6 +1118,7 @@ function sanitizeComplexBlock(raw: Record<string, unknown>): Block[] {
           columnCount,
           rows,
           ...(columnWidths ? { columnWidths } : {}),
+          ...(columnAlign ? { columnAlign } : {}),
         },
       ]
     }
@@ -1311,6 +1326,7 @@ export function mapBackendBlock(raw: unknown): Block | null {
         }))
         const columnCount = Math.min(20, Math.max(1, Number(raw.columnCount ?? 1) || 1))
         const columnWidths = normalizeColumnWidths(raw.columnWidths, columnCount)
+        const columnAlign = normalizeColumnAlign(raw.columnAlign, columnCount)
         return {
           id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
           type: 'table',
@@ -1318,6 +1334,7 @@ export function mapBackendBlock(raw: unknown): Block | null {
           columnCount,
           rows,
           ...(columnWidths ? { columnWidths } : {}),
+          ...(columnAlign ? { columnAlign } : {}),
         }
       }
       const headers = Array.isArray(raw.headers) ? raw.headers : []
@@ -1339,6 +1356,7 @@ export function mapBackendBlock(raw: unknown): Block | null {
       }
       const columnCount = Math.min(20, Math.max(headers.length, ...dataRows.map((r) => (Array.isArray(r) ? r.length : 0)), 1))
       const columnWidths = normalizeColumnWidths(raw.columnWidths, columnCount)
+      const columnAlign = normalizeColumnAlign(raw.columnAlign, columnCount)
       return {
         id: typeof raw.id === 'string' && raw.id ? raw.id : newId('blk'),
         type: 'table',
@@ -1346,6 +1364,7 @@ export function mapBackendBlock(raw: unknown): Block | null {
         columnCount,
         rows,
         ...(columnWidths ? { columnWidths } : {}),
+        ...(columnAlign ? { columnAlign } : {}),
       }
     }
     case 'page-break':

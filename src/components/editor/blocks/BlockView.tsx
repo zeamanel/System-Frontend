@@ -266,6 +266,12 @@ export function BlockView({
 type FocusHandler = (element: HTMLElement) => void
 type PasteHandler = (event: PasteEvent<HTMLElement>) => void
 
+/** A column's alignment, when the table sets one other than left. */
+function cellAlign(block: Extract<Block, { type: 'table' }>, column: number): { textAlign: 'center' | 'right' } | undefined {
+  const align = block.columnAlign?.[column]
+  return align === 'center' || align === 'right' ? { textAlign: align } : undefined
+}
+
 function renderTable(
   block: Extract<Block, { type: 'table' }>,
   blockClass: string,
@@ -292,8 +298,8 @@ function renderTable(
       <tbody>
         {repeatedHeader ? (
           <tr className="doc-table__head" data-repeated-header="true" aria-hidden="true">
-            {repeatedHeader.cells.map((cell) => (
-              <td key={cell.id} className="doc-table__cell">
+            {repeatedHeader.cells.map((cell, column) => (
+              <td key={cell.id} className="doc-table__cell" style={cellAlign(block, column)}>
                 <EditableHtml html={cell.html} editable={false} className="doc-table__text" />
               </td>
             ))}
@@ -306,8 +312,8 @@ function renderTable(
             key={row.id}
             className={rowIndex === 0 && block.headerRow ? 'doc-table__head' : undefined}
           >
-            {row.cells.map((cell) => (
-              <td key={cell.id} className="doc-table__cell">
+            {row.cells.map((cell, column) => (
+              <td key={cell.id} className="doc-table__cell" style={cellAlign(block, column)}>
                 <EditableHtml
                   html={cell.html}
                   editable={editable}
