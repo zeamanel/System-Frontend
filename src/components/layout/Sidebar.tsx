@@ -16,6 +16,7 @@ import {
   TemplateIcon,
   UserIcon,
   XIcon,
+  ReceiptIcon,
 } from '../icons'
 import type { IconProps } from '../icons'
 import type { ComponentType } from 'react'
@@ -39,6 +40,7 @@ const WORKSPACE_ITEMS: NavItem[] = [
 
 const ACCOUNT_ITEMS: NavItem[] = [
   { to: '/organization', labelKey: 'nav.organization', icon: UserIcon },
+  { to: '/billing', labelKey: 'nav.billing', icon: ReceiptIcon },
   { to: '/settings', labelKey: 'nav.settings', icon: SettingsIcon },
 ]
 
