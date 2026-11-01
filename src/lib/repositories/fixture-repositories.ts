@@ -12,7 +12,8 @@ import {
 import {
   DEFAULT_FIXTURE_CONTENTS,
 } from './fixtures/draft-content'
-import { draftFromTemplate, serializeModel } from '../editor/model'
+import { draftFromTemplate, mapBackendPayload, serializeModel } from '../editor/model'
+import { buildVatReturnWorksheet } from '../vat/vat-return'
 import { DocumentConflictError, ExportUnavailableError } from './errors'
 import {
   toSummary,
@@ -788,7 +789,10 @@ class FixtureGenerationRepository implements GenerationRepository {
       (template?.documentTypeId === 'custom_ai_document' ? promptTitle : null) ||
       `${defaultTemplateTitle} — ${new Date().toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US')}`
 
-    const content = serializeModel(
+    // Forms built in code (exact figures), as the backend does: no draft synthesis.
+    const content = template?.documentTypeId === 'vat_return_worksheet'
+      ? serializeModel(mapBackendPayload(buildVatReturnWorksheet(job.answers, job.language).content, job.language))
+      : serializeModel(
       draftFromTemplate(
         template
           ? {

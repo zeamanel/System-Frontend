@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '../../i18n'
 import { ToastProvider } from '../ui'
 import * as telegramApi from '../../lib/api/endpoints/telegram-bridge'
+import * as fieldFillClient from '../../lib/field-fill/client'
 import {
   GuidedFieldsPanel,
   ADDITIONAL_INSTRUCTIONS_FIELD_ID,
@@ -625,3 +626,64 @@ describe('Inline Telegram ID Mapping & Repeatable Co-Party Slots', () => {
     });
   });
 })
+
+describe('Fill a field from a file (paperclip)', () => {
+  it('shows the paperclip only on the focused field', async () => {
+    renderPanel()
+    expect(screen.queryByTestId('field-fill-trigger-tenant_name')).toBeNull()
+    fireEvent.focus(screen.getByLabelText(/tenant full name/i))
+    expect(await screen.findByTestId('field-fill-trigger-tenant_name')).toBeInTheDocument()
+    expect(screen.queryByTestId('field-fill-trigger-rent_amount')).toBeNull()
+    fireEvent.focus(screen.getByLabelText(/monthly rent/i))
+    expect(await screen.findByTestId('field-fill-trigger-rent_amount')).toBeInTheDocument()
+    expect(screen.queryByTestId('field-fill-trigger-tenant_name')).toBeNull()
+  })
+
+  it('reads a Telegram file, shows the value and its source, and fills only on "Use this value"', async () => {
+    const extract = vi.spyOn(fieldFillClient, 'extractFieldFromFile').mockResolvedValue({
+      value: 'Abebe Bikila', evidence: 'Seller: Abebe Bikila', confidence: 'high', evidenceVerified: true, sourceName: 'Vehicle_Sale_Agreement.txt',
+    })
+    const { props } = renderPanel()
+    fireEvent.focus(screen.getByLabelText(/tenant full name/i))
+    fireEvent.click(await screen.findByTestId('field-fill-trigger-tenant_name'))
+
+    const files = await screen.findByTestId('field-fill-files')
+    fireEvent.click(within(files).getAllByRole('button')[0])
+    const result = await screen.findByTestId('field-fill-result')
+    expect(extract).toHaveBeenCalledWith(expect.objectContaining({ fieldLabel: 'Tenant Full Name', fieldId: 'tenant_name', source: { kind: 'telegram', itemId: 'evt_fixture_1' } }))
+    expect(result).toHaveTextContent('Seller: Abebe Bikila')
+    expect(result).toHaveTextContent('Vehicle_Sale_Agreement.txt')
+    expect(props.onAnswerChange).not.toHaveBeenCalled()
+
+    // The user can correct the value before using it.
+    fireEvent.change(within(result).getByDisplayValue('Abebe Bikila'), { target: { value: 'Abebe Bikila Tesfaye' } })
+    fireEvent.click(screen.getByTestId('field-fill-use'))
+    expect(props.onAnswerChange).toHaveBeenCalledWith('tenant_name', 'Abebe Bikila Tesfaye')
+  })
+
+  it('warns when the value could not be matched to the file, and says when nothing was found', async () => {
+    const extract = vi.spyOn(fieldFillClient, 'extractFieldFromFile').mockResolvedValueOnce({
+      value: '9999', evidence: '', confidence: 'low', evidenceVerified: false, sourceName: 'a.txt',
+    })
+    renderPanel()
+    fireEvent.focus(screen.getByLabelText(/monthly rent/i))
+    fireEvent.click(await screen.findByTestId('field-fill-trigger-rent_amount'))
+    fireEvent.click(within(await screen.findByTestId('field-fill-files')).getAllByRole('button')[0])
+    expect(await screen.findByText(/could not match it to the text of the file/i)).toBeInTheDocument()
+
+    extract.mockResolvedValueOnce({ value: '', evidence: '', confidence: 'not_found', evidenceVerified: false, sourceName: 'a.txt' })
+    fireEvent.click(screen.getByRole('button', { name: /try another file/i }))
+    fireEvent.click(within(await screen.findByTestId('field-fill-files')).getAllByRole('button')[0])
+    expect(await screen.findByText(/No “Monthly Rent in ETB” found in a.txt/)).toBeInTheDocument()
+    expect(screen.queryByTestId('field-fill-use')).toBeNull()
+  })
+
+  it('says honestly that demo mode cannot read files', async () => {
+    renderPanel()
+    fireEvent.focus(screen.getByLabelText(/tenant full name/i))
+    fireEvent.click(await screen.findByTestId('field-fill-trigger-tenant_name'))
+    fireEvent.click(within(await screen.findByTestId('field-fill-files')).getAllByRole('button')[0])
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not connected in demo mode/i)
+  })
+})
+

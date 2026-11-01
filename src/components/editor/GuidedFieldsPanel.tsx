@@ -15,7 +15,8 @@ import { organizationSuggestionsForField } from '../../lib/organization/autofill
 import type { TemplateDetail, TemplateQuestion } from '../../lib/repositories'
 import type { OutlineEntry } from '../../lib/editor/model'
 import { Badge, Button, Input, Select, Spinner, Textarea } from '../ui'
-import { AlertIcon, SparkIcon } from '../icons'
+import { AlertIcon, PaperclipIcon, SparkIcon } from '../icons'
+import { FieldFileFillDialog } from './FieldFileFillDialog'
 
 export const ADDITIONAL_INSTRUCTIONS_FIELD_ID = 'additional_instructions'
 
@@ -156,6 +157,9 @@ export function GuidedFieldsPanel({
   const { t } = useI18n()
   const organization = useOrganization()
   const [invalid, setInvalid] = useState<Record<string, boolean>>({})
+  // "Fill from a file": shown on the field the user is in.
+  const [focusedFieldId, setFocusedFieldId] = useState<string | null>(null)
+  const [fillTarget, setFillTarget] = useState<{ id: string; label: string; apply: (value: string) => void } | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [telegramProfiles, setTelegramProfiles] = useState<TelegramVaultProfile[]>([])
   const [partySlots, setPartySlots] = useState<Record<string, PartySlotState[]>>({})
@@ -659,7 +663,23 @@ export function GuidedFieldsPanel({
             }
 
             return (
-              <div key={question.id} className="editor-panel__field">
+              <div
+                key={question.id}
+                className="editor-panel__field"
+                onFocusCapture={() => setFocusedFieldId(question.id)}
+              >
+                {focusedFieldId === question.id ? (
+                  <button
+                    type="button"
+                    className="field-fill-trigger"
+                    data-testid={`field-fill-trigger-${question.id}`}
+                    title={t('fieldFill.button')}
+                    aria-label={`${t('fieldFill.button')}: ${question.label}`}
+                    onClick={() => setFillTarget({ id: question.id, label: question.label, apply: pick })}
+                  >
+                    <PaperclipIcon size={13} /> {t('fieldFill.button')}
+                  </button>
+                ) : null}
                 {isParty ? (
                   <div className="field">
                     <div className="guided-fields-panel__field-header-row">
@@ -951,6 +971,16 @@ export function GuidedFieldsPanel({
           {generateControls}
         </footer>
       )}
+      {fillTarget ? (
+        <FieldFileFillDialog
+          open
+          fieldId={fillTarget.id}
+          fieldLabel={fillTarget.label}
+          language={language}
+          onUse={(value) => fillTarget.apply(value)}
+          onClose={() => setFillTarget(null)}
+        />
+      ) : null}
     </section>
   )
 }

@@ -1,0 +1,126 @@
+.field-fill__lead {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.field-fill__heading {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.field-fill__muted {
+  margin: var(--space-2) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.field-fill__error {
+  margin: var(--space-2) 0;
+  color: var(--color-error);
+  font-size: var(--text-sm);
+}
+
+.field-fill__files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.field-fill__file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.field-fill__file:hover,
+.field-fill__file:focus-visible {
+  border-color: var(--color-border-strong);
+  background-color: var(--color-action-ghost-hover);
+}
+
+.field-fill__thumb {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.field-fill__file-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.field-fill__file-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.field-fill__file-preview {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-fill__upload-input {
+  display: none;
+}
+
+.field-fill__source {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.field-fill__evidence {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-border-strong);
+  background-color: var(--color-surface-muted);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+}
+
+/* The paperclip on the focused field. */
+.editor-panel__field {
+  position: relative;
+}
+
+.field-fill-trigger {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-round);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.field-fill-trigger:hover,
+.field-fill-trigger:focus-visible {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
