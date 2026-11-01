@@ -1,0 +1,114 @@
+.billing-section-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.billing-current {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.billing-current p {
+  margin: 0;
+}
+
+.billing-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.billing-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.billing-plan__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.billing-plan__header h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.billing-plan p {
+  margin: 0;
+}
+
+.billing-plan__price {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+}
+
+.billing-plan__price span {
+  font-size: var(--text-sm);
+  font-weight: normal;
+  color: var(--color-text-secondary);
+}
+
+.billing-note {
+  margin: var(--space-2) 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.billing-error {
+  margin: var(--space-2) 0;
+  color: var(--color-error);
+}
+
+.billing-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-muted);
+}
+
+.billing-banner p {
+  margin: 0;
+}
+
+.billing-banner--paid {
+  border-color: var(--color-success);
+  background-color: var(--color-success-bg);
+}
+
+.billing-banner--failed {
+  border-color: var(--color-error);
+  background-color: var(--color-error-bg);
+}
+
+.billing-history {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.billing-history td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.billing-history__amount {
+  text-align: right;
+  white-space: nowrap;
+}

@@ -15,6 +15,7 @@ const EditorPage = lazy(() => import('./pages/EditorPage'))
 const FavoritesPage = lazy(() => import('./pages/FavoritesPage'))
 const OrganizationPage = lazy(() => import('./pages/OrganizationPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const BillingPage = lazy(() => import('./pages/BillingPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
@@ -45,6 +46,7 @@ export function AppRoutes() {
           <Route path="favorites" element={<FavoritesPage />} />
           <Route path="organization" element={<OrganizationPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="billing" element={<BillingPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="*" element={<NotFoundPage />} />
