@@ -103,6 +103,13 @@ describe('parseEnv', () => {
     expect(config.appName).toBe('Custom')
   })
 
+  it('shows SenedDesk when the build setting still has the old name', () => {
+    for (const old of ['DocuA4', 'docua4', ' DOCUA4 ', 'Docu A4', 'Docu-A4']) {
+      expect(parseEnv({ VITE_APP_NAME: old }, { isDev: false }).appName, old).toBe('SenedDesk')
+    }
+    expect(parseEnv({ VITE_APP_NAME: '   ' }, { isDev: false }).appName).toBe('SenedDesk')
+  })
+
   it('defaults the data source to fixtures in dev and http in prod', () => {
     expect(parseEnv({}, { isDev: true }).dataSource).toBe('fixtures')
     expect(parseEnv({}, { isDev: false }).dataSource).toBe('http')
