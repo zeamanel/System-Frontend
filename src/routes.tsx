@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/layout'
+import { OnboardingGate } from './components/onboarding/OnboardingGate'
 import { LoadingState } from './components/ui'
 import { useI18n } from './i18n'
 import { RequireSession } from './session'
@@ -32,7 +33,9 @@ export function AppRoutes() {
         <Route
           element={
             <RequireSession>
-              <AppShell />
+              <OnboardingGate>
+                <AppShell />
+              </OnboardingGate>
             </RequireSession>
           }
         >

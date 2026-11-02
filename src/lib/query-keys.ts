@@ -9,7 +9,8 @@ export const queryKeys = {
       ['templates', 'list', locale, options ?? null] as const,
     paginated: (locale: string, options?: unknown) =>
       ['templates', 'paginated', locale, options ?? null] as const,
-    recommended: (locale: string) => ['templates', 'recommended', locale] as const,
+    recommended: (locale: string, occupation?: string | null) =>
+      ['templates', 'recommended', locale, occupation ?? null] as const,
     detail: (id: string, locale: string) =>
       ['templates', 'detail', id, locale] as const,
   },

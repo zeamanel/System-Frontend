@@ -171,6 +171,13 @@ export interface UserPreferences {
   defaultDocumentLanguage: string
   organizationId?: string | null
   formatting: FormattingPreferences
+  /** What the user does for work (an id from lib/onboarding/occupations), or null. */
+  occupation?: string | null
+  /**
+   * False for a new account that has not yet answered the welcome questions.
+   * Absent when the backend does not say (demo mode, old backend): then none are asked.
+   */
+  onboarded?: boolean
 }
 
 export type UpdateUserPreferencesInput = Partial<{
@@ -181,5 +188,8 @@ export type UpdateUserPreferencesInput = Partial<{
   defaultDocumentLanguage: string
   organizationId: string | null
   formatting: Partial<FormattingPreferences>
+  occupation: string | null
+  /** Only `true` is meaningful: the questions are answered or skipped. */
+  onboarded: boolean
 }>
 

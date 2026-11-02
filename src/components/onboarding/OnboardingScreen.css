@@ -1,0 +1,218 @@
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  background-color: var(--color-app-bg);
+}
+
+.onboarding__card {
+  width: min(36rem, 100%);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.onboarding__logo {
+  display: flex;
+  justify-content: center;
+}
+
+.onboarding__step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.onboarding__dots {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.onboarding__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-round);
+  background-color: var(--color-border-strong);
+}
+
+.onboarding__dot--on {
+  background-color: var(--color-action-primary);
+}
+
+.onboarding__title {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.onboarding__question {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.onboarding__question:focus {
+  outline: none;
+}
+
+.onboarding__help {
+  margin: var(--space-1) 0 var(--space-4);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.onboarding__options {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.onboarding__options--languages {
+  grid-template-columns: 1fr;
+}
+
+.onboarding__options--occupations {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.onboarding__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.onboarding__option:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.onboarding__option:has(input:checked) {
+  border-color: var(--color-action-primary);
+  background-color: var(--color-selected);
+  color: var(--color-on-selected);
+}
+
+.onboarding__option:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.onboarding__option input {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--color-action-primary);
+}
+
+.onboarding__option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.onboarding__option-label {
+  font-size: var(--text-base);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.onboarding__option-note {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+
+.onboarding__option:has(input:checked) .onboarding__option-note {
+  color: inherit;
+}
+
+.onboarding__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.onboarding__actions > :only-child {
+  margin-left: auto;
+}
+
+.onboarding__skip {
+  align-self: center;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.onboarding__skip:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.onboarding__skip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (max-width: 520px) {
+  .onboarding {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .onboarding__card {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  /* Two columns even on a phone, so the buttons are not far below the fold. */
+  .onboarding__options--occupations {
+    gap: var(--space-2);
+  }
+
+  .onboarding__options--occupations .onboarding__option {
+    gap: var(--space-2);
+    min-height: 3.25rem;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .onboarding__options--occupations .onboarding__option-label {
+    font-size: var(--text-sm);
+    line-height: 1.3;
+  }
+
+  .onboarding__options--occupations .onboarding__option input {
+    width: 1rem;
+    height: 1rem;
+  }
+}

@@ -900,6 +900,9 @@ class FixturePreferencesRepository implements PreferencesRepository {
         ...local.formatting,
         ...current.formatting,
       },
+      occupation: current.occupation ?? local.occupation ?? null,
+      // Demo data starts out "not asked" (undefined): only a stored false asks the welcome questions.
+      ...(current.onboarded ?? local.onboarded) === undefined ? {} : { onboarded: current.onboarded ?? local.onboarded },
     }
     this.savePrefs(merged)
     return merged

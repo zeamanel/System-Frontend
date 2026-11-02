@@ -15,6 +15,7 @@ import {
   type LanguageCode,
 } from '../lib/languages'
 import { regionsForCountry, regionDisplayName } from '../lib/geo'
+import { OCCUPATIONS } from '../lib/onboarding/occupations'
 import { getHealth } from '../lib/api/endpoints/health'
 import { isFixtureDataSource } from '../lib/repositories'
 import {
@@ -47,6 +48,8 @@ export default function SettingsPage() {
     setRegion,
     setCity,
     setFormatting,
+    occupation,
+    setOccupation,
     retrySave,
   } = usePreferences()
   const toast = useToast()
@@ -117,6 +120,18 @@ export default function SettingsPage() {
                   label: `${lang.nativeName} (${lang.englishName})`,
                 }
               })}
+            />
+
+            <Select
+              id="settings-occupation"
+              label={t('settings.occupation')}
+              hint={t('settings.occupationHelp')}
+              value={occupation ?? ''}
+              onChange={(event) => void setOccupation(event.target.value || null)}
+              options={[
+                { value: '', label: t('settings.occupationNone') },
+                ...OCCUPATIONS.map((item) => ({ value: item.id, label: t(item.labelKey) })),
+              ]}
             />
 
             <Select
