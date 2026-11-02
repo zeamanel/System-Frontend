@@ -689,6 +689,11 @@ class FixtureSessionRepository implements SessionRepository {
     return DEV_SESSION_USER
   }
 
+  async signInWithGoogle(): Promise<SessionUser> {
+    writeFlag('docuA4.fixture.devSession', '1')
+    return DEV_SESSION_USER
+  }
+
   async signIn(): Promise<SessionUser> {
     writeFlag('docuA4.fixture.devSession', '1')
     return DEV_SESSION_USER

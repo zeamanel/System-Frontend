@@ -884,5 +884,8 @@
   "billing.historyTitle": "ክፍያዎች",
   "billing.status.pending": "በመጠባበቅ ላይ",
   "billing.status.paid": "ተከፍሏል",
-  "billing.status.failed": "አልተሳካም"
+  "billing.status.failed": "አልተሳካም",
+  "login.google": "በGoogle ይግቡ",
+  "login.googleFailed": "በGoogle መግባት አልተሳካም። እባክዎ እንደገና ይሞክሩ።",
+  "login.or": "ወይም"
 }

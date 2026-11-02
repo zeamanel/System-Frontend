@@ -410,6 +410,7 @@ export interface UsageRepository {
 export interface SessionRepository {
   getCurrent(): Promise<SessionUser | null>
   signIn(email: string, password: string): Promise<SessionUser>
+  signInWithGoogle?(): Promise<SessionUser>
   signOut(): Promise<void>
   /**
    * Optional reactive channel (Firebase auth state in API mode). When

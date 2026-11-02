@@ -13,6 +13,7 @@ function makeRepository(listeners: Set<Listener>): SessionRepository {
   return {
     getCurrent: vi.fn(async () => null),
     signIn: vi.fn(async () => user),
+    signInWithGoogle: vi.fn(async () => user),
     signOut: vi.fn(async () => undefined),
     subscribe(listener) {
       listeners.add(listener)
@@ -22,13 +23,16 @@ function makeRepository(listeners: Set<Listener>): SessionRepository {
 }
 
 function Harness() {
-  const { state, user: currentUser, signIn, signOut } = useSession()
+  const { state, user: currentUser, signIn, signInWithGoogle, signOut } = useSession()
   return (
     <div>
       <p>status:{state.status}</p>
       <p>name:{currentUser?.name ?? 'none'}</p>
       <button type="button" onClick={() => void signIn('a@example.com', 'pw')}>
         sign-in
+      </button>
+      <button type="button" onClick={() => void signInWithGoogle?.()}>
+        google-sign-in
       </button>
       <button type="button" onClick={() => void signOut()}>
         sign-out
@@ -84,5 +88,22 @@ describe('SessionProvider reactive subscription', () => {
     await user.click(screen.getByRole('button', { name: 'sign-out' }))
     expect(repository.signOut).toHaveBeenCalledTimes(1)
     expect(screen.getByText('status:anonymous')).toBeInTheDocument()
+  })
+
+  it('routes Google sign-in through the repository', async () => {
+    const listeners = new Set<Listener>()
+    const repository = makeRepository(listeners)
+    const userEventSetup = userEvent.setup()
+    render(
+      <SessionProvider repository={repository}>
+        <Harness />
+      </SessionProvider>,
+    )
+
+    expect(await screen.findByText('status:anonymous')).toBeInTheDocument()
+    await userEventSetup.click(screen.getByRole('button', { name: 'google-sign-in' }))
+
+    expect(repository.signInWithGoogle).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('status:authenticated')).toBeInTheDocument()
   })
 })

@@ -6,6 +6,7 @@ import { useI18n } from '../i18n'
 import { isFixtureDataSource } from '../lib/repositories'
 import { useSession } from '../session'
 import { Logo } from '../components/layout/Logo'
+import { GoogleIcon } from '../components/icons'
 import {
   Badge,
   Button,
@@ -18,12 +19,13 @@ import {
 export default function LoginPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { state, signIn } = useSession()
+  const { state, signIn, signInWithGoogle } = useSession()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [googlePending, setGooglePending] = useState(false)
 
   if (state.status === 'authenticated') {
     return <Navigate to="/" replace />
@@ -42,6 +44,20 @@ export default function LoginPage() {
     }
   }
 
+  const handleGoogleSignIn = async () => {
+    if (!signInWithGoogle) return
+    setGooglePending(true)
+    setError(null)
+    try {
+      await signInWithGoogle()
+      navigate('/', { replace: true })
+    } catch {
+      setError(t('login.googleFailed'))
+    } finally {
+      setGooglePending(false)
+    }
+  }
+
   return (
     <div className="login-page">
       <Card className="login-card">
@@ -50,6 +66,22 @@ export default function LoginPage() {
         </div>
         <CardTitle>{t('login.title')}</CardTitle>
         <CardBody className="login-card__body">{t('login.subtitle')}</CardBody>
+
+        <Button
+          type="button"
+          variant="secondary"
+          fullWidth
+          icon={<GoogleIcon size={18} />}
+          loading={googlePending}
+          disabled={pending || googlePending}
+          onClick={() => void handleGoogleSignIn()}
+        >
+          {t('login.google')}
+        </Button>
+
+        <div className="login-card__divider" role="separator">
+          <span>{t('login.or')}</span>
+        </div>
 
         <form
           className="login-card__form"
@@ -87,6 +119,7 @@ export default function LoginPage() {
             variant="primary"
             fullWidth
             loading={pending}
+            disabled={pending || googlePending}
           >
             {t('login.submit')}
           </Button>
@@ -97,7 +130,7 @@ export default function LoginPage() {
             <Button
               variant="secondary"
               fullWidth
-              disabled={pending}
+              disabled={pending || googlePending}
               onClick={() => void handleSignIn('dev', 'dev')}
             >
               {t('login.devContinue')}
@@ -112,4 +145,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

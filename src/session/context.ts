@@ -12,6 +12,7 @@ export interface SessionContextValue {
   user: SessionUser | null
   isAdmin: boolean
   signIn: (email: string, password: string) => Promise<SessionUser>
+  signInWithGoogle?: () => Promise<SessionUser>
   signOut: () => Promise<void>
 }
 
