@@ -888,5 +888,6 @@
   "billing.opening": "Chapa banaa jira…",
   "login.google": "Google dhaan seeni",
   "login.googleFailed": "Google dhaan seenuun hin danda'amne. Mee irra deebi'ii yaali.",
-  "login.or": "yookiin"
+  "login.or": "yookiin",
+  "app.aiNotice": "{app} dogoggora hojjechuu danda’a. Sanadoota osoo hin fayyadamin dura sirriitti mirkaneeffadhaa."
 }

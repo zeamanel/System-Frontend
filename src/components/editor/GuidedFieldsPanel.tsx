@@ -16,6 +16,7 @@ import type { TemplateDetail, TemplateQuestion } from '../../lib/repositories'
 import type { OutlineEntry } from '../../lib/editor/model'
 import { Badge, Button, Input, Select, Spinner, Textarea } from '../ui'
 import { AlertIcon, PaperclipIcon, SparkIcon } from '../icons'
+import { AiNotice } from '../layout/AiNotice'
 import { FieldFileFillDialog } from './FieldFileFillDialog'
 
 export const ADDITIONAL_INSTRUCTIONS_FIELD_ID = 'additional_instructions'
@@ -529,6 +530,8 @@ export function GuidedFieldsPanel({
             <AlertIcon size={14} /> {t('editor.generateFailed')}
           </p>
         ) : null}
+
+        <AiNotice />
     </>
   )
 

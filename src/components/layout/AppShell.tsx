@@ -6,6 +6,7 @@ import { useI18n } from '../../i18n'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
+import { AiNotice } from './AiNotice'
 
 /** Document-editor routes — the sidebar collapses to an icon rail on desktop. */
 const EDITOR_ROUTE_PATTERN = /^\/documents\/[^/]+\/?$/
@@ -56,6 +57,11 @@ export function AppShell() {
         />
         <main id="main-content" className={['app-shell__main', isEditorRoute ? 'app-shell__main--editor' : null].filter(Boolean).join(' ')} tabIndex={-1}>
           <Outlet />
+          {isEditorRoute ? null : (
+            <footer className="app-shell__footer">
+              <AiNotice />
+            </footer>
+          )}
         </main>
       </div>
       {isEditorRoute ? null : <BottomNav />}

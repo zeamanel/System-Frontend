@@ -120,6 +120,8 @@ describe('GuidedFieldsPanel Independent Scroll Locking & Layout', () => {
     expect(footer).toHaveTextContent(/Additional Details or Instructions/i)
     expect(footer).toHaveTextContent(/Language/i)
     expect(footer.querySelector('button')).toHaveTextContent(/Generate content/i)
+    // ...and, under the button, the reminder to check what the AI wrote.
+    expect(within(footer).getByTestId('ai-notice')).toHaveTextContent('SenedDesk can make mistakes. Check documents carefully before you use them.')
   })
 
   it('renders children inside the scrollable body', () => {

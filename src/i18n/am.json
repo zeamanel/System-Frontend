@@ -888,5 +888,6 @@
   "billing.opening": "Chapa በመክፈት ላይ…",
   "login.google": "በGoogle ይግቡ",
   "login.googleFailed": "በGoogle መግባት አልተሳካም። እባክዎ እንደገና ይሞክሩ።",
-  "login.or": "ወይም"
+  "login.or": "ወይም",
+  "app.aiNotice": "{app} ስህተት ሊሠራ ይችላል። ሰነዶችን ከመጠቀምዎ በፊት በጥንቃቄ ያረጋግጡ።"
 }
