@@ -124,6 +124,20 @@ function normalizeBaseUrl(raw: string | undefined, isDev: boolean): string {
  * Validates and normalizes raw environment variables into a typed config.
  * Exported separately from the singleton so it is unit-testable.
  */
+/** The product name. */
+export const DEFAULT_APP_NAME = 'SenedDesk'
+
+/**
+ * VITE_APP_NAME, unless it is empty or still the product's old name (a
+ * build setting left at "DocuA4" would otherwise put the old name back in
+ * the header and notices).
+ */
+function appNameFrom(value: string | undefined): string {
+  const name = value?.trim()
+  if (!name || /^docu\s*-?\s*a4$/i.test(name)) return DEFAULT_APP_NAME
+  return name
+}
+
 export function parseEnv(raw: RawEnv, options: ParseEnvOptions): AppConfig {
   const defaultLocaleRaw = raw.VITE_DEFAULT_LOCALE?.trim()
   const defaultLocale: Locale = isLocale(defaultLocaleRaw)
@@ -132,7 +146,7 @@ export function parseEnv(raw: RawEnv, options: ParseEnvOptions): AppConfig {
 
   return {
     apiBaseUrl: normalizeBaseUrl(raw.VITE_API_BASE_URL, options.isDev),
-    appName: raw.VITE_APP_NAME?.trim() || 'SenedDesk',
+    appName: appNameFrom(raw.VITE_APP_NAME),
     defaultLocale,
     dataSource: normalizeDataSource(raw.VITE_DATA_SOURCE, options.isDev),
     firebase: parseFirebaseConfig(raw),
