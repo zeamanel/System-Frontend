@@ -14,7 +14,7 @@ const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const scriptPath = join(rootDir, 'scripts', 'check-i18n.mjs')
 
 const EN_FIXTURE = {
-  'app.title': 'DocuA4',
+  'app.title': 'SenedDesk',
   'nav.home': 'Home',
   'nav.templates': 'Templates',
 }

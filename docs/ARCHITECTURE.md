@@ -1,6 +1,6 @@
-# DocuA4 Frontend — Architecture
+# SenedDesk Frontend — Architecture
 
-Phase 1 foundation for the DocuA4 document workspace. This document records
+Phase 1 foundation for the SenedDesk document workspace. This document records
 the current state, the decisions behind it, and the conventions to follow as
 features land.
 
@@ -114,7 +114,7 @@ centralised keys; components consume only those hooks.
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | Backend base — absolute URL or root-relative path | `http://localhost:8787` (dev) / `/api` (prod) |
 | `VITE_DATA_SOURCE` | Feature data layer: `fixtures` or `http` | `fixtures` (dev) / must be set explicitly in production |
-| `VITE_APP_NAME` | Product name in the shell | `DocuA4` |
+| `VITE_APP_NAME` | Product name in the shell | `SenedDesk` |
 | `VITE_DEFAULT_LOCALE` | Locale before user preference | `en` |
 | `VITE_FIREBASE_*` | Firebase Web config (6 values) — required when `VITE_DATA_SOURCE=http`, ignored in fixture mode | none |
 

@@ -56,7 +56,7 @@ export function documentTimestamps(ageHours: number): { createdAt: string; updat
 export const NOTIFICATION_FIXTURES: Omit<AppNotification, 'read'>[] = [
   {
     id: 'notification-fixture-1',
-    title: 'Welcome to DocuA4',
+    title: 'Welcome to SenedDesk',
     body: 'Development fixture — this is where service notifications will appear.',
     createdAt: hoursAgo(0.2),
   },

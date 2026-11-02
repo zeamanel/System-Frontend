@@ -914,7 +914,7 @@ class FixturePreferencesRepository implements PreferencesRepository {
 class FixtureExportsRepository implements ExportsRepository {
   async createRequest(input: ExportRequestInput): Promise<ExportRequest> {
     throw new ExportUnavailableError(
-      `Server-side ${input.format.toUpperCase()} export requires the DocuA4 backend service, which is not connected.`,
+      `Server-side ${input.format.toUpperCase()} export requires the SenedDesk backend service, which is not connected.`,
     )
   }
 }

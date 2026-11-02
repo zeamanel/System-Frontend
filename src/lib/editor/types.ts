@@ -1,5 +1,5 @@
 /**
- * DocuA4 structured document model.
+ * SenedDesk structured document model.
  *
  * The editor never edits template HTML strings. Documents are an immutable,
  * versioned JSON structure of typed blocks; every edit is a pure operation on

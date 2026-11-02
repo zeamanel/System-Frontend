@@ -11,7 +11,7 @@ export class ConfigError extends Error {
 /**
  * Where feature data comes from:
  * - `fixtures` — clearly-labeled development data served locally
- * - `http` — the live DocuA4 backend (separate repository)
+ * - `http` — the live SenedDesk backend (separate repository)
  */
 export type DataSource = 'fixtures' | 'http'
 
@@ -132,7 +132,7 @@ export function parseEnv(raw: RawEnv, options: ParseEnvOptions): AppConfig {
 
   return {
     apiBaseUrl: normalizeBaseUrl(raw.VITE_API_BASE_URL, options.isDev),
-    appName: raw.VITE_APP_NAME?.trim() || 'DocuA4',
+    appName: raw.VITE_APP_NAME?.trim() || 'SenedDesk',
     defaultLocale,
     dataSource: normalizeDataSource(raw.VITE_DATA_SOURCE, options.isDev),
     firebase: parseFirebaseConfig(raw),

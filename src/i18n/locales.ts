@@ -1,4 +1,4 @@
-/** Locales supported by the DocuA4 UI. */
+/** Locales supported by the SenedDesk UI. */
 export const LOCALES = ['en', 'am', 'om'] as const
 
 export type Locale = (typeof LOCALES)[number]

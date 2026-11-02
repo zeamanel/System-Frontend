@@ -281,7 +281,7 @@ describe('EditorWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /download pdf/i }))
 
     const error = await screen.findByTestId('export-error')
-    expect(error.textContent).toMatch(/needs the DocuA4 server/i)
+    expect(error.textContent).toMatch(/needs the SenedDesk server/i)
     // The honest browser path remains available.
     expect(screen.getByRole('button', { name: /print \/ save as pdf/i })).toBeInTheDocument()
   })

@@ -52,7 +52,7 @@ export function formatBirr(value: number): string {
  *
  * Formulas printed on the form: 55, 60, 90, 165, 170. The rest follow the
  * box labels: "VAT on X" is 15% of X; 95 = 70 + 80. Boxes 185-205 (VAT due,
- * credit, carry-forward, amount to pay) are DocuA4's reading of the labels and
+ * credit, carry-forward, amount to pay) are SenedDesk's reading of the labels and
  * are flagged in the output for checking against the portal. Box 197 (refund
  * interest adjustment) is not calculated.
  */
@@ -277,7 +277,7 @@ const DECLARATION =
   'I declare that the above declaration and all information provided here-with is correct and complete. I understand that any misrepresentation is punishable as per the Tax Law and the Penal Code. Declaration of preparer (other than the taxpayer) is based on all information of which the preparer has any knowledge.'
 
 export const VAT_RETURN_BOX_CAVEAT =
-  'Boxes 185 to 205 (VAT due, credit, credit carried forward, amount to be paid) are calculated by DocuA4 from the box labels. Check them against the e-tax portal before you submit. Box 197 (refund interest adjustment) is not calculated.'
+  'Boxes 185 to 205 (VAT due, credit, credit carried forward, amount to be paid) are calculated by SenedDesk from the box labels. Check them against the e-tax portal before you submit. Box 197 (refund interest adjustment) is not calculated.'
 
 export function buildVatReturnWorksheet(
   answers: Record<string, string>,
@@ -294,8 +294,8 @@ export function buildVatReturnWorksheet(
     {
       type: 'paragraph',
       text: am
-        ? 'ይህ የሥራ ወረቀት በDocuA4 የተዘጋጀ ሲሆን አሃዞቹን በገቢዎች ሚኒስቴር የኤሌክትሮኒክ ታክስ ዲክላራሲዮን ውስጥ ለማስገባት ያገለግላል። ይህ ኦፊሴላዊ ዲክላራሲዮን አይደለም።'
-        : 'Prepared by DocuA4 for entering the figures into the Ministry of Revenues electronic tax declaration. This is a working paper, not the official return.',
+        ? 'ይህ የሥራ ወረቀት በSenedDesk የተዘጋጀ ሲሆን አሃዞቹን በገቢዎች ሚኒስቴር የኤሌክትሮኒክ ታክስ ዲክላራሲዮን ውስጥ ለማስገባት ያገለግላል። ይህ ኦፊሴላዊ ዲክላራሲዮን አይደለም።'
+        : 'Prepared by SenedDesk for entering the figures into the Ministry of Revenues electronic tax declaration. This is a working paper, not the official return.',
       align: 'center',
     },
     { type: 'heading', level: 2, text: am ? 'ክፍል 1 — የግብር ከፋይ መረጃ (Taxpayer Information)' : 'Section 1 — Taxpayer Information' },

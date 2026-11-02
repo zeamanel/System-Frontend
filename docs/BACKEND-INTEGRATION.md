@@ -1,6 +1,6 @@
 # Backend integration (Phase 7)
 
-How the DocuA4 frontend talks to the live Cloud Run backend
+How the SenedDesk frontend talks to the live Cloud Run backend
 (`https://systembackendservice-506195874849.us-central1.run.app`, API base
 includes the `/api/v1` prefix). Fixture mode (`VITE_DATA_SOURCE=fixtures`)
 remains fully offline: no Firebase initialization, no network calls.

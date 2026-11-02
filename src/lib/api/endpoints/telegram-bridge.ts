@@ -535,7 +535,7 @@ export async function getTelegramBotHealth(
       ok: true,
       configured: true,
       status: 'ready',
-      bot: { id: 789456123, username: 'Qal_copy_bot', first_name: 'DocuA4 Qal Bot' },
+      bot: { id: 789456123, username: 'Qal_copy_bot', first_name: 'SenedDesk Qal Bot' },
       webhook: {
         url: 'https://docua4.test/admin/telegram/webhook',
         has_custom_certificate: false,
