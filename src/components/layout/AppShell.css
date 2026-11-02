@@ -18,6 +18,12 @@
   padding: var(--space-8) var(--space-10);
 }
 
+.app-shell__footer {
+  margin-top: var(--space-10);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
 .app-shell__main:focus {
   outline: none;
 }

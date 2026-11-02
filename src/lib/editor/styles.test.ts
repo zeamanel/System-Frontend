@@ -111,6 +111,18 @@ describe('suggestedStyles', () => {
     expect(suggestedStyles('official_application_letter')).toEqual(['executive-letterhead'])
     expect(suggestedStyles('work_experience_certificate')).toEqual(['executive-letterhead'])
     expect(suggestedStyles('training_certificate')).toEqual(['formal-border'])
+    // Newer templates
+    expect(suggestedStyles('gift_deed')).toEqual(['legal-frame'])
+    expect(suggestedStyles('statement_of_claim')).toEqual(['legal-frame'])
+    expect(suggestedStyles('statement_of_defence')).toEqual(['legal-frame'])
+    expect(suggestedStyles('debt_acknowledgement')).toEqual(['legal-frame'])
+    expect(suggestedStyles('meeting_minutes')).toEqual(['legal-frame'])
+    expect(suggestedStyles('minor_travel_consent')).toEqual(['legal-frame'])
+    expect(suggestedStyles('employment_termination_letter')).toEqual(['executive-letterhead'])
+    expect(suggestedStyles('lease_termination_notice')).toEqual(['executive-letterhead'])
+    // Money documents stay plain, even when their name also says "acknowledgement".
+    expect(suggestedStyles('payment_receipt_acknowledgement')).toEqual([])
+    expect(suggestedStyles('proforma_invoice')).toEqual([])
     expect(suggestedStyles('custom_ai_document')).toEqual([])
     expect(suggestedStyles(undefined)).toEqual([])
   })

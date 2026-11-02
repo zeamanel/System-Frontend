@@ -120,6 +120,22 @@ describe('GuidedFieldsPanel Independent Scroll Locking & Layout', () => {
     expect(footer).toHaveTextContent(/Additional Details or Instructions/i)
     expect(footer).toHaveTextContent(/Language/i)
     expect(footer.querySelector('button')).toHaveTextContent(/Generate content/i)
+    // ...and, under the button, the reminder to check what the AI wrote.
+    expect(within(footer).getByTestId('ai-notice')).toHaveTextContent('SenedDesk can make mistakes. Check documents carefully before you use them.')
+  })
+
+  it('gives a field the backend marks as textarea a multi-line box, even with a short label', () => {
+    renderPanel({
+      template: {
+        ...mockTemplate,
+        questions: [
+          { id: 'facts_of_claim', label: 'Facts of the Claim', type: 'textarea', required: true },
+          { id: 'court_name', label: 'Court & Bench', type: 'text', required: true },
+        ],
+      },
+    })
+    expect(document.getElementById('field-facts_of_claim')?.tagName).toBe('TEXTAREA')
+    expect(document.getElementById('field-court_name')?.tagName).toBe('INPUT')
   })
 
   it('renders children inside the scrollable body', () => {

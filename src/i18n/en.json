@@ -888,5 +888,6 @@
   "billing.opening": "Opening Chapa…",
   "login.google": "Sign in with Google",
   "login.googleFailed": "Google sign-in failed. Please try again.",
-  "login.or": "or"
+  "login.or": "or",
+  "app.aiNotice": "{app} can make mistakes. Check documents carefully before you use them."
 }

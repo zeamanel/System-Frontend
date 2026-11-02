@@ -16,6 +16,7 @@ import type { TemplateDetail, TemplateQuestion } from '../../lib/repositories'
 import type { OutlineEntry } from '../../lib/editor/model'
 import { Badge, Button, Input, Select, Spinner, Textarea } from '../ui'
 import { AlertIcon, PaperclipIcon, SparkIcon } from '../icons'
+import { AiNotice } from '../layout/AiNotice'
 import { FieldFileFillDialog } from './FieldFileFillDialog'
 
 export const ADDITIONAL_INSTRUCTIONS_FIELD_ID = 'additional_instructions'
@@ -128,8 +129,9 @@ function serializePartyContext(
   return boundProfiles.length > 0 ? JSON.stringify(boundProfiles) : ''
 }
 
-function isMultilineQuestion(question: { id: string; label: string }): boolean {
+function isMultilineQuestion(question: { id: string; label: string; type?: string }): boolean {
   return (
+    question.type === 'textarea' ||
     question.label.length > 35 ||
     /point|qualif|item|desc|experience|education|decision/i.test(question.id)
   )
@@ -529,6 +531,8 @@ export function GuidedFieldsPanel({
             <AlertIcon size={14} /> {t('editor.generateFailed')}
           </p>
         ) : null}
+
+        <AiNotice />
     </>
   )
 
