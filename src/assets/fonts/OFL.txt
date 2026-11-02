@@ -1,4 +1,4 @@
-Fonts bundled with DocuA4
+Fonts bundled with SenedDesk
 =========================
 
 All fonts in this folder are licensed under the SIL Open Font License,

@@ -1,4 +1,4 @@
-# DocuA4 — Frontend
+# SenedDesk — Frontend
 
 AI-assisted document creation workspace for Ethiopia: choose a document
 type, answer guided questions, generate a draft with AI, then edit, save and

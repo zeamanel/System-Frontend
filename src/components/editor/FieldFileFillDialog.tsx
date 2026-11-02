@@ -32,7 +32,7 @@ type Step =
 
 /**
  * Fill one field from a file: pick one of your Telegram files or upload one,
- * see the value DocuA4 found and the words it came from, then confirm. The
+ * see the value SenedDesk found and the words it came from, then confirm. The
  * field changes only on "Use this value".
  */
 export function FieldFileFillDialog({ open, fieldLabel, fieldId, language, onUse, onClose }: FieldFileFillDialogProps) {

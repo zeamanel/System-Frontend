@@ -81,4 +81,50 @@ describe('BillingPage', () => {
     expect(await screen.findByText('Payments are not available yet.')).toBeInTheDocument()
     expect(within(screen.getByTestId('billing-plan-pro')).getByRole('button', { name: /pay with chapa/i })).toBeDisabled()
   })
+
+  it('warms up the Chapa connection while the page is open', async () => {
+    vi.spyOn(billing, 'getBillingOverview').mockResolvedValue(overview())
+    const hints = () => Array.from(document.head.querySelectorAll('link[href="https://checkout.chapa.co"]')).map((link) => link.getAttribute('rel'))
+    const { unmount } = renderPage()
+    await screen.findByTestId('billing-plan-pro')
+    expect(hints()).toEqual(['preconnect', 'dns-prefetch'])
+    // A credentialed navigation can only reuse a preconnect made without `crossorigin`.
+    expect(document.head.querySelector('link[rel="preconnect"][href="https://checkout.chapa.co"]')).not.toHaveAttribute('crossorigin')
+    unmount()
+    expect(hints()).toEqual([])
+  })
+
+  it('says it is opening Chapa while the checkout is on its way', async () => {
+    vi.spyOn(billing, 'getBillingOverview').mockResolvedValue(overview())
+    let resolve: (value: { paymentId: string; checkoutUrl: string }) => void = () => {}
+    vi.spyOn(billing, 'startCheckout').mockReturnValue(new Promise((r) => (resolve = r)))
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, assign })
+    renderPage()
+
+    const pro = await screen.findByTestId('billing-plan-pro')
+    fireEvent.click(within(pro).getByRole('button', { name: /pay with chapa/i }))
+    const button = within(pro).getByRole('button', { name: /opening chapa/i })
+    expect(button).toBeDisabled()
+    // The other plan keeps its own label but cannot start a second checkout.
+    expect(within(screen.getByTestId('billing-plan-business')).getByRole('button', { name: /pay with chapa/i })).toBeDisabled()
+    // Re-adding the preconnect on click must not duplicate it.
+    expect(document.head.querySelectorAll('link[rel="preconnect"][href="https://checkout.chapa.co"]')).toHaveLength(1)
+
+    resolve({ paymentId: 'p1', checkoutUrl: 'https://checkout.chapa.co/pay/1' })
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.chapa.co/pay/1'))
+    // Still says so while the browser leaves the page.
+    expect(within(pro).getByRole('button', { name: /opening chapa/i })).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
+  it('goes back to "Pay with Chapa" when the checkout fails', async () => {
+    vi.spyOn(billing, 'getBillingOverview').mockResolvedValue(overview())
+    vi.spyOn(billing, 'startCheckout').mockRejectedValue(new Error('boom'))
+    renderPage()
+    const pro = await screen.findByTestId('billing-plan-pro')
+    fireEvent.click(within(pro).getByRole('button', { name: /pay with chapa/i }))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(within(pro).getByRole('button', { name: /pay with chapa/i })).toBeEnabled()
+  })
 })

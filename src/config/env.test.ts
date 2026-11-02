@@ -59,7 +59,7 @@ describe('parseEnv', () => {
   it('falls back to a relative /api base in production builds', () => {
     const config = parseEnv({}, { isDev: false })
     expect(config.apiBaseUrl).toBe('/api')
-    expect(config.appName).toBe('DocuA4')
+    expect(config.appName).toBe('SenedDesk')
     expect(config.defaultLocale).toBe('en')
   })
 

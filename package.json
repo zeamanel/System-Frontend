@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "DocuA4 — AI-assisted document creation workspace (frontend).",
+  "description": "SenedDesk — AI-assisted document creation workspace (frontend).",
   "engines": {
     "node": ">=20 <23"
   },

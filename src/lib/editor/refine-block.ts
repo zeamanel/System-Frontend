@@ -1,7 +1,7 @@
 /**
  * Scoped, single-block clause refinement.
  *
- * DocuA4's surgical editing primitive: transform the text of ONE paragraph
+ * SenedDesk's surgical editing primitive: transform the text of ONE paragraph
  * or heading block (formalize / make concise / expand / translate / custom
  * instruction) without touching any other block. All transformations run
  * locally and deterministically — no network — so the feature works

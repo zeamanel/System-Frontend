@@ -48,7 +48,7 @@ export interface BillingOverview {
 
 export class BillingUnavailableError extends Error {
   constructor() {
-    super('Payments need the DocuA4 backend.')
+    super('Payments need the SenedDesk backend.')
     this.name = 'BillingUnavailableError'
   }
 }

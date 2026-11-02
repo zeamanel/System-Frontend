@@ -1,5 +1,5 @@
 /**
- * File import parser for DocuA4.
+ * File import parser for SenedDesk.
  *
  * Converts local files (.txt, .md, .html, .htm, .json, .docx) into structured
  * DocumentModel instances that render faithfully on the A4 canvas.
