@@ -884,5 +884,6 @@
   "billing.historyTitle": "Payments",
   "billing.status.pending": "Pending",
   "billing.status.paid": "Paid",
-  "billing.status.failed": "Failed"
+  "billing.status.failed": "Failed",
+  "billing.opening": "Opening Chapa…"
 }

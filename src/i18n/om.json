@@ -884,5 +884,6 @@
   "billing.historyTitle": "Kaffaltiiwwan",
   "billing.status.pending": "Eegaa jira",
   "billing.status.paid": "Kaffalameera",
-  "billing.status.failed": "Hin milkoofne"
+  "billing.status.failed": "Hin milkoofne",
+  "billing.opening": "Chapa banaa jira…"
 }

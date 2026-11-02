@@ -1,6 +1,6 @@
 import './BillingPage.css'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useI18n } from '../i18n'
@@ -19,6 +19,42 @@ import { Badge, Button, PageHeader, PanelError, PanelLoading } from '../componen
 /** How long the return page keeps asking for a confirmation (2 s apart). */
 const MAX_STATUS_CHECKS = 15
 
+/**
+ * Chapa's hosted checkout. Warming the connection up saves the DNS/TLS round trips after "Pay".
+ * No `crossorigin`: the redirect is a credentialed navigation, and an anonymous preconnect would sit in a
+ * different connection pool and go unused.
+ */
+const CHAPA_CHECKOUT_ORIGIN = 'https://checkout.chapa.co'
+
+/**
+ * Adds preconnect + dns-prefetch hints for `origin` while the page is mounted. Browsers close an unused
+ * preconnect after ~10 s, so the returned `rewarm` re-adds it right when the user commits to paying; the
+ * handshake then overlaps the checkout request to our server.
+ */
+function useWarmConnection(origin: string): () => void {
+  const preconnect = useRef<HTMLLinkElement | null>(null)
+  useEffect(() => {
+    const links = (['preconnect', 'dns-prefetch'] as const).map((rel) => {
+      const link = document.createElement('link')
+      link.rel = rel
+      link.href = origin
+      document.head.appendChild(link)
+      return link
+    })
+    preconnect.current = links[0]
+    return () => {
+      preconnect.current = null
+      links.forEach((link) => link.remove())
+    }
+  }, [origin])
+  return useCallback(() => {
+    const link = preconnect.current
+    if (!link) return
+    link.remove()
+    document.head.appendChild(link)
+  }, [])
+}
+
 export default function BillingPage() {
   const { t, locale } = useI18n()
   const queryClient = useQueryClient()
@@ -29,6 +65,7 @@ export default function BillingPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [returned, setReturned] = useState<PaymentSummary | null>(null)
   const [checksDone, setChecksDone] = useState(false)
+  const rewarmChapa = useWarmConnection(CHAPA_CHECKOUT_ORIGIN)
 
   const planName = (name: PlanName): string => name[locale] || name.en
   const date = (iso: string): string => new Date(iso).toLocaleDateString(locale === 'en' ? 'en-US' : `${locale}-ET`, { year: 'numeric', month: 'long', day: 'numeric' })
@@ -62,6 +99,7 @@ export default function BillingPage() {
   }, [queryClient, returningPaymentId])
 
   const pay = async (plan: BillingPlan): Promise<void> => {
+    rewarmChapa()
     setPaying(plan.id)
     setCheckoutError(null)
     try {
@@ -154,7 +192,7 @@ export default function BillingPage() {
                     disabled={!data.paymentsEnabled || paying !== null}
                     onClick={() => void pay(plan)}
                   >
-                    {active ? t('billing.extend') : t('billing.payWithChapa')}
+                    {paying === plan.id ? t('billing.opening') : active ? t('billing.extend') : t('billing.payWithChapa')}
                   </Button>
                 </article>
               )
