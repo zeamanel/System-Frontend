@@ -105,9 +105,10 @@ export function applyDocumentStyle(
  */
 export function suggestedStyles(documentTypeId: string | null | undefined): DocumentStyleId[] {
   const type = (documentTypeId ?? '').toLowerCase()
+  if (/receipt|invoice|proforma/.test(type)) return []
   if (/certificate|award|appreciation/.test(type) && !/work_experience/.test(type)) return ['formal-border']
   if (/letter|application|warning|work_experience|notice|request/.test(type)) return ['executive-letterhead']
-  if (/contract|agreement|lease|attorney|will|affidavit|declaration|consent|undertaking|memorandum|resolution|settlement/.test(type)) {
+  if (/contract|agreement|lease|attorney|will|affidavit|declaration|consent|undertaking|memorandum|resolution|settlement|deed|acknowledgement|statement_of|minutes/.test(type)) {
     return ['legal-frame']
   }
   return []

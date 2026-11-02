@@ -18,8 +18,9 @@ export interface GuidedFlowQuickFillStepProps {
   onGenerate: () => void
 }
 
-function isMultilineQuestion(question: { id: string; label: string }): boolean {
+function isMultilineQuestion(question: { id: string; label: string; type?: string }): boolean {
   return (
+    question.type === 'textarea' ||
     question.label.length > 35 ||
     /point|qualif|item|desc|experience|education|decision/i.test(question.id)
   )
