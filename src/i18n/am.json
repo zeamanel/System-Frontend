@@ -885,5 +885,8 @@
   "billing.status.pending": "በመጠባበቅ ላይ",
   "billing.status.paid": "ተከፍሏል",
   "billing.status.failed": "አልተሳካም",
-  "billing.opening": "Chapa በመክፈት ላይ…"
+  "billing.opening": "Chapa በመክፈት ላይ…",
+  "login.google": "በGoogle ይግቡ",
+  "login.googleFailed": "በGoogle መግባት አልተሳካም። እባክዎ እንደገና ይሞክሩ።",
+  "login.or": "ወይም"
 }

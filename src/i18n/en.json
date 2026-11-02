@@ -885,5 +885,8 @@
   "billing.status.pending": "Pending",
   "billing.status.paid": "Paid",
   "billing.status.failed": "Failed",
-  "billing.opening": "Opening Chapa…"
+  "billing.opening": "Opening Chapa…",
+  "login.google": "Sign in with Google",
+  "login.googleFailed": "Google sign-in failed. Please try again.",
+  "login.or": "or"
 }

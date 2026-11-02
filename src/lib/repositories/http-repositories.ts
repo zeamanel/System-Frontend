@@ -24,6 +24,7 @@ import {
 } from '../api/endpoints/generation'
 import { clearSyncedUserCache, ensureSyncedUser } from '../api/sync-user'
 import {
+  signInWithGoogle,
   signInWithPassword,
   subscribeToAuthState,
   waitForAuthState,
@@ -757,6 +758,15 @@ class HttpSessionRepository implements SessionRepository {
       console.error('[session] sync-user handshake failed:', error)
       return null
     }
+  }
+
+  async signInWithGoogle(): Promise<SessionUser> {
+    await signInWithGoogle()
+    const user = await ensureSyncedUser()
+    if (!user) {
+      throw new UnauthenticatedError('Google sign-in could not be completed. Please try again.')
+    }
+    return user
   }
 
   async signIn(email: string, password: string): Promise<SessionUser> {

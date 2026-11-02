@@ -70,6 +70,15 @@ export function SessionProvider({
       state,
       user: state.status === 'authenticated' ? state.user : null,
       isAdmin: state.status === 'authenticated' && state.user.role === 'admin',
+      async signInWithGoogle() {
+        const repo = repository ?? getRepositories().session
+        if (!repo.signInWithGoogle) {
+          throw new Error('Google sign-in is not supported by the active session repository.')
+        }
+        const user = await repo.signInWithGoogle()
+        setState({ status: 'authenticated', user })
+        return user
+      },
       async signIn(email: string, password: string) {
         const user = await (repository ?? getRepositories().session).signIn(email, password)
         setState({ status: 'authenticated', user })

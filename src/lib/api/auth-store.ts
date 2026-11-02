@@ -1,7 +1,9 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  GoogleAuthProvider,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut as firebaseSignOut,
   updateProfile,
   type User as FirebaseUser,
@@ -68,6 +70,13 @@ export function subscribeToAuthState(
 ): () => void {
   if (!isApiMode()) return () => {}
   return onAuthStateChanged(getFirebaseAuth(), listener)
+}
+
+export async function signInWithGoogle(): Promise<FirebaseUser> {
+  const provider = new GoogleAuthProvider()
+  provider.setCustomParameters({ prompt: 'select_account' })
+  const credentials = await signInWithPopup(getFirebaseAuth(), provider)
+  return credentials.user
 }
 
 export async function signInWithPassword(
