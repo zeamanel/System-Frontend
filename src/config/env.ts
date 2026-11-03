@@ -64,6 +64,18 @@ export interface AppConfig {
   dataSource: DataSource
   /** Firebase Web config; null unless every VITE_FIREBASE_* value is present. */
   firebase: FirebaseEnvConfig | null
+  /** Who runs the service, for the Terms, Privacy Policy and About pages. Unset values stay undefined. */
+  operator: OperatorConfig
+}
+
+/** Business details shown on the legal pages. Set in the build variables; never guessed. */
+export interface OperatorConfig {
+  /** Legal or trade name of the business that provides the service. */
+  legalName?: string
+  /** Where people write about privacy, deletion and support. */
+  contactEmail?: string
+  /** Postal or office address (optional). */
+  address?: string
 }
 
 interface RawEnv {
@@ -71,6 +83,9 @@ interface RawEnv {
   readonly VITE_APP_NAME?: string
   readonly VITE_DEFAULT_LOCALE?: string
   readonly VITE_DATA_SOURCE?: string
+  readonly VITE_LEGAL_NAME?: string
+  readonly VITE_CONTACT_EMAIL?: string
+  readonly VITE_LEGAL_ADDRESS?: string
   readonly VITE_FIREBASE_API_KEY?: string
   readonly VITE_FIREBASE_AUTH_DOMAIN?: string
   readonly VITE_FIREBASE_PROJECT_ID?: string
@@ -138,6 +153,14 @@ function appNameFrom(value: string | undefined): string {
   return name
 }
 
+const clean = (value: string | undefined): string | undefined => value?.trim() || undefined
+
+/** A contact email must at least look like one; anything else is treated as not set. */
+function emailFrom(value: string | undefined): string | undefined {
+  const email = clean(value)
+  return email && /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(email) ? email : undefined
+}
+
 export function parseEnv(raw: RawEnv, options: ParseEnvOptions): AppConfig {
   const defaultLocaleRaw = raw.VITE_DEFAULT_LOCALE?.trim()
   const defaultLocale: Locale = isLocale(defaultLocaleRaw)
@@ -150,6 +173,11 @@ export function parseEnv(raw: RawEnv, options: ParseEnvOptions): AppConfig {
     defaultLocale,
     dataSource: normalizeDataSource(raw.VITE_DATA_SOURCE, options.isDev),
     firebase: parseFirebaseConfig(raw),
+    operator: {
+      legalName: clean(raw.VITE_LEGAL_NAME),
+      contactEmail: emailFrom(raw.VITE_CONTACT_EMAIL),
+      address: clean(raw.VITE_LEGAL_ADDRESS),
+    },
   }
 }
 

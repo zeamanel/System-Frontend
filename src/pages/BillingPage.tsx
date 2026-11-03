@@ -1,7 +1,7 @@
 import './BillingPage.css'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useI18n } from '../i18n'
 import {
@@ -198,7 +198,10 @@ export default function BillingPage() {
               )
             })}
           </div>
-          <p className="billing-note">{t('billing.howItWorks')}</p>
+          <p className="billing-note">
+            {t('billing.howItWorks')}{' '}
+            <Link to="/faq#payments">{t('info.link.paymentsFaq')}</Link>
+          </p>
 
           {data.payments.length > 0 ? (
             <section>

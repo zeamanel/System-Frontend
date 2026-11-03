@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/layout'
 import { OnboardingGate } from './components/onboarding/OnboardingGate'
 import { LoadingState } from './components/ui'
@@ -20,6 +20,10 @@ const BillingPage = lazy(() => import('./pages/BillingPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
+const AboutPage = lazy(() => import('./pages/info/AboutPage'))
+const FaqPage = lazy(() => import('./pages/info/FaqPage'))
+const TermsPage = lazy(() => import('./pages/info/LegalPage').then((module) => ({ default: module.TermsPage })))
+const PrivacyPage = lazy(() => import('./pages/info/LegalPage').then((module) => ({ default: module.PrivacyPage })))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 /** Central route table. Pages are lazy-loaded code-split chunks. */
@@ -30,6 +34,12 @@ export function AppRoutes() {
     <Suspense fallback={<LoadingState full label={t('common.loading')} />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* Public: the sign-in page, Google and the Telegram bot link here, so no sign-in is needed. */}
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/help" element={<Navigate to="/faq" replace />} />
         <Route
           element={
             <RequireSession>

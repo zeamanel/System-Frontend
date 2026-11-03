@@ -103,6 +103,16 @@ describe('parseEnv', () => {
     expect(config.appName).toBe('Custom')
   })
 
+  it('reads who runs the service, ignoring blanks and anything that is not an email', () => {
+    expect(parseEnv({}, { isDev: false }).operator).toEqual({ legalName: undefined, contactEmail: undefined, address: undefined })
+    expect(
+      parseEnv({ VITE_LEGAL_NAME: '  Abebe Trading PLC ', VITE_CONTACT_EMAIL: ' hello@example.com ', VITE_LEGAL_ADDRESS: '  ' }, { isDev: false }).operator,
+    ).toEqual({ legalName: 'Abebe Trading PLC', contactEmail: 'hello@example.com', address: undefined })
+    for (const bad of ['not-an-email', 'a@b', 'x y@z.com', '<script>@x.com']) {
+      expect(parseEnv({ VITE_CONTACT_EMAIL: bad }, { isDev: false }).operator.contactEmail, bad).toBeUndefined()
+    }
+  })
+
   it('shows SenedDesk when the build setting still has the old name', () => {
     for (const old of ['DocuA4', 'docua4', ' DOCUA4 ', 'Docu A4', 'Docu-A4']) {
       expect(parseEnv({ VITE_APP_NAME: old }, { isDev: false }).appName, old).toBe('SenedDesk')

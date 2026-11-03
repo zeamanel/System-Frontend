@@ -5,6 +5,8 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { isFixtureDataSource } from '../lib/repositories'
 import { useSession } from '../session'
+import { renderInline } from '../content/info/inline'
+import { useInlineContext } from './info/use-inline-context'
 import { Logo } from '../components/layout/Logo'
 import { GoogleIcon } from '../components/icons'
 import {
@@ -20,6 +22,8 @@ export default function LoginPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const { state, signIn, signInWithGoogle } = useSession()
+  // New tab: the sign-in form keeps what was typed while the terms are read.
+  const inline = useInlineContext({ newTab: true })
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -124,6 +128,10 @@ export default function LoginPage() {
             {t('login.submit')}
           </Button>
         </form>
+
+        <p className="login-card__consent" data-testid="login-consent">
+          {renderInline(t('login.consent'), inline)}
+        </p>
 
         {isFixtureDataSource() ? (
           <div className="login-card__dev">

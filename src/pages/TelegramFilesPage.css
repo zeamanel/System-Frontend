@@ -351,3 +351,9 @@
   margin: 0;
   line-height: 1.5;
 }
+
+.telegram-files-page__help-link {
+  color: var(--color-text-secondary);
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}

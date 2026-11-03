@@ -305,6 +305,19 @@
   color: var(--color-error);
 }
 
+/* "By continuing you agree to…" — small print under the sign-in form. */
+.login-card__consent {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--color-text-tertiary);
+}
+
+.login-card__consent a {
+  color: var(--color-text-secondary);
+  text-underline-offset: 2px;
+}
+
 .login-card__divider {
   display: flex;
   align-items: center;
