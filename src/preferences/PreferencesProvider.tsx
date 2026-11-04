@@ -53,6 +53,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const session = useContext(SessionContext)
   const [preferences, setPreferences] = useState<UserPreferences>(detectInitialPreferences)
   const [saveStatus, setSaveStatus] = useState<PreferencesSaveStatus>('idle')
+  const [synced, setSynced] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
   const lastPendingPatch = useRef<UpdateUserPreferencesInput | null>(null)
 
@@ -63,7 +64,10 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   }, [preferences.countryCode])
 
   useEffect(() => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {
+      setSynced(false)
+      return
+    }
 
     let cancelled = false
     setSaveStatus('saving')
@@ -76,11 +80,13 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         persistLocal(remote)
         setSaveStatus('saved')
         setLastError(null)
+        setSynced(true)
       })
       .catch((err) => {
         if (cancelled) return
         setSaveStatus('error')
         setLastError(err instanceof Error ? err.message : 'Failed to sync preferences.')
+        setSynced(true)
       })
 
     return () => {
@@ -144,6 +150,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       regionCode: preferences.regionCode ?? null,
       city: preferences.city ?? null,
       formatting: preferences.formatting,
+      occupation: preferences.occupation ?? null,
+      onboarded: preferences.onboarded,
+      synced,
       saveStatus,
       lastError,
       setCountry: (code: CountryCode) => executeUpdate({ countryCode: code }),
@@ -153,10 +162,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       setRegion: (region: string | null) => executeUpdate({ regionCode: region }),
       setCity: (city: string | null) => executeUpdate({ city }),
       setFormatting: (formatting: FormattingPreferences) => executeUpdate({ formatting }),
+      setOccupation: (occupation: string | null) => executeUpdate({ occupation }),
       updatePreferences: executeUpdate,
       retrySave,
     }),
-    [preferences, saveStatus, lastError, executeUpdate, retrySave],
+    [preferences, synced, saveStatus, lastError, executeUpdate, retrySave],
   )
 
   return (

@@ -428,6 +428,102 @@ describe('HttpTemplatesRepository', () => {
     expect(filtered.map((t) => t.title)).toEqual(['Rental Agreement'])
   })
 
+  describe('search in every language (the backend sends one language per request)', () => {
+    // The same three templates as the backend returns them for each ?locale=.
+    const CATALOGUE: Record<string, Array<[id: string, title: string, description: string, popularity: number]>> = {
+      en: [
+        ['poa', 'Power of Attorney', 'Formal power of attorney.', 83],
+        ['lease', 'Lease Agreement', 'Residential or commercial tenancy agreement.', 65],
+        ['work', 'Work Experience Certificate', 'Certificate of service for an employee.', 70],
+      ],
+      am: [
+        ['poa', 'የውክልና ስልጣን ማስረጃ', 'ሕጋዊ የውክልና ማስረጃ ሰነድ።', 83],
+        ['lease', 'የኪራይ ውል', 'የመኖሪያ ወይም የንግድ ቤት ኪራይ ውል።', 65],
+        ['work', 'የሥራ ልምድ የምስክር ወረቀት', 'ለሠራተኛ የሚሰጥ የሥራ ልምድ ማስረጃ።', 70],
+      ],
+      om: [
+        ['poa', "Ragaa Bakka Bu'iinsaa", "Waliigaltee bakka bu'iinsaa.", 83],
+        ['lease', 'Waliigaltee Kiraa', 'Waliigaltee kiraa mana jireenyaa.', 65],
+        ['work', 'Ragaa Muuxannoo Hojii', 'Ragaa tajaajila hojjataaf.', 70],
+      ],
+    }
+
+    function serveCatalogue() {
+      fetchMock.mockImplementation((url: string) => {
+        const locale = new URL(url, 'http://test').searchParams.get('locale') ?? 'en'
+        return Promise.resolve(
+          jsonResponse(
+            CATALOGUE[locale].map(([id, title, description, popularity]) => ({
+              ...templateRecord(title, popularity),
+              id,
+              description,
+              language: locale,
+            })),
+          ),
+        )
+      })
+    }
+
+    const localesFetched = () =>
+      fetchMock.mock.calls.map(([url]) => new URL(url as string, 'http://test').searchParams.get('locale'))
+
+    it('finds templates by Amharic words while the interface is in English', async () => {
+      serveCatalogue()
+      const repos = createHttpRepositories({ fallbackFixtures: [] })
+      expect((await repos.templates.list('en', { search: 'ውክልና' })).map((t) => t.id)).toEqual(['poa'])
+      expect((await repos.templates.list('en', { search: 'ኪራይ' })).map((t) => t.id)).toEqual(['lease'])
+      // The English title is still what is shown.
+      expect((await repos.templates.list('en', { search: 'ውክልና' }))[0].title).toBe('Power of Attorney')
+    })
+
+    it('folds same-sounding letters and word forms: ስራ finds ሥራ, ውሎች finds ውል', async () => {
+      serveCatalogue()
+      const repos = createHttpRepositories({ fallbackFixtures: [] })
+      expect((await repos.templates.list('en', { search: 'የስራ ልምድ' })).map((t) => t.id)).toEqual(['work'])
+      expect((await repos.templates.list('am', { search: 'ውሎች' })).map((t) => t.id)).toEqual(['lease'])
+    })
+
+    it('finds by English or Afaan Oromoo words while the interface is in Amharic, and by Amharic in Oromo', async () => {
+      serveCatalogue()
+      const repos = createHttpRepositories({ fallbackFixtures: [] })
+      expect((await repos.templates.list('am', { search: 'lease' })).map((t) => t.title)).toEqual(['የኪራይ ውል'])
+      expect((await repos.templates.list('am', { search: 'bakka buiinsaa' })).map((t) => t.id)).toEqual(['poa'])
+      expect((await repos.templates.list('om', { search: 'የኪራይ' })).map((t) => t.title)).toEqual(['Waliigaltee Kiraa'])
+    })
+
+    it('ranks title matches above description-only matches', async () => {
+      serveCatalogue()
+      const repos = createHttpRepositories({ fallbackFixtures: [] })
+      // "ማስረጃ" is in the POA title, but only in the work certificate's description.
+      expect((await repos.templates.list('en', { search: 'ማስረጃ' })).map((t) => t.id)).toEqual(['poa', 'work'])
+    })
+
+    it('fetches the other languages once while searching, and not at all for a plain list', async () => {
+      serveCatalogue()
+      const repos = createHttpRepositories({ fallbackFixtures: [] })
+      await repos.templates.list('en')
+      expect(localesFetched()).toEqual(['en'])
+
+      await repos.templates.list('en', { search: 'ው' })
+      await repos.templates.list('en', { search: 'ውክ' })
+      await repos.templates.list('en', { search: 'ውክልና' })
+      const fetched = localesFetched()
+      expect(fetched.filter((l) => l === 'am')).toHaveLength(1)
+      expect(fetched.filter((l) => l === 'om')).toHaveLength(1)
+    })
+
+    it('still searches the interface language when another language cannot be loaded', async () => {
+      fetchMock.mockImplementation((url: string) => {
+        const locale = new URL(url, 'http://test').searchParams.get('locale') ?? 'en'
+        if (locale !== 'en') return Promise.reject(new TypeError('offline'))
+        return Promise.resolve(jsonResponse(CATALOGUE.en.map(([id, title, description, popularity]) => ({ ...templateRecord(title, popularity), id, description }))))
+      })
+      const repos = createHttpRepositories({ fallbackFixtures: [] })
+      expect((await repos.templates.list('en', { search: 'lease' })).map((t) => t.id)).toEqual(['lease'])
+      expect(await repos.templates.list('en', { search: 'ውክልና' })).toEqual([])
+    })
+  })
+
   it('merges missing fixture templates into catalog and falls back on 404', async () => {
     fetchMock.mockImplementation(() =>
       jsonResponse([

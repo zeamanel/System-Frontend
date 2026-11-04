@@ -25,6 +25,9 @@ const preferencesValue: PreferencesContextValue = {
   regionCode: null,
   city: null,
   formatting: { dateFormat: 'gregorian', numberFormat: 'latn' },
+  occupation: null,
+  onboarded: undefined,
+  synced: true,
   saveStatus: 'idle',
   lastError: null,
   setCountry: vi.fn(async () => undefined),
@@ -33,6 +36,7 @@ const preferencesValue: PreferencesContextValue = {
   setRegion: vi.fn(async () => undefined),
   setCity: vi.fn(async () => undefined),
   setFormatting: vi.fn(async () => undefined),
+  setOccupation: vi.fn(async () => undefined),
   updatePreferences: vi.fn(async () => undefined),
   retrySave: vi.fn(async () => undefined),
 }

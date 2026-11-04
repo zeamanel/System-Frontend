@@ -44,6 +44,8 @@ const FLUSH_WAIT_MS = 15_000
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'conflict'
 
 const AUTOSAVE_DELAY_MS = 1500
+/** Unsaved work is mirrored to the recovery buffer at most this often (and when the page is hidden or closed). */
+export const BUFFER_WRITE_DELAY_MS = 800
 
 interface EditorSnapshot {
   model: DocumentModel
@@ -97,6 +99,11 @@ function clearBuffer(documentId: string): void {
 export interface AdoptOptions {
   /** Regenerated text: keep the current style, font and page set-up. */
   keepLook?: boolean
+  /**
+   * The text it replaces stays one undo step away (regeneration). Otherwise
+   * (reload, restored version) the undo history starts afresh.
+   */
+  undoable?: boolean
 }
 
 export interface UseDocumentEditorOptions {
@@ -105,6 +112,8 @@ export interface UseDocumentEditorOptions {
   refresh: () => Promise<DocumentDetailRecord | null>
   /** Called after a guided-field edit was carried into the document text. */
   onFieldSynced?: (event: FieldSyncEvent) => void
+  /** Called when an edit was refused because the text is locked (a generation is running). */
+  onLockedEdit?: () => void
 }
 
 export interface FieldSyncEvent {
@@ -119,6 +128,44 @@ export const FIELD_SYNC_DELAY_MS = 700
 
 const NON_SYNCED_FIELDS = new Set(['additional_instructions', 'title', 'subject'])
 
+/** Undo steps kept per document. */
+export const HISTORY_LIMIT = 100
+/** Typing in one place is one undo step until a pause this long. */
+export const UNDO_COALESCE_MS = 1000
+
+export interface CommitOptions {
+  /**
+   * Consecutive edits with the same key (typing in one block) become one undo
+   * step until a pause of UNDO_COALESCE_MS. Absent: the edit is its own step.
+   */
+  coalesce?: string
+}
+
+/** Same document, cheaply: every top-level part and every block is the same object. */
+function sameModel(a: DocumentModel, b: DocumentModel): boolean {
+  if (a === b) return true
+  if (
+    a.language !== b.language ||
+    a.font !== b.font ||
+    a.fontSize !== b.fontSize ||
+    a.page !== b.page ||
+    a.style !== b.style ||
+    a.blocks.length !== b.blocks.length
+  ) {
+    return false
+  }
+  return a.blocks.every((block, index) => block === b.blocks[index])
+}
+
+/** The first block that differs between two models (to put the caret back after undo). */
+function firstChangedBlockId(from: DocumentModel, to: DocumentModel): string | null {
+  const before = new Map(from.blocks.map((block) => [block.id, block]))
+  for (const block of to.blocks) {
+    if (before.get(block.id) !== block) return block.id
+  }
+  return to.blocks.find((block) => !before.has(block.id))?.id ?? to.blocks.at(-1)?.id ?? null
+}
+
 /**
  * Owns the editable document state and its save lifecycle.
  *
@@ -129,7 +176,7 @@ const NON_SYNCED_FIELDS = new Set(['additional_instructions', 'title', 'subject'
  * - Conflicts (changed elsewhere, HTTP 409) surface as an explicit state the
  *   user resolves by reloading the latest version or overwriting it.
  */
-export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: UseDocumentEditorOptions) {
+export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLockedEdit }: UseDocumentEditorOptions) {
   const [model, setModelState] = useState<DocumentModel>(
     () => parseDocumentContent(doc.content, doc.language) ?? createEmptyDocument(doc.language),
   )
@@ -158,10 +205,25 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
   answersRef.current = answers
   const onFieldSyncedRef = useRef(onFieldSynced)
   onFieldSyncedRef.current = onFieldSynced
+  const onLockedEditRef = useRef(onLockedEdit)
+  onLockedEditRef.current = onLockedEdit
+  /**
+   * While a generation runs, the text (blocks) is locked: it is about to be
+   * replaced, so anything typed would be lost. Font, size, page set-up and
+   * style stay editable (regeneration keeps them).
+   */
+  const blocksLockedRef = useRef(false)
   /** Per field: the value the document text currently reflects. */
   const syncBaselineRef = useRef<Record<string, string>>({ ...(doc.answers ?? {}) })
   const pendingSyncRef = useRef<Set<string>>(new Set())
   const syncTimerRef = useRef<number | null>(null)
+
+  // ---- undo / redo: whole-model snapshots (blocks are shared, so a step costs little) ----
+  const pastRef = useRef<DocumentModel[]>([])
+  const futureRef = useRef<DocumentModel[]>([])
+  const coalesceRef = useRef<{ key: string; at: number } | null>(null)
+  /** Bumped when the stacks change, so canUndo / canRedo re-render. */
+  const [, setHistoryTick] = useState(0)
 
   const updateMutation = useUpdateDocument()
   const queryClient = useQueryClient()
@@ -171,13 +233,89 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     setStatus('unsaved')
   }, [])
 
+  /** The only way the model changes: keeps the ref current and records an undo step. */
+  const commit = useCallback((after: DocumentModel, options?: CommitOptions & { record?: boolean; force?: boolean }): boolean => {
+    const before = modelRef.current
+    if (sameModel(before, after)) return false
+    if (blocksLockedRef.current && !options?.force && after.blocks !== before.blocks) {
+      onLockedEditRef.current?.()
+      return false
+    }
+    if (options?.record !== false) {
+      const now = Date.now()
+      const last = coalesceRef.current
+      const continuing = Boolean(options?.coalesce && last && last.key === options.coalesce && now - last.at < UNDO_COALESCE_MS)
+      if (!continuing) pastRef.current = [...pastRef.current.slice(-(HISTORY_LIMIT - 1)), before]
+      coalesceRef.current = options?.coalesce ? { key: options.coalesce, at: now } : null
+      if (futureRef.current.length > 0 || !continuing) {
+        futureRef.current = []
+        setHistoryTick((tick) => tick + 1)
+      }
+    }
+    modelRef.current = after
+    setModelState(after)
+    return true
+  }, [])
+
   const updateModel = useCallback(
-    (updater: (current: DocumentModel) => DocumentModel): void => {
-      setModelState((current) => updater(current))
-      markDirty()
+    (updater: (current: DocumentModel) => DocumentModel, options?: CommitOptions): void => {
+      if (commit(updater(modelRef.current), options)) markDirty()
     },
-    [markDirty],
+    [commit, markDirty],
   )
+
+  /** The next edit starts a new undo step even if it continues the same typing. */
+  const breakUndoGroup = useCallback((): void => {
+    coalesceRef.current = null
+  }, [])
+
+  const setBlocksLocked = useCallback((locked: boolean): void => {
+    blocksLockedRef.current = locked
+  }, [])
+
+  const resetHistory = useCallback((): void => {
+    pastRef.current = []
+    futureRef.current = []
+    coalesceRef.current = null
+    setHistoryTick((tick) => tick + 1)
+  }, [])
+
+  /** Undo one step. Returns a block that changed (for the caret), or null when there is nothing to undo. */
+  const undo = useCallback((): string | null => {
+    const previous = pastRef.current.at(-1)
+    if (!previous) return null
+    if (blocksLockedRef.current) {
+      onLockedEditRef.current?.()
+      return null
+    }
+    const current = modelRef.current
+    pastRef.current = pastRef.current.slice(0, -1)
+    futureRef.current = [...futureRef.current, current]
+    coalesceRef.current = null
+    modelRef.current = previous
+    setModelState(previous)
+    setHistoryTick((tick) => tick + 1)
+    markDirty()
+    return firstChangedBlockId(current, previous)
+  }, [markDirty])
+
+  const redo = useCallback((): string | null => {
+    const next = futureRef.current.at(-1)
+    if (!next) return null
+    if (blocksLockedRef.current) {
+      onLockedEditRef.current?.()
+      return null
+    }
+    const current = modelRef.current
+    futureRef.current = futureRef.current.slice(0, -1)
+    pastRef.current = [...pastRef.current.slice(-(HISTORY_LIMIT - 1)), current]
+    coalesceRef.current = null
+    modelRef.current = next
+    setModelState(next)
+    setHistoryTick((tick) => tick + 1)
+    markDirty()
+    return firstChangedBlockId(current, next)
+  }, [markDirty])
 
   const setTitle = useCallback(
     (value: string): void => {
@@ -211,16 +349,22 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
         .map(([, v]) => v)
       const before = modelRef.current
       const result = replaceTextInModel(before, from, to, { otherAnswerValues })
-      syncBaselineRef.current[questionId] = to
-      if (!result.replaced) continue
+      if (!result.replaced) {
+        syncBaselineRef.current[questionId] = to
+        continue
+      }
       const change = diffBlocks(before, result.model)
-      modelRef.current = result.model
-      setModelState(result.model)
+      // Locked (a generation is running): keep the old baseline and the field pending.
+      if (!commit(result.model)) {
+        pendingSyncRef.current.add(questionId)
+        continue
+      }
+      syncBaselineRef.current[questionId] = to
       dirtyRef.current = true
       setStatus('unsaved')
       if (change) onFieldSyncedRef.current?.({ questionId, from, to, change })
     }
-  }, [])
+  }, [commit])
 
   const setAnswer = useCallback(
     (questionId: string, value: string): void => {
@@ -242,12 +386,11 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
       const after = updater(before)
       const change = diffBlocks(before, after)
       if (!change) return null
-      modelRef.current = after
-      setModelState(after)
+      commit(after)
       markDirty()
       return change
     },
-    [markDirty],
+    [commit, markDirty],
   )
 
   /**
@@ -282,14 +425,12 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
         return [block]
       })
       if (reverted > 0) {
-        const next = { ...current, blocks }
-        modelRef.current = next
-        setModelState(next)
+        commit({ ...current, blocks })
         markDirty()
       }
       return { reverted, skipped }
     },
-    [markDirty],
+    [commit, markDirty],
   )
 
   // Never leave a pending sync timer behind.
@@ -303,10 +444,10 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
   const setLanguage = useCallback(
     (value: string): void => {
       setLanguageState(value)
-      setModelState((current) => ({ ...current, language: value }))
+      commit({ ...modelRef.current, language: value })
       markDirty()
     },
-    [markDirty],
+    [commit, markDirty],
   )
 
   const adoptSnapshot = useCallback((snapshot: DocumentDetailRecord, options?: AdoptOptions): void => {
@@ -317,9 +458,15 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
       parseDocumentContent(snapshot.content, snapshot.language) ??
       createEmptyDocument(snapshot.language)
     // Generated text arrives without a look: keep the style and page set-up the user chose.
-    setModelState((current) =>
-      options?.keepLook && !contentHasOwnLook(snapshot.content) ? keepLook(fresh, current) : fresh,
-    )
+    const current = modelRef.current
+    const next = options?.keepLook && !contentHasOwnLook(snapshot.content) ? keepLook(fresh, current) : fresh
+    if (options?.undoable) {
+      commit(next, { force: true })
+    } else {
+      resetHistory()
+      modelRef.current = next
+      setModelState(next)
+    }
     setTitleState(snapshot.title)
     setAnswersState(snapshot.answers ?? {})
     setLanguageState(snapshot.language)
@@ -327,7 +474,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     setSavedVersion(snapshot.version)
     setStatus('idle')
     clearBuffer(snapshot.id)
-  }, [])
+  }, [commit, resetHistory])
 
   const save = useCallback(
     async (force = false): Promise<void> => {
@@ -391,6 +538,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
       clearBuffer(doc.id)
       return
     }
+    modelRef.current = snapshot.model
     setModelState(snapshot.model)
     setTitleState(snapshot.title)
     setAnswersState(snapshot.answers)
@@ -404,11 +552,42 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc.id])
 
-  // Mirror unsaved work into the recovery buffer.
+  // Mirror unsaved work into the recovery buffer — not on every keystroke (it serialises the
+  // whole document): the first change at once, later ones at most every BUFFER_WRITE_DELAY_MS,
+  // and whatever is pending when the page is hidden or closed.
+  const pendingBufferRef = useRef<EditorSnapshot | null>(null)
+  const bufferTimerRef = useRef<number | null>(null)
+  const writePendingBuffer = useCallback((): void => {
+    if (bufferTimerRef.current !== null) {
+      window.clearTimeout(bufferTimerRef.current)
+      bufferTimerRef.current = null
+    }
+    const snapshot = pendingBufferRef.current
+    pendingBufferRef.current = null
+    if (snapshot && dirtyRef.current) writeBuffer(doc.id, snapshot)
+  }, [doc.id])
+
   useEffect(() => {
     if (!dirtyRef.current) return
-    writeBuffer(doc.id, { model, title, language, answers, baseUpdatedAt: savedAt, baseVersion: savedVersion })
-  }, [model, title, language, answers, doc.id, savedAt, savedVersion])
+    const snapshot: EditorSnapshot = { model, title, language, answers, baseUpdatedAt: savedAt, baseVersion: savedVersion }
+    if (bufferTimerRef.current === null) {
+      // First change after a quiet spell: write at once, then at most once per delay.
+      writeBuffer(doc.id, snapshot)
+      bufferTimerRef.current = window.setTimeout(writePendingBuffer, BUFFER_WRITE_DELAY_MS)
+    } else {
+      pendingBufferRef.current = snapshot
+    }
+  }, [model, title, language, answers, savedAt, savedVersion, doc.id, writePendingBuffer])
+
+  useEffect(() => {
+    window.addEventListener('pagehide', writePendingBuffer)
+    window.addEventListener('beforeunload', writePendingBuffer)
+    return () => {
+      window.removeEventListener('pagehide', writePendingBuffer)
+      window.removeEventListener('beforeunload', writePendingBuffer)
+      writePendingBuffer()
+    }
+  }, [writePendingBuffer])
 
   // Debounced autosave.
   useEffect(() => {
@@ -490,6 +669,12 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     lastSavedAt,
     recovered,
     updateModel,
+    undo,
+    redo,
+    canUndo: pastRef.current.length > 0,
+    canRedo: futureRef.current.length > 0,
+    breakUndoGroup,
+    setBlocksLocked,
     setTitle,
     setAnswer,
     flushFieldSync: runFieldSync,

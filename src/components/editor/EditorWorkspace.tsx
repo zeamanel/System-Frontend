@@ -132,10 +132,18 @@ export function EditorWorkspace({
 
   // Field-sync reports go to the assistant thread (created below).
   const fieldSyncHandlerRef = useRef<((event: FieldSyncEvent) => void) | null>(null)
+  // One "please wait" notice per few seconds, however many edits are refused.
+  const lockedNoticeAtRef = useRef(0)
   const editor = useDocumentEditor({
     document: doc,
     refresh,
     onFieldSynced: (event) => fieldSyncHandlerRef.current?.(event),
+    onLockedEdit: () => {
+      const now = Date.now()
+      if (now - lockedNoticeAtRef.current < 4000) return
+      lockedNoticeAtRef.current = now
+      toast.push(t('editor.lockedWhileGenerating'))
+    },
   })
   const { model, updateModel } = editor
 
@@ -264,6 +272,11 @@ export function EditorWorkspace({
   const generationPending =
     createJob.isPending ||
     (jobData !== null && jobData.status !== 'completed' && jobData.status !== 'failed')
+  // The text is about to be replaced: lock it so nothing typed meanwhile is lost.
+  const { setBlocksLocked } = editor
+  useLayoutEffect(() => {
+    setBlocksLocked(generationPending)
+  }, [generationPending, setBlocksLocked])
 
   // ---- export ----
   const exportMutation = useCreateExportRequest()
@@ -387,6 +400,53 @@ export function EditorWorkspace({
     pendingFocusRef.current = { ref, position }
   }, [])
 
+  // ---- undo / redo ----
+  const { undo: undoModel, redo: redoModel } = editor
+  const handleUndo = useCallback((): void => {
+    const blockId = undoModel()
+    if (blockId) queueFocus({ blockId }, 'end')
+  }, [queueFocus, undoModel])
+  const handleRedo = useCallback((): void => {
+    const blockId = redoModel()
+    if (blockId) queueFocus({ blockId }, 'end')
+  }, [queueFocus, redoModel])
+
+  // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y on the page use the document's own history.
+  // In a form field (guided fields, the assistant box) the browser's undo for that field still applies.
+  const undoKeysRef = useRef({ handleUndo, handleRedo })
+  undoKeysRef.current = { handleUndo, handleRedo }
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      const key = event.key.toLowerCase()
+      const isUndo = key === 'z' && !event.shiftKey
+      const isRedo = (key === 'z' && event.shiftKey) || (key === 'y' && !event.metaKey)
+      if (!isUndo && !isRedo) return
+      const target = event.target instanceof HTMLElement ? event.target : null
+      const inCanvas = Boolean(target?.closest('[data-editor-canvas-root]'))
+      const onPage = !target || target === document.body || inCanvas
+      if (!onPage) return
+      event.preventDefault()
+      if (isUndo) undoKeysRef.current.handleUndo()
+      else undoKeysRef.current.handleRedo()
+    }
+    // Edit menu / context menu "Undo" inside the page arrives as beforeinput.
+    const onBeforeInput = (event: InputEvent): void => {
+      if (event.inputType !== 'historyUndo' && event.inputType !== 'historyRedo') return
+      const target = event.target instanceof HTMLElement ? event.target : null
+      if (!target?.closest('[data-editor-canvas-root]')) return
+      event.preventDefault()
+      if (event.inputType === 'historyUndo') undoKeysRef.current.handleUndo()
+      else undoKeysRef.current.handleRedo()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('beforeinput', onBeforeInput)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('beforeinput', onBeforeInput)
+    }
+  }, [])
+
   /** Run a model op and queue focus for its result. */
   const applyOp = useCallback(
     (
@@ -501,23 +561,29 @@ export function EditorWorkspace({
   )
 
   // ---- EditorApi: block DOM events → model ops ----
-  const api = useMemo<EditorApi>(
-    () => ({
+  // Rebuilt every render (it closes over the current model), but blocks get one
+  // stable object that forwards to the latest version, so a keystroke in one
+  // block does not re-render the others (BlockView is memoised).
+  const apiImpl: EditorApi = ({
+      // Typing in one place is one undo step until a pause (see useDocumentEditor).
       updateText: (blockId, html) =>
-        updateModel((current) =>
-          updateBlock(current, blockId, (block) =>
-            block.type === 'paragraph' || block.type === 'heading' ? { ...block, html } : block,
-          ),
+        updateModel(
+          (current) =>
+            updateBlock(current, blockId, (block) =>
+              (block.type === 'paragraph' || block.type === 'heading') && block.html !== html ? { ...block, html } : block,
+            ),
+          { coalesce: `text:${blockId}` },
         ),
       updateSecondaryText: (blockId, html) =>
-        updateModel((current) => updateSecondaryText(current, blockId, html)),
+        updateModel((current) => updateSecondaryText(current, blockId, html), { coalesce: `secondary:${blockId}` }),
       updateListItem: (blockId, itemId, html) =>
-        updateModel((current) => updateListItem(current, blockId, itemId, html)),
+        updateModel((current) => updateListItem(current, blockId, itemId, html), { coalesce: `item:${itemId}` }),
       updateTableCell: (blockId, cellId, html) =>
-        updateModel((current) => updateTableCell(current, blockId, cellId, html)),
+        updateModel((current) => updateTableCell(current, blockId, cellId, html), { coalesce: `cell:${cellId}` }),
       updateSignatureField: (blockId, partyId, field, html) =>
-        updateModel((current) =>
-          updateSignatureParty(current, blockId, partyId, { [field]: html }),
+        updateModel(
+          (current) => updateSignatureParty(current, blockId, partyId, { [field]: html }),
+          { coalesce: `party:${partyId}:${field}` },
         ),
       splitBlock: (blockId, before, after) =>
         applyOp((current) => splitTextBlock(current, blockId, before, after), 'start'),
@@ -547,16 +613,24 @@ export function EditorWorkspace({
         }
       },
       setActiveRef,
+    })
+  const apiImplRef = useRef(apiImpl)
+  apiImplRef.current = apiImpl
+  const api = useMemo<EditorApi>(
+    () => ({
+      updateText: (...args) => apiImplRef.current.updateText(...args),
+      updateSecondaryText: (...args) => apiImplRef.current.updateSecondaryText(...args),
+      updateListItem: (...args) => apiImplRef.current.updateListItem(...args),
+      updateTableCell: (...args) => apiImplRef.current.updateTableCell(...args),
+      updateSignatureField: (...args) => apiImplRef.current.updateSignatureField(...args),
+      splitBlock: (...args) => apiImplRef.current.splitBlock(...args),
+      splitListItem: (...args) => apiImplRef.current.splitListItem(...args),
+      backspaceAtStart: (...args) => apiImplRef.current.backspaceAtStart(...args),
+      focusNeighbour: (...args) => apiImplRef.current.focusNeighbour(...args),
+      indentAt: (...args) => apiImplRef.current.indentAt(...args),
+      setActiveRef: (...args) => apiImplRef.current.setActiveRef(...args),
     }),
-    [
-      applyOp,
-      handleBackspaceAtStart,
-      handleFocusNeighbour,
-      model.blocks,
-      queueFocus,
-      setActiveRef,
-      updateModel,
-    ],
+    [],
   )
 
   const insertAfterActive = useCallback(
@@ -570,7 +644,10 @@ export function EditorWorkspace({
 
   const handleInlineCommand = useCallback(
     (command: InlineCommand): void => {
+      // Bold / italic / underline is its own undo step, apart from the typing around it.
+      editor.breakUndoGroup()
       const applied = execInlineCommand(command)
+      editor.breakUndoGroup()
       // execCommand mutates the DOM directly; mirror it into the model so the
       // change autosaves. (It also fires `input`, which normally does this.)
       if (applied && activeRef) {
@@ -607,7 +684,7 @@ export function EditorWorkspace({
         }
       }
     },
-    [activeRef, updateModel],
+    [activeRef, editor, updateModel],
   )
 
   const handleInsertImage = useCallback(
@@ -662,7 +739,8 @@ export function EditorWorkspace({
     void (async () => {
       const fresh = await refresh()
       if (!cancelled && fresh) {
-        editor.adoptSnapshot(fresh, { keepLook: true })
+        // Undo brings back the text from before the regeneration.
+        editor.adoptSnapshot(fresh, { keepLook: true, undoable: true })
         toast.push(t('editor.regenerated'))
         showGenerationNotes()
       }
@@ -1038,6 +1116,10 @@ export function EditorWorkspace({
           editor.language.toUpperCase()
         }
         onTogglePreview={() => setPreviewMode((current) => !current)}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={editor.canUndo && !generationPending}
+        canRedo={editor.canRedo && !generationPending}
         onSave={() => void editor.save()}
         onShowHistory={() => setHistoryOpen(true)}
         onChooseStyle={() => setStyleOpen(true)}
@@ -1182,7 +1264,8 @@ export function EditorWorkspace({
 
       <A4PagesCanvas
         model={model}
-        editable={!previewMode}
+        editable={!previewMode && !generationPending}
+        lockedNotice={generationPending ? t('editor.generatingLocked') : undefined}
         activeBlockId={activeRef?.blockId ?? null}
         api={api}
         blockLabels={blockLabels}

@@ -34,6 +34,12 @@ export interface PreferencesContextValue {
   regionCode: string | null
   city: string | null
   formatting: FormattingPreferences
+  /** What the user does for work (welcome questions); null until they say. */
+  occupation: string | null
+  /** False only when the backend says this is a new account that has not answered the welcome questions. */
+  onboarded: boolean | undefined
+  /** True once this sign-in's first sync with the backend has finished (or failed). */
+  synced: boolean
   saveStatus: PreferencesSaveStatus
   lastError: string | null
   setCountry: (country: CountryCode) => Promise<void>
@@ -42,6 +48,7 @@ export interface PreferencesContextValue {
   setRegion: (region: string | null) => Promise<void>
   setCity: (city: string | null) => Promise<void>
   setFormatting: (formatting: FormattingPreferences) => Promise<void>
+  setOccupation: (occupation: string | null) => Promise<void>
   updatePreferences: (patch: UpdateUserPreferencesInput) => Promise<void>
   retrySave: () => Promise<void>
 }

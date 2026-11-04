@@ -622,6 +622,8 @@ export function GuidedFieldsPanel({
         </div>
       </header>
 
+      {/* While a generation runs every field is read-only (its answers are being used). */}
+      <fieldset className="guided-fields-panel__lock" disabled={generationPending} data-testid="guided-fields-lock">
       <div className="guided-fields-panel__body" data-testid="guided-fields-body">
         {isPromptOnly ? (
           // "Write anything": the instructions are the whole form, so they lead the panel
@@ -975,6 +977,7 @@ export function GuidedFieldsPanel({
           {generateControls}
         </footer>
       )}
+      </fieldset>
       {fillTarget ? (
         <FieldFileFillDialog
           open

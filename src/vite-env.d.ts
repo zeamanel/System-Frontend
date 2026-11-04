@@ -5,6 +5,9 @@ interface ImportMetaEnv {
   readonly VITE_APP_NAME?: string
   readonly VITE_DEFAULT_LOCALE?: string
   readonly VITE_DATA_SOURCE?: string
+  readonly VITE_LEGAL_NAME?: string
+  readonly VITE_CONTACT_EMAIL?: string
+  readonly VITE_LEGAL_ADDRESS?: string
 }
 
 interface ImportMeta {

@@ -3,7 +3,7 @@ import { useI18n } from '../../i18n'
 import { useSession } from '../../session'
 import { Dropdown } from '../ui'
 import type { DropdownItem } from '../ui'
-import { SettingsIcon, UserIcon } from '../icons'
+import { InfoIcon, SettingsIcon, UserIcon } from '../icons'
 
 function initials(name: string): string {
   return (
@@ -35,6 +35,12 @@ export function ProfileMenu() {
       label: t('profile.settings'),
       icon: <SettingsIcon size={15} />,
       onSelect: () => navigate('/settings'),
+    },
+    {
+      id: 'help',
+      label: t('profile.help'),
+      icon: <InfoIcon size={15} />,
+      onSelect: () => navigate('/faq'),
     },
     {
       id: 'sign-out',

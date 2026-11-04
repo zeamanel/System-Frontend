@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { Block, InlineHtml } from '../../../lib/editor/types'
 import { insertPlainText } from '../../../lib/editor/commands'
 import { inlineHtmlToText } from '../../../lib/editor/sanitize'
@@ -10,6 +10,7 @@ import {
   type EditableRef,
 } from '../caret'
 import { EditableHtml } from '../EditableHtml'
+import { blockViewPropsEqual } from './props-equal'
 import type { EditorApi } from '../editor-api'
 import type { KeyboardEvent, PasteEvent } from '../events'
 
@@ -42,7 +43,7 @@ export interface BlockLabels {
  * (Enter / Backspace / arrow navigation / plain-text paste) are handled here
  * and forwarded to the workspace through `EditorApi`.
  */
-export function BlockView({
+function BlockViewInner({
   block,
   editable,
   active,
@@ -463,4 +464,5 @@ function handleCellKeyDown(event: KeyboardEvent<HTMLElement>, element: HTMLEleme
   }
 }
 
-
+/** One block on the page, re-rendered only when its own props change (see props-equal). */
+export const BlockView = memo(BlockViewInner, blockViewPropsEqual)

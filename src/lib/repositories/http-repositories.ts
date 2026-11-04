@@ -1,5 +1,5 @@
 import { signOut as firebaseSignOut } from 'firebase/auth'
-import type { Locale } from '../../i18n/locales'
+import { LOCALES, type Locale } from '../../i18n/locales'
 import { apiClient, ApiError, UnauthenticatedError, VersionConflictError } from '../api'
 import { generateKey, generationDocumentKey } from '../api/idempotency'
 import { logout } from '../api/endpoints/auth'
@@ -32,6 +32,7 @@ import {
 import { getFirebaseAuth } from '../firebase/client'
 import { DocumentConflictError, ExportUnavailableError } from './errors'
 import { matchesCategory, toSummary, toDetail } from './fixtures/template-filtering'
+import { createSearchMatcher } from '../search/text'
 
 /** Built-in templates, used only when the backend lacks one; loaded on first use (keeps them out of the startup bundle). */
 type FallbackTemplates = TemplateFixture[] | (() => Promise<TemplateFixture[]>)
@@ -235,27 +236,36 @@ function mapTemplate(record: TemplateApiRecord): TemplateSummary {
 /**
  * The backend's only server-side template parameter is `locale`; category,
  * search, language, region etc. are applied client-side with the same
- * observable semantics as fixture mode. `relevance` degrades to the backend's
- * popularity ordering (documented in docs/BACKEND-INTEGRATION.md).
+ * observable semantics as fixture mode.
+ *
+ * Search matches every language, not only the interface one: `otherLanguages`
+ * holds each template's titles and descriptions in the other two languages, so
+ * Amharic words find templates while the interface is in English (and the
+ * other way round). Matching folds same-sounding Amharic letters and common
+ * word forms (lib/search/text). `relevance` puts title matches first, then
+ * the backend's popularity order.
  */
-function applyTemplateOptions(
+export function applyTemplateOptions(
   templates: TemplateSummary[],
   options: TemplateListOptions | undefined,
   favoriteIds: string[],
+  otherLanguages?: ReadonlyMap<string, { titles: string[]; descriptions: string[] }>,
 ): TemplateSummary[] {
-  const needle = options?.search?.trim().toLowerCase()
+  const matcher = createSearchMatcher(options?.search)
+  const titleMatch = new Map<string, boolean>()
   const filtered = templates.filter((template) => {
     if (!matchesCategory(template.category, options?.category)) return false
-    if (needle) {
-      const haystack = [
+    if (matcher) {
+      const other = otherLanguages?.get(template.id)
+      const found = matcher(
         template.title,
         template.description,
-        template.documentTypeId,
-        template.id,
-      ]
-        .join(' ')
-        .toLowerCase()
-      if (!haystack.includes(needle)) return false
+        template.documentTypeId.replace(/_/g, ' '),
+        ...(other?.titles ?? []),
+        ...(other?.descriptions ?? []),
+      )
+      if (!found) return false
+      titleMatch.set(template.id, [template.title, ...(other?.titles ?? [])].some((title) => matcher(title)))
     }
     if (options?.language && options.language !== 'all') {
       const hasLanguage =
@@ -293,11 +303,17 @@ function applyTemplateOptions(
     sorted.sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()))
   } else if (sortBy === 'recent') {
     sorted.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+  } else if (sortBy === 'relevance' && matcher) {
+    const rank = (template: TemplateSummary) => (titleMatch.get(template.id) ? 1 : 0)
+    sorted.sort((a, b) => rank(b) - rank(a) || b.popularity - a.popularity)
   } else {
     sorted.sort((a, b) => b.popularity - a.popularity)
   }
   return sorted
 }
+
+/** How long the other languages' template texts are kept for searching. */
+const OTHER_LANGUAGE_TTL_MS = 5 * 60 * 1000
 
 class HttpTemplatesRepository implements TemplatesRepository {
   constructor(
@@ -364,15 +380,43 @@ class HttpTemplatesRepository implements TemplatesRepository {
     return result
   }
 
+  private otherLanguageCache = new Map<Locale, { at: number; list: Promise<TemplateSummary[]> }>()
+
+  /** The template list in another language, fetched once and reused for a few minutes while searching. */
+  private cachedList(locale: Locale): Promise<TemplateSummary[]> {
+    const hit = this.otherLanguageCache.get(locale)
+    if (hit && Date.now() - hit.at < OTHER_LANGUAGE_TTL_MS) return hit.list
+    const list = this.fetchAll(locale).catch(() => [] as TemplateSummary[])
+    this.otherLanguageCache.set(locale, { at: Date.now(), list })
+    return list
+  }
+
+  /** Each template's titles and descriptions in the languages other than `locale`. */
+  private async otherLanguageTexts(locale: Locale): Promise<Map<string, { titles: string[]; descriptions: string[] }>> {
+    const lists = await Promise.all(LOCALES.filter((other) => other !== locale).map((other) => this.cachedList(other)))
+    const texts = new Map<string, { titles: string[]; descriptions: string[] }>()
+    for (const list of lists) {
+      for (const template of list) {
+        const entry = texts.get(template.id) ?? { titles: [], descriptions: [] }
+        entry.titles.push(template.title)
+        entry.descriptions.push(template.description)
+        texts.set(template.id, entry)
+      }
+    }
+    return texts
+  }
+
   private async filterAll(
     locale: Locale,
     options?: TemplateListOptions,
   ): Promise<TemplateSummary[]> {
-    const [all, favoriteIds] = await Promise.all([
+    const searching = Boolean(options?.search?.trim())
+    const [all, favoriteIds, otherLanguages] = await Promise.all([
       this.fetchAll(locale),
       options?.favoritesOnly ? this.getFavoriteIds() : Promise.resolve([]),
+      searching ? this.otherLanguageTexts(locale) : Promise.resolve(undefined),
     ])
-    return applyTemplateOptions(all, options, favoriteIds)
+    return applyTemplateOptions(all, options, favoriteIds, otherLanguages)
   }
 
   async list(locale: Locale, options?: TemplateListOptions): Promise<TemplateSummary[]> {

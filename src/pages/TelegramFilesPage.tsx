@@ -1,7 +1,7 @@
 import './TelegramFilesPage.css'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { useSession } from '../session'
 import {
@@ -113,7 +113,12 @@ export default function TelegramFilesPage() {
       <div className="telegram-files-page__header">
         <div className="telegram-files-page__title-area">
           <h1 className="telegram-files-page__title">{t('telegramFiles.title')}</h1>
-          <p className="telegram-files-page__subtitle">{t('telegramFiles.subtitle')}</p>
+          <p className="telegram-files-page__subtitle">
+            {t('telegramFiles.subtitle')}{' '}
+            <Link className="telegram-files-page__help-link" to="/faq#telegram-keep">
+              {t('info.link.telegramFaq')}
+            </Link>
+          </p>
         </div>
 
         <div className="telegram-files-page__header-actions">

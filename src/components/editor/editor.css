@@ -1400,3 +1400,69 @@ figure.doc-block--image-right {
   margin: var(--space-2) 0 0;
   padding-left: var(--space-5);
 }
+
+/* Undo / redo pair in the toolbar */
+.editor-toolbar__undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* "Writing your document…" while a generation runs and the page is locked */
+.doc-canvas-locked {
+  position: sticky;
+  top: var(--space-3);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: fit-content;
+  max-width: calc(100% - 2 * var(--space-4));
+  margin: var(--space-3) auto 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-round);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.doc-canvas-locked__dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-round);
+  background-color: var(--color-action-primary);
+  animation: doc-canvas-locked-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes doc-canvas-locked-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-canvas-locked__dot {
+    animation: none;
+  }
+}
+
+.doc-pages--locked {
+  opacity: 0.6;
+  transition: opacity var(--transition-base);
+}
+
+/* One page's lines of a paragraph that continues over pages (A4PagesCanvas). */
+.doc-fragment {
+  overflow: hidden;
+  /* clip, not hidden: a hidden box can still be scrolled (the browser does it to show the caret). */
+  overflow: clip;
+  flex: none;
+}
+
+.doc-fragment__inner {
+  /* Keeps the block's own margins inside, so the window offsets line up with the measurement. */
+  display: flow-root;
+}
