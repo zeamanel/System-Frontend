@@ -3,7 +3,7 @@ import { RateLimitError } from '../api'
 import { createEmptyDocument, createParagraph } from '../editor/model'
 import { diffBlocks } from '../editor/tracked-change'
 import { askAssistant, localDocumentCheck } from './client'
-import { applyTextProposal, findPlaceholders, insertTextProposal, toAssistantBlocks } from './context'
+import { applyTextProposal, findPlaceholders, insertTextProposal, rewriteInlineText, toAssistantBlocks } from './context'
 import { diffWords } from './diff'
 import { consumePendingNotes, stashPendingNotes } from './pending-notes'
 
@@ -44,6 +44,42 @@ describe('assistant context', () => {
     const html = (next.blocks[1] as { html: string }).html
     expect(html).not.toContain('<b>')
     expect(html).toContain('&lt;b&gt;')
+  })
+
+  it('keeps bold, italic and links on the words a proposal leaves alone', () => {
+    const html = 'The <strong>Tenant</strong> will pay <em>monthly</em> rent to <a href="https://example.com">the Landlord</a>.'
+    expect(rewriteInlineText(html, 'The Tenant shall pay monthly rent to the Landlord.')).toBe(
+      'The <strong>Tenant</strong> shall pay <em>monthly</em> rent to <a href="https://example.com">the Landlord</a>.',
+    )
+  })
+
+  it('gives a changed word the look of the word it replaces', () => {
+    expect(rewriteInlineText('Pay <strong>500</strong> birr.', 'Pay 750 birr.')).toBe('Pay <strong>750</strong> birr.')
+  })
+
+  it('keeps a new word after a bold one plain, and drops wrappers left empty', () => {
+    expect(rewriteInlineText('Pay the <strong>rent</strong>.', 'Pay the rent promptly.')).toBe('Pay the <strong>rent</strong> promptly.')
+    expect(rewriteInlineText('Pay the <em>full</em> rent.', 'Pay the rent.')).toBe('Pay the rent.')
+  })
+
+  it("works for Ge'ez text and falls back to plain text when nothing survives", () => {
+    expect(rewriteInlineText('ተከራዩ <strong>ኪራይ</strong> ይከፍላል።', 'ተከራዩ ወርሃዊ ኪራይ ይከፍላል።')).toBe(
+      'ተከራዩ ወርሃዊ <strong>ኪራይ</strong> ይከፍላል።',
+    )
+    expect(rewriteInlineText('<strong>Old words</strong>', 'Brand new <b>text</b>')).toBe('Brand new &lt;b&gt;text&lt;/b&gt;')
+  })
+
+  it('keeps formatting in a very long paragraph when only a little changes', () => {
+    const words = Array.from({ length: 900 }, (_, i) => `word${i}`).join(' ')
+    const html = `<strong>Clause</strong> ${words} ends.`
+    expect(rewriteInlineText(html, `Clause ${words} ends today.`)).toBe(`<strong>Clause</strong> ${words} ends today.`)
+  })
+
+  it('applies a proposal to a formatted block without losing its formatting', () => {
+    const model = docWith('One.', 'The <strong>Tenant</strong> will pay.')
+    const next = applyTextProposal(model, model.blocks[1].id, 'The Tenant must pay.')
+    expect((next.blocks[1] as { html: string }).html).toBe('The <strong>Tenant</strong> must pay.')
+    expect(next.blocks[0]).toBe(model.blocks[0])
   })
 
   it('inserts a new clause after a block, or at the end, as an added block', () => {
