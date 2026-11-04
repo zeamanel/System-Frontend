@@ -938,5 +938,8 @@
   "info.link.paymentsFaq": "Payment questions",
   "info.link.telegramFaq": "How are my files handled?",
   "profile.help": "Help & legal",
-  "login.consent": "By continuing you agree to our [[link:terms]] and [[link:privacy]]."
+  "login.consent": "By continuing you agree to our [[link:terms]] and [[link:privacy]].",
+  "editor.undo": "Undo",
+  "editor.redo": "Redo",
+  "editor.undoGroup": "Undo and redo"
 }

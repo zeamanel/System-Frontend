@@ -938,5 +938,8 @@
   "info.link.paymentsFaq": "Gaaffilee kaffaltii",
   "info.link.telegramFaq": "Faayiloonni koo akkamitti qabamu?",
   "profile.help": "Gargaarsa fi seera",
-  "login.consent": "Itti fufuudhaan [[link:terms]] fi [[link:privacy]] waliin walii galtanii jirtu."
+  "login.consent": "Itti fufuudhaan [[link:terms]] fi [[link:privacy]] waliin walii galtanii jirtu.",
+  "editor.undo": "Deebisi",
+  "editor.redo": "Irra deebi’i",
+  "editor.undoGroup": "Deebisuu fi irra deebi’uu"
 }

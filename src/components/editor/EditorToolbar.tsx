@@ -15,6 +15,8 @@ import {
   PanelLeftIcon,
   PanelRightIcon,
   PrinterIcon,
+  RedoIcon,
+  UndoIcon,
 } from '../icons'
 
 export interface EditorToolbarProps {
@@ -24,6 +26,11 @@ export interface EditorToolbarProps {
   previewMode: boolean
   languageLabel: string
   onTogglePreview: () => void
+  /** Undo / redo the document's own history (absent: no buttons, e.g. read-only views). */
+  onUndo?: () => void
+  onRedo?: () => void
+  canUndo?: boolean
+  canRedo?: boolean
   onSave: () => void
   /** Opens the version history (absent: no history button). */
   onShowHistory?: () => void
@@ -69,6 +76,10 @@ export function EditorToolbar({
   previewMode,
   languageLabel,
   onTogglePreview,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
   onSave,
   onShowHistory,
   onChooseStyle,
@@ -176,6 +187,10 @@ export function EditorToolbar({
       {renderToolbarEnd({
         previewMode,
         onTogglePreview,
+        onUndo,
+        onRedo,
+        canUndo,
+        canRedo,
         onSave,
         onShowHistory,
         onChooseStyle,
@@ -201,6 +216,10 @@ type T = ReturnType<typeof useI18n>['t']
 function renderToolbarEnd(props: {
   previewMode: boolean
   onTogglePreview: () => void
+  onUndo?: () => void
+  onRedo?: () => void
+  canUndo: boolean
+  canRedo: boolean
   onSave: () => void
   onShowHistory?: () => void
   onChooseStyle?: () => void
@@ -235,6 +254,28 @@ function renderToolbarEnd(props: {
             onInsertImage={props.onInsertImage}
           />
         </>
+      ) : null}
+      {props.onUndo && props.onRedo ? (
+        <span className="editor-toolbar__undo" role="group" aria-label={t('editor.undoGroup')}>
+          <Button
+            variant="ghost"
+            icon={<UndoIcon size={16} />}
+            onClick={props.onUndo}
+            disabled={!props.canUndo}
+            aria-label={t('editor.undo')}
+            title={`${t('editor.undo')} (Ctrl+Z)`}
+            data-testid="editor-undo"
+          />
+          <Button
+            variant="ghost"
+            icon={<RedoIcon size={16} />}
+            onClick={props.onRedo}
+            disabled={!props.canRedo}
+            aria-label={t('editor.redo')}
+            title={`${t('editor.redo')} (Ctrl+Shift+Z)`}
+            data-testid="editor-redo"
+          />
+        </span>
       ) : null}
       <Button
         variant="ghost"

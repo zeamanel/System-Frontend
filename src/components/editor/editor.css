@@ -1400,3 +1400,10 @@ figure.doc-block--image-right {
   margin: var(--space-2) 0 0;
   padding-left: var(--space-5);
 }
+
+/* Undo / redo pair in the toolbar */
+.editor-toolbar__undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}

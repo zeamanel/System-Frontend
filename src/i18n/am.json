@@ -938,5 +938,8 @@
   "info.link.paymentsFaq": "ስለ ክፍያ ጥያቄዎች",
   "info.link.telegramFaq": "ፋይሎቼ እንዴት ይያዛሉ?",
   "profile.help": "እገዛና ሕጋዊ መረጃ",
-  "login.consent": "በመቀጠልዎ በ[[link:terms]] እና በ[[link:privacy]] ተስማምተዋል።"
+  "login.consent": "በመቀጠልዎ በ[[link:terms]] እና በ[[link:privacy]] ተስማምተዋል።",
+  "editor.undo": "ቀልብስ",
+  "editor.redo": "ድገም",
+  "editor.undoGroup": "መቀልበስና መድገም"
 }

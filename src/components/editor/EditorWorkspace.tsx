@@ -387,6 +387,53 @@ export function EditorWorkspace({
     pendingFocusRef.current = { ref, position }
   }, [])
 
+  // ---- undo / redo ----
+  const { undo: undoModel, redo: redoModel } = editor
+  const handleUndo = useCallback((): void => {
+    const blockId = undoModel()
+    if (blockId) queueFocus({ blockId }, 'end')
+  }, [queueFocus, undoModel])
+  const handleRedo = useCallback((): void => {
+    const blockId = redoModel()
+    if (blockId) queueFocus({ blockId }, 'end')
+  }, [queueFocus, redoModel])
+
+  // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y on the page use the document's own history.
+  // In a form field (guided fields, the assistant box) the browser's undo for that field still applies.
+  const undoKeysRef = useRef({ handleUndo, handleRedo })
+  undoKeysRef.current = { handleUndo, handleRedo }
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      const key = event.key.toLowerCase()
+      const isUndo = key === 'z' && !event.shiftKey
+      const isRedo = (key === 'z' && event.shiftKey) || (key === 'y' && !event.metaKey)
+      if (!isUndo && !isRedo) return
+      const target = event.target instanceof HTMLElement ? event.target : null
+      const inCanvas = Boolean(target?.closest('[data-editor-canvas-root]'))
+      const onPage = !target || target === document.body || inCanvas
+      if (!onPage) return
+      event.preventDefault()
+      if (isUndo) undoKeysRef.current.handleUndo()
+      else undoKeysRef.current.handleRedo()
+    }
+    // Edit menu / context menu "Undo" inside the page arrives as beforeinput.
+    const onBeforeInput = (event: InputEvent): void => {
+      if (event.inputType !== 'historyUndo' && event.inputType !== 'historyRedo') return
+      const target = event.target instanceof HTMLElement ? event.target : null
+      if (!target?.closest('[data-editor-canvas-root]')) return
+      event.preventDefault()
+      if (event.inputType === 'historyUndo') undoKeysRef.current.handleUndo()
+      else undoKeysRef.current.handleRedo()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('beforeinput', onBeforeInput)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('beforeinput', onBeforeInput)
+    }
+  }, [])
+
   /** Run a model op and queue focus for its result. */
   const applyOp = useCallback(
     (
@@ -503,21 +550,25 @@ export function EditorWorkspace({
   // ---- EditorApi: block DOM events → model ops ----
   const api = useMemo<EditorApi>(
     () => ({
+      // Typing in one place is one undo step until a pause (see useDocumentEditor).
       updateText: (blockId, html) =>
-        updateModel((current) =>
-          updateBlock(current, blockId, (block) =>
-            block.type === 'paragraph' || block.type === 'heading' ? { ...block, html } : block,
-          ),
+        updateModel(
+          (current) =>
+            updateBlock(current, blockId, (block) =>
+              (block.type === 'paragraph' || block.type === 'heading') && block.html !== html ? { ...block, html } : block,
+            ),
+          { coalesce: `text:${blockId}` },
         ),
       updateSecondaryText: (blockId, html) =>
-        updateModel((current) => updateSecondaryText(current, blockId, html)),
+        updateModel((current) => updateSecondaryText(current, blockId, html), { coalesce: `secondary:${blockId}` }),
       updateListItem: (blockId, itemId, html) =>
-        updateModel((current) => updateListItem(current, blockId, itemId, html)),
+        updateModel((current) => updateListItem(current, blockId, itemId, html), { coalesce: `item:${itemId}` }),
       updateTableCell: (blockId, cellId, html) =>
-        updateModel((current) => updateTableCell(current, blockId, cellId, html)),
+        updateModel((current) => updateTableCell(current, blockId, cellId, html), { coalesce: `cell:${cellId}` }),
       updateSignatureField: (blockId, partyId, field, html) =>
-        updateModel((current) =>
-          updateSignatureParty(current, blockId, partyId, { [field]: html }),
+        updateModel(
+          (current) => updateSignatureParty(current, blockId, partyId, { [field]: html }),
+          { coalesce: `party:${partyId}:${field}` },
         ),
       splitBlock: (blockId, before, after) =>
         applyOp((current) => splitTextBlock(current, blockId, before, after), 'start'),
@@ -570,7 +621,10 @@ export function EditorWorkspace({
 
   const handleInlineCommand = useCallback(
     (command: InlineCommand): void => {
+      // Bold / italic / underline is its own undo step, apart from the typing around it.
+      editor.breakUndoGroup()
       const applied = execInlineCommand(command)
+      editor.breakUndoGroup()
       // execCommand mutates the DOM directly; mirror it into the model so the
       // change autosaves. (It also fires `input`, which normally does this.)
       if (applied && activeRef) {
@@ -607,7 +661,7 @@ export function EditorWorkspace({
         }
       }
     },
-    [activeRef, updateModel],
+    [activeRef, editor, updateModel],
   )
 
   const handleInsertImage = useCallback(
@@ -662,7 +716,8 @@ export function EditorWorkspace({
     void (async () => {
       const fresh = await refresh()
       if (!cancelled && fresh) {
-        editor.adoptSnapshot(fresh, { keepLook: true })
+        // Undo brings back the text from before the regeneration.
+        editor.adoptSnapshot(fresh, { keepLook: true, undoable: true })
         toast.push(t('editor.regenerated'))
         showGenerationNotes()
       }
@@ -1038,6 +1093,10 @@ export function EditorWorkspace({
           editor.language.toUpperCase()
         }
         onTogglePreview={() => setPreviewMode((current) => !current)}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={editor.canUndo}
+        canRedo={editor.canRedo}
         onSave={() => void editor.save()}
         onShowHistory={() => setHistoryOpen(true)}
         onChooseStyle={() => setStyleOpen(true)}
