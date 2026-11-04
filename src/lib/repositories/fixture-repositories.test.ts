@@ -17,6 +17,16 @@ describe('fixture templates repository', () => {
     expect(am[0].title).toBe('ደብዳቤ')
   })
 
+  it('finds templates by Amharic words in the English interface, with same-sounding letters and word forms', async () => {
+    const poa = await repositories.templates.list('en', { search: 'ውክልና' })
+    expect(poa.map((t) => t.slug)).toContain('power-of-attorney')
+    expect(poa[0].title).toBe('Power of Attorney')
+    // ሕ typed as ህ, and with the የ prefix.
+    expect((await repositories.templates.list('en', { search: 'የውክልና ስልጣን' })).map((t) => t.slug)).toContain('power-of-attorney')
+    expect((await repositories.templates.list('en', { search: 'ህጋዊ ውክልና' })).map((t) => t.slug)).toContain('power-of-attorney')
+    expect(await repositories.templates.list('en', { search: 'ዝዝዝዝ' })).toEqual([])
+  })
+
   it('searches in the selected locale with English fallback', async () => {
     const english = await repositories.templates.list('en', { search: 'invoice' })
     expect(english.map((t) => t.id)).toContain('invoice')

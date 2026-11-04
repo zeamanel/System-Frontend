@@ -8,6 +8,7 @@ import type {
   TemplateListOptions,
   TemplateSummary,
 } from '../types'
+import { createSearchMatcher, normalizeSearchText } from '../../search/text'
 
 export function pickText(localized: LocalizedText, locale: Locale): string {
   if (locale === 'om' && localized.om) {
@@ -129,32 +130,25 @@ export function matchesCategory(
   return false
 }
 
-export function matchesQuery(fixture: TemplateFixture, search: string): boolean {
-  const needle = search.trim().toLowerCase()
-  if (!needle) return true
-  const inTitlesOrDesc = [
+/** Every text a template can be found by, in all three languages. */
+function searchableTexts(fixture: TemplateFixture): Array<string | undefined> {
+  return [
     fixture.titles.en,
     fixture.titles.am,
     fixture.titles.om,
     fixture.descriptions.en,
     fixture.descriptions.am,
     fixture.descriptions.om,
+    fixture.documentTypeId.replace(/_/g, ' '),
+    fixture.preview.summary,
+    ...fixture.questions.flatMap((q) => [q.label.en, q.label.am, q.label.om]),
   ]
-    .filter(Boolean)
-    .some((value) => value!.toLowerCase().includes(needle))
-  if (inTitlesOrDesc) return true
+}
 
-  const inQuestions = fixture.questions.some(
-    (q) =>
-      q.label.en.toLowerCase().includes(needle) ||
-      q.label.am.toLowerCase().includes(needle) ||
-      (q.label.om && q.label.om.toLowerCase().includes(needle)),
-  )
-  if (inQuestions) return true
-
-  if (fixture.documentTypeId.toLowerCase().includes(needle)) return true
-  if (fixture.preview.summary?.toLowerCase().includes(needle)) return true
-  return false
+/** True when every word of the search appears in the template, in any of its languages (see lib/search/text). */
+export function matchesQuery(fixture: TemplateFixture, search: string): boolean {
+  const matcher = createSearchMatcher(search)
+  return matcher ? matcher(...searchableTexts(fixture)) : true
 }
 
 export function computeRelevanceScore(
@@ -163,43 +157,25 @@ export function computeRelevanceScore(
   options?: TemplateListOptions,
 ): number {
   let score = 0
-  const search = options?.search?.trim().toLowerCase()
+  const matcher = createSearchMatcher(options?.search)
 
-  if (search) {
-    const titleEn = fixture.titles.en.toLowerCase()
-    const titleAm = fixture.titles.am.toLowerCase()
-    const titleOm = fixture.titles.om?.toLowerCase() ?? ''
-    const descEn = fixture.descriptions.en.toLowerCase()
-    const descAm = fixture.descriptions.am.toLowerCase()
-    const descOm = fixture.descriptions.om?.toLowerCase() ?? ''
+  if (matcher) {
+    const search = normalizeSearchText(options?.search ?? '')
+    const titles = [fixture.titles.en, fixture.titles.am, fixture.titles.om ?? ''].map(normalizeSearchText)
 
-    if (titleEn === search || titleAm === search || titleOm === search) {
+    if (titles.includes(search)) {
       score += 120
-    } else if (
-      titleEn.startsWith(search) ||
-      titleAm.startsWith(search) ||
-      titleOm.startsWith(search)
-    ) {
+    } else if (titles.some((title) => title.startsWith(search))) {
       score += 80
-    } else if (
-      titleEn.includes(search) ||
-      titleAm.includes(search) ||
-      titleOm.includes(search)
-    ) {
+    } else if (matcher(fixture.titles.en) || matcher(fixture.titles.am) || matcher(fixture.titles.om)) {
       score += 50
     }
 
-    if (descEn.includes(search) || descAm.includes(search) || descOm.includes(search)) {
+    if (matcher(fixture.descriptions.en) || matcher(fixture.descriptions.am) || matcher(fixture.descriptions.om)) {
       score += 25
     }
 
-    const matchQuestion = fixture.questions.some(
-      (q) =>
-        q.label.en.toLowerCase().includes(search) ||
-        q.label.am.toLowerCase().includes(search) ||
-        (q.label.om && q.label.om.toLowerCase().includes(search)),
-    )
-    if (matchQuestion) score += 15
+    if (fixture.questions.some((q) => matcher(q.label.en, q.label.am, q.label.om))) score += 15
   }
 
   // Exact language match factor
