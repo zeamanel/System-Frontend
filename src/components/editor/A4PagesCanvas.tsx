@@ -8,7 +8,7 @@ import { fitWidthZoom } from '../../lib/editor/a4'
 import { fontStack } from '../../lib/editor/fonts'
 import { documentStyleId } from '../../lib/editor/styles'
 import { useMediaUrls } from '../../hooks/use-media'
-import { findEditable, focusEditable, type EditableRef } from './caret'
+import { cssEscape, findEditable, focusEditable, type EditableRef } from './caret'
 import { BlockView, type BlockLabels } from './blocks/BlockView'
 import type { EditorApi } from './editor-api'
 import './editor.css'
@@ -30,6 +30,12 @@ export interface A4PagesCanvasProps {
   focusRef: { current: EditableRef | null }
   /** Shown over the pages while they cannot be edited (a generation is running). */
   lockedNotice?: string
+  /** Told how blocks are laid out on pages, whenever that changes. */
+  onPagesChange?: (pages: PageSlice[][]) => void
+  /** While a generation streams in: blocks just written fade in, old text about to go is dimmed. */
+  blockTones?: ReadonlyMap<string, 'streamed' | 'stale'>
+  /** The newest streamed block: the page follows it while the user watches the writing. */
+  streamTailId?: string | null
 }
 
 /**
@@ -55,6 +61,9 @@ export function A4PagesCanvas({
   pagesLabel,
   focusRef,
   lockedNotice,
+  onPagesChange,
+  blockTones,
+  streamTailId,
 }: A4PagesCanvasProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const pagesWrapRef = useRef<HTMLDivElement | null>(null)
@@ -311,6 +320,40 @@ export function A4PagesCanvas({
     }
   }, [])
 
+  // Follow the writing: when a new block streams in and the one before it is on screen
+  // (the user is watching the end of the text), bring the new one into view. A user who
+  // scrolled away to read is left where they are.
+  const previousTailRef = useRef<string | null>(null)
+  useEffect(() => {
+    const wrap = pagesWrapRef.current
+    if (!streamTailId) {
+      previousTailRef.current = null
+      return
+    }
+    const previous = previousTailRef.current
+    if (!wrap || previous === streamTailId) return
+    const find = (id: string) => Array.from(wrap.querySelectorAll<HTMLElement>(`.doc-block[data-block-id="${cssEscape(id)}"]`)).at(-1)
+    const tail = find(streamTailId)
+    // Not on a page yet: try again once the pages are laid out.
+    if (!tail) return
+    previousTailRef.current = streamTailId
+    const before = previous ? find(previous) : undefined
+    if (!before) return
+    const scroller = scrollRef.current
+    const own = scroller && scroller.scrollHeight > scroller.clientHeight ? scroller : null
+    const view = own ? own.getBoundingClientRect() : { top: 0, bottom: window.innerHeight }
+    const rect = before.getBoundingClientRect()
+    if (rect.bottom < view.top || rect.top > view.bottom) return
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    tail.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' })
+  }, [streamTailId, pages])
+
+  const onPagesChangeRef = useRef(onPagesChange)
+  onPagesChangeRef.current = onPagesChange
+  useEffect(() => {
+    onPagesChangeRef.current?.(pages)
+  }, [pages])
+
   // Restore caret after re-pagination moved the focused block between pages.
   useLayoutEffect(() => {
     const ref = focusRef.current
@@ -330,7 +373,9 @@ export function A4PagesCanvas({
         </p>
       ) : null}
       <div
-        className={lockedNotice ? 'doc-pages doc-pages--locked' : 'doc-pages'}
+        className={['doc-pages', lockedNotice ? 'doc-pages--locked' : null, blockTones?.size ? 'doc-pages--streaming' : null]
+          .filter(Boolean)
+          .join(' ')}
         ref={pagesWrapRef}
         aria-busy={lockedNotice ? true : undefined}
         style={{ zoom, fontFamily: fontStack(model.font), fontSize: `${model.fontSize}pt` }}
@@ -402,6 +447,7 @@ export function A4PagesCanvas({
                           labels={blockLabels}
                           onImageLoad={onImageLoad}
                           bilingual={Boolean(model.page.bilingual)}
+                          tone={blockTones?.get(block.id)}
                         />
                       </div>
                     </div>
@@ -418,6 +464,7 @@ export function A4PagesCanvas({
                     labels={blockLabels}
                     onImageLoad={onImageLoad}
                     bilingual={Boolean(model.page.bilingual)}
+                    tone={blockTones?.get(block.id)}
                   />
                 )
               })}

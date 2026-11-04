@@ -31,6 +31,8 @@ export interface GenerationJobApiRecord {
   documentId?: string
   /** Serialized generated content (JSON blocks string) once completed. */
   content?: string
+  /** While processing: the blocks finished so far (same shape as `content`). Older backends omit it. */
+  partialContent?: string
   error?: { code?: string; message?: string }
   /** What the assistant says about the draft (completed jobs only). */
   assistantNotes?: AssistantNotes

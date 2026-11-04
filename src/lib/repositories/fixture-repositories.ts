@@ -12,7 +12,7 @@ import {
 import {
   DEFAULT_FIXTURE_CONTENTS,
 } from './fixtures/draft-content'
-import { draftFromTemplate, mapBackendPayload, serializeModel } from '../editor/model'
+import { deserializeModel, draftFromTemplate, mapBackendPayload, serializeModel } from '../editor/model'
 import { buildVatReturnWorksheet } from '../vat/vat-return'
 import { DocumentConflictError, ExportUnavailableError } from './errors'
 import {
@@ -712,6 +712,9 @@ function writeFlag(key: string, value: string): void {
   }
 }
 
+/** Demo mode: how often the next block of a draft appears while it "generates". */
+const FIXTURE_STREAM_BLOCK_MS = 350
+
 interface FixtureGenerationJob {
   id: string
   documentType: string
@@ -757,30 +760,8 @@ class FixtureGenerationRepository implements GenerationRepository {
     return { id, status: 'pending' }
   }
 
-  async getRequest(id: string): Promise<GenerationRequest> {
-    const jobs = this.getJobs()
-    const job = jobs.find((j) => j.id === id)
-    if (!job) {
-      return { id, status: 'failed', error: 'Generation job not found.' }
-    }
-
-    if (job.status === 'completed' || job.status === 'failed') {
-      return {
-        id: job.id,
-        status: job.status,
-        documentId: job.documentId,
-        error: job.error,
-      }
-    }
-
-    const elapsed = Date.now() - job.createdAt
-    if (elapsed < 600) {
-      job.status = 'processing'
-      this.saveJobs(jobs)
-      return { id: job.id, status: 'processing' }
-    }
-
-    job.status = 'completed'
+  /** The draft a fixture job produces (deterministic, so it can be revealed bit by bit). */
+  private draft(job: FixtureGenerationJob): { title: string; content: string } {
     const template = TEMPLATE_FIXTURES.find((t) => t.id === job.documentType || t.slug === job.documentType)
     const locale: Locale = job.language === 'am' ? 'am' : 'en'
     const defaultTemplateTitle = template ? pickText(template.titles, locale) : job.documentType
@@ -815,6 +796,44 @@ class FixtureGenerationRepository implements GenerationRepository {
       ),
     )
 
+    return { title, content }
+  }
+
+  async getRequest(id: string): Promise<GenerationRequest> {
+    const jobs = this.getJobs()
+    const job = jobs.find((j) => j.id === id)
+    if (!job) {
+      return { id, status: 'failed', error: 'Generation job not found.' }
+    }
+
+    if (job.status === 'completed' || job.status === 'failed') {
+      return {
+        id: job.id,
+        status: job.status,
+        documentId: job.documentId,
+        error: job.error,
+      }
+    }
+
+    const { title, content } = this.draft(job)
+    const elapsed = Date.now() - job.createdAt
+    // Demo mode shows the draft arriving block by block, like the backend's stream
+    // (tests keep the instant timing).
+    const revealMs = import.meta.env.MODE === 'test' ? 0 : FIXTURE_STREAM_BLOCK_MS
+    const blocks = revealMs > 0 ? (deserializeModel(content, job.language)?.blocks ?? []) : []
+    if (elapsed < 600 + blocks.length * revealMs) {
+      job.status = 'processing'
+      this.saveJobs(jobs)
+      const shown = revealMs > 0 ? Math.max(0, Math.floor((elapsed - 600) / revealMs)) : 0
+      const model = shown > 0 ? deserializeModel(content, job.language) : null
+      return {
+        id: job.id,
+        status: 'processing',
+        ...(model ? { partialContent: serializeModel({ ...model, blocks: model.blocks.slice(0, shown) }) } : {}),
+      }
+    }
+
+    job.status = 'completed'
     let documentId: string
     if (job.targetDocumentId) {
       // In-editor regeneration: replace the existing document's content in

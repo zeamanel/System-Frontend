@@ -101,6 +101,8 @@ export interface GenerationRequest {
    * The guided flow's repository layer uses it to create the document.
    */
   content?: string
+  /** While the job runs: the blocks the AI has finished so far (JSON blocks string). */
+  partialContent?: string
   error?: string
   /** Assistant summary, questions, assumptions and warnings for the draft. */
   assistantNotes?: AssistantNotes

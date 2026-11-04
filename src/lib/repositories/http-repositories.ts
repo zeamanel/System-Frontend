@@ -927,6 +927,7 @@ class HttpGenerationRepository implements GenerationRepository {
       status: job.status,
       error: job.error ? (job.error.message ?? job.error.code) : undefined,
       content: job.content,
+      partialContent: job.partialContent,
       assistantNotes: job.assistantNotes,
     }
     if (job.status !== 'completed') return result

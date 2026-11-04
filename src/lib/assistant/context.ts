@@ -1,6 +1,7 @@
 import { escapePlainText, inlineHtmlToText, sanitizeInlineHtml } from '../editor/sanitize'
 import { createParagraph } from '../editor/model'
-import type { Block, DocumentModel } from '../editor/types'
+import type { Block, DocumentModel, TableBlock } from '../editor/types'
+import type { PageSlice } from '../editor/paginate'
 import type { AssistantContextBlock } from './types'
 import { diffWords, tokenizeFine } from './diff'
 
@@ -35,18 +36,146 @@ export function blockPlainText(block: Block): string {
 export function toAssistantBlocks(model: DocumentModel): AssistantContextBlock[] {
   return model.blocks
     .filter((block) => block.type !== 'page-break')
-    .map((block) => ({ id: block.id, type: block.type, text: blockPlainText(block).slice(0, 20_000) }))
+    .map((block) => {
+      const parts = editableParts(block)
+      return {
+        id: block.id,
+        type: block.type,
+        text: blockPlainText(block).slice(0, 20_000),
+        ...(parts.length > 0 ? { parts } : {}),
+      }
+    })
 }
 
-/** Apply an accepted text proposal to a paragraph/heading block (others untouched). */
-export function applyTextProposal(model: DocumentModel, blockId: string, newText: string): DocumentModel {
+/** Most parts sent per block, and the longest part (the API's limits). */
+const MAX_PARTS = 300
+const MAX_PART_CHARS = 5000
+
+/**
+ * Parts of a list or table the assistant may rewrite: every list item, and
+ * table cells that describe something. Amounts, prices, quantities, dates and
+ * totals are never offered: the editor calculates them or the user typed them.
+ */
+export function editableParts(block: Block): Array<{ id: string; text: string }> {
+  const parts: Array<{ id: string; text: string }> = []
+  if (block.type === 'list') {
+    for (const item of block.items) parts.push({ id: item.id, text: inlineHtmlToText(item.html) })
+  } else if (block.type === 'table') {
+    block.rows.forEach((row) =>
+      row.cells.forEach((cell, column) => {
+        const text = inlineHtmlToText(cell.html)
+        if (isDescriptionCell(block, column, text)) parts.push({ id: cell.id, text })
+      }),
+    )
+  }
+  return parts.filter((part) => part.text && part.text.length <= MAX_PART_CHARS).slice(0, MAX_PARTS)
+}
+
+/** A cell with words in it, not a number with a label: "Office desk" yes; "500", "15%", "2017-05-12", "500 ETB" no. */
+export function isDescriptionCell(table: Pick<TableBlock, 'columnAlign'>, column: number, text: string): boolean {
+  // Right-aligned columns hold amounts.
+  if (table.columnAlign?.[column] === 'right') return false
+  const letters = text.match(/\p{L}/gu)?.length ?? 0
+  const digits = text.match(/\p{N}/gu)?.length ?? 0
+  return letters >= 2 && digits < 0.4 * (letters + digits)
+}
+
+/** Current text of a proposal's target: a paragraph, or one list item or table cell. Null when it is gone. */
+export function proposalTargetText(model: DocumentModel, blockId: string, partId?: string): string | null {
+  const block = model.blocks.find((candidate) => candidate.id === blockId)
+  if (!block) return null
+  if (!partId) return block.type === 'paragraph' || block.type === 'heading' ? blockPlainText(block) : null
+  const html =
+    block.type === 'list'
+      ? block.items.find((item) => item.id === partId)?.html
+      : block.type === 'table'
+        ? block.rows.flatMap((row) => row.cells).find((cell) => cell.id === partId)?.html
+        : undefined
+  return html === undefined ? null : inlineHtmlToText(html)
+}
+
+/**
+ * The page's part of the assistant request: the ids of the blocks on it, and
+ * for a list or table that continues over pages, only the items or rows on it
+ * are offered for change.
+ */
+export function restrictToPage(
+  blocks: AssistantContextBlock[],
+  model: DocumentModel,
+  page: readonly PageSlice[],
+): { blocks: AssistantContextBlock[]; scopeBlockIds: string[] } {
+  const slices = new Map(page.map((slice) => [slice.id, slice]))
+  const restricted = blocks.map((context) => {
+    const slice = slices.get(context.id)
+    const block = model.blocks.find((candidate) => candidate.id === context.id)
+    if (!slice || slice.from === undefined || !context.parts || !block) return context
+    const from = slice.from
+    const to = slice.to ?? Number.POSITIVE_INFINITY
+    const onPage = new Set<string>()
+    if (block.type === 'list') block.items.forEach((item, i) => i >= from && i < to && onPage.add(item.id))
+    if (block.type === 'table') {
+      block.rows.forEach((row, i) => i >= from && i < to && row.cells.forEach((cell) => onPage.add(cell.id)))
+    }
+    if (block.type !== 'list' && block.type !== 'table') return context
+    return { ...context, parts: context.parts.filter((part) => onPage.has(part.id)) }
+  })
+  return { blocks: restricted, scopeBlockIds: [...slices.keys()] }
+}
+
+/** Index of the page that shows a block (and, in a split list or table, its item or cell); -1 when unknown. */
+export function pageIndexOf(
+  pages: readonly (readonly PageSlice[])[],
+  model: DocumentModel,
+  ref: { blockId: string; itemId?: string; cellId?: string },
+): number {
+  const block = model.blocks.find((candidate) => candidate.id === ref.blockId)
+  let index = -1
+  if (block?.type === 'list' && ref.itemId) index = block.items.findIndex((item) => item.id === ref.itemId)
+  if (block?.type === 'table' && ref.cellId) index = block.rows.findIndex((row) => row.cells.some((cell) => cell.id === ref.cellId))
+  let first = -1
+  for (let p = 0; p < pages.length; p++) {
+    for (const slice of pages[p]) {
+      if (slice.id !== ref.blockId) continue
+      if (first < 0) first = p
+      if (slice.from === undefined || index < 0) return first
+      if (index >= slice.from && index < (slice.to ?? Number.POSITIVE_INFINITY)) return p
+    }
+  }
+  return first
+}
+
+/**
+ * Apply an accepted text proposal to a paragraph/heading block, or to one
+ * list item or table cell (`partId`). Everything else is untouched.
+ */
+export function applyTextProposal(model: DocumentModel, blockId: string, newText: string, partId?: string): DocumentModel {
   return {
     ...model,
-    blocks: model.blocks.map((block) =>
-      block.id === blockId && (block.type === 'paragraph' || block.type === 'heading')
-        ? { ...block, html: rewriteInlineText(block.html, newText) }
-        : block,
-    ),
+    blocks: model.blocks.map((block): Block => {
+      if (block.id !== blockId) return block
+      if (!partId) {
+        return block.type === 'paragraph' || block.type === 'heading'
+          ? { ...block, html: rewriteInlineText(block.html, newText) }
+          : block
+      }
+      if (block.type === 'list') {
+        return {
+          ...block,
+          items: block.items.map((item) => (item.id === partId ? { ...item, html: rewriteInlineText(item.html, newText) } : item)),
+        }
+      }
+      if (block.type === 'table') {
+        return {
+          ...block,
+          rows: block.rows.map((row) =>
+            row.cells.some((cell) => cell.id === partId)
+              ? { ...row, cells: row.cells.map((cell) => (cell.id === partId ? { ...cell, html: rewriteInlineText(cell.html, newText) } : cell)) }
+              : row,
+          ),
+        }
+      }
+      return block
+    }),
   }
 }
 

@@ -20,11 +20,13 @@ export interface AssistantProposal {
   /** "replace" rewrites `blockId`; "insert" adds a new paragraph after `afterBlockId`. */
   kind: 'replace' | 'insert'
   blockId: string
+  /** Replace only: the list item or table cell of `blockId` it rewrites (absent = the whole paragraph). */
+  partId?: string
   /** Insert only: the block the new clause goes after ('' = at the end). */
   afterBlockId?: string
   newText: string
   reason: string
-  /** Block text when the assistant saw it; differs from now → edited since. */
+  /** Block (or part) text when the assistant saw it; differs from now → edited since. */
   baseText: string
   status: 'pending' | 'accepted' | 'rejected' | 'undone'
   /** Set once accepted, so the change can be undone. */
@@ -75,12 +77,20 @@ export interface AssistantContextBlock {
   id: string
   type: string
   text: string
+  /** Parts of a list or table the assistant may rewrite: list items and description cells. */
+  parts?: Array<{ id: string; text: string }>
 }
+
+/** What the assistant works on: the whole document, the page with the cursor, or the selected block. */
+export type AssistantScope = 'document' | 'page' | 'block'
 
 export interface AssistantRequestInput {
   documentId: string
   message: string
   selectedBlockId?: string
+  scope?: AssistantScope
+  /** Page scope: the blocks on that page. */
+  scopeBlockIds?: string[]
   blocks: AssistantContextBlock[]
   answers: Record<string, string>
   history: Array<{ role: 'user' | 'assistant'; text: string }>
@@ -98,7 +108,14 @@ export interface AssistantOfflineInfo {
 export interface AssistantReply {
   reply: string
   questions: AssistantQuestion[]
-  proposals: Array<{ kind?: 'replace' | 'insert'; blockId: string; afterBlockId?: string; newText: string; reason: string }>
+  proposals: Array<{
+    kind?: 'replace' | 'insert'
+    blockId: string
+    partId?: string
+    afterBlockId?: string
+    newText: string
+    reason: string
+  }>
   fieldUpdates: AssistantFieldUpdate[]
   offline?: AssistantOfflineInfo
 }
