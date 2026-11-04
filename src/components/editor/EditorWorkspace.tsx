@@ -83,6 +83,7 @@ import { useIssueText } from './check-issue-text'
 import type { DocumentCheckResult } from '../../lib/document-check/check'
 import { consumePendingNotes } from '../../lib/assistant/pending-notes'
 import { blockPlainText, pageIndexOf } from '../../lib/assistant/context'
+import { buildStreamPreview, keepUnchanged, parseStreamBlocks } from '../../lib/editor/stream-preview'
 import type { AssistantScope } from '../../lib/assistant/types'
 import type { PageSlice } from '../../lib/editor/paginate'
 import { COMPACT_LAYOUT_QUERY, useMediaQuery } from '../../hooks/use-media-query'
@@ -274,11 +275,32 @@ export function EditorWorkspace({
   const generationPending =
     createJob.isPending ||
     (jobData !== null && jobData.status !== 'completed' && jobData.status !== 'failed')
+  // While the AI writes, the page shows the paragraphs finished so far (then, when
+  // regenerating, the old text they replace, dimmed). The preview stays up until the
+  // finished document is adopted, so the old text never flashes back in between.
+  const [streamAdopted, setStreamAdopted] = useState(true)
+  const lastStreamRef = useRef<string | undefined>(undefined)
+  const streamingNow = jobData !== null && (jobData.status === 'pending' || jobData.status === 'processing')
+  if (streamingNow && jobData.partialContent) lastStreamRef.current = jobData.partialContent
+  const streamSource = streamingNow
+    ? jobData.partialContent
+    : jobData?.status === 'completed' && !streamAdopted
+      ? (jobData.content ?? lastStreamRef.current)
+      : undefined
+  const streamBlocksRef = useRef<Block[]>([])
+  const streamPreview = useMemo(() => {
+    const blocks = keepUnchanged(streamBlocksRef.current, parseStreamBlocks(streamSource, model.language))
+    streamBlocksRef.current = blocks
+    return blocks.length > 0 ? buildStreamPreview(model, blocks) : null
+  }, [model, streamSource])
+
   // The text is about to be replaced: lock it so nothing typed meanwhile is lost.
   const { setBlocksLocked } = editor
+  // Also while the streamed preview waits for the finished document to be adopted.
+  const pageLocked = generationPending || streamPreview !== null
   useLayoutEffect(() => {
-    setBlocksLocked(generationPending)
-  }, [generationPending, setBlocksLocked])
+    setBlocksLocked(pageLocked)
+  }, [pageLocked, setBlocksLocked])
 
   // ---- export ----
   const exportMutation = useCreateExportRequest()
@@ -742,6 +764,8 @@ export function EditorWorkspace({
           idempotencyKey: (regenKeyRef.current ??= generateKey()),
         })
         regenKeyRef.current = null
+        lastStreamRef.current = undefined
+        setStreamAdopted(false)
         setGenRequestId(response.id)
       } catch {
         // Submission failures surface through the job status UI.
@@ -753,16 +777,21 @@ export function EditorWorkspace({
   // Adopt regenerated content when the in-place job completes.
   const generationComplete = jobData?.status === 'completed'
   useEffect(() => {
-    if (!generationComplete || !jobData?.documentId) return
+    if (!generationComplete || !jobData?.documentId) {
+      if (generationComplete) setStreamAdopted(true)
+      return
+    }
     let cancelled = false
     void (async () => {
-      const fresh = await refresh()
-      if (!cancelled && fresh) {
+      const fresh = await refresh().catch(() => null)
+      if (cancelled) return
+      if (fresh) {
         // Undo brings back the text from before the regeneration.
         editor.adoptSnapshot(fresh, { keepLook: true, undoable: true })
         toast.push(t('editor.regenerated'))
         showGenerationNotes()
       }
+      setStreamAdopted(true)
     })()
     return () => {
       cancelled = true
@@ -1282,9 +1311,9 @@ export function EditorWorkspace({
       />
 
       <A4PagesCanvas
-        model={model}
-        editable={!previewMode && !generationPending}
-        lockedNotice={generationPending ? t('editor.generatingLocked') : undefined}
+        model={streamPreview?.model ?? model}
+        editable={!previewMode && !pageLocked}
+        lockedNotice={pageLocked ? t('editor.generatingLocked') : undefined}
         activeBlockId={activeRef?.blockId ?? null}
         api={api}
         blockLabels={blockLabels}
@@ -1299,6 +1328,8 @@ export function EditorWorkspace({
         }
         focusRef={focusRef}
         onPagesChange={setPages}
+        blockTones={streamPreview?.tones}
+        streamTailId={streamPreview?.tailId ?? null}
       />
 
       <aside className="editor-side editor-side--right" aria-hidden={!rightOpen}>

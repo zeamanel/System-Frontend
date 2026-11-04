@@ -25,6 +25,8 @@ export interface BlockViewProps {
   bilingual?: boolean
   /** Only these items (list) or rows (table), when the block continues across pages. */
   range?: { from: number; to: number }
+  /** While a generation streams in: a block just written (fades in) or old text about to be replaced (dimmed). */
+  tone?: 'streamed' | 'stale'
 }
 
 export interface BlockLabels {
@@ -52,6 +54,7 @@ function BlockViewInner({
   onImageLoad,
   bilingual = false,
   range,
+  tone,
 }: BlockViewProps) {
   const ref = useMemo<EditableRef>(() => ({ blockId: block.id }), [block.id])
 
@@ -102,7 +105,7 @@ function BlockViewInner({
     if (text) insertPlainText(text)
   }
 
-  const blockClass = ['doc-block', `doc-block--${block.type}`, active ? 'doc-block--active' : null]
+  const blockClass = ['doc-block', `doc-block--${block.type}`, active ? 'doc-block--active' : null, tone ? `doc-block--${tone}` : null]
     .filter(Boolean)
     .join(' ')
 

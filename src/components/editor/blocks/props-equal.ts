@@ -16,6 +16,7 @@ export function blockViewPropsEqual(previous: BlockViewProps, next: BlockViewPro
     previous.onImageLoad === next.onImageLoad &&
     Boolean(previous.bilingual) === Boolean(next.bilingual) &&
     previous.range?.from === next.range?.from &&
-    previous.range?.to === next.range?.to
+    previous.range?.to === next.range?.to &&
+    previous.tone === next.tone
   )
 }

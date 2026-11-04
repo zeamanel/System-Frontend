@@ -1454,6 +1454,11 @@ figure.doc-block--image-right {
   transition: opacity var(--transition-base);
 }
 
+/* While the AI writes, its new text reads normally; only the old text it replaces is dimmed. */
+.doc-pages--locked.doc-pages--streaming {
+  opacity: 1;
+}
+
 /* One page's lines of a paragraph that continues over pages (A4PagesCanvas). */
 .doc-fragment {
   overflow: hidden;
@@ -1465,4 +1470,35 @@ figure.doc-block--image-right {
 .doc-fragment__inner {
   /* Keeps the block's own margins inside, so the window offsets line up with the measurement. */
   display: flow-root;
+}
+
+/* ---- generation streaming: finished paragraphs fade in; old text being replaced is dimmed ---- */
+.doc-block--streamed {
+  animation: doc-stream-in 180ms ease-out both;
+}
+
+@keyframes doc-stream-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.doc-block--stale {
+  opacity: 0.35;
+  transition: opacity 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-block--streamed {
+    animation: none;
+  }
+}
+
+@media print {
+  .doc-block--stale {
+    opacity: 1;
+  }
 }
