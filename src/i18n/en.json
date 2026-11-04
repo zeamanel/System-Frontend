@@ -941,5 +941,7 @@
   "login.consent": "By continuing you agree to our [[link:terms]] and [[link:privacy]].",
   "editor.undo": "Undo",
   "editor.redo": "Redo",
-  "editor.undoGroup": "Undo and redo"
+  "editor.undoGroup": "Undo and redo",
+  "editor.generatingLocked": "Writing your document… The page unlocks when it is ready.",
+  "editor.lockedWhileGenerating": "The page is locked while SenedDesk writes the document. It unlocks when it is ready."
 }

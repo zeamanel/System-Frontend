@@ -941,5 +941,7 @@
   "login.consent": "በመቀጠልዎ በ[[link:terms]] እና በ[[link:privacy]] ተስማምተዋል።",
   "editor.undo": "ቀልብስ",
   "editor.redo": "ድገም",
-  "editor.undoGroup": "መቀልበስና መድገም"
+  "editor.undoGroup": "መቀልበስና መድገም",
+  "editor.generatingLocked": "ሰነድዎ እየተጻፈ ነው… ሲዘጋጅ ገጹ ይከፈታል።",
+  "editor.lockedWhileGenerating": "SenedDesk ሰነዱን እየጻፈ ስለሆነ ገጹ ተቆልፏል። ሲዘጋጅ ይከፈታል።"
 }

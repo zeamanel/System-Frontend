@@ -110,6 +110,8 @@ export interface UseDocumentEditorOptions {
   refresh: () => Promise<DocumentDetailRecord | null>
   /** Called after a guided-field edit was carried into the document text. */
   onFieldSynced?: (event: FieldSyncEvent) => void
+  /** Called when an edit was refused because the text is locked (a generation is running). */
+  onLockedEdit?: () => void
 }
 
 export interface FieldSyncEvent {
@@ -172,7 +174,7 @@ function firstChangedBlockId(from: DocumentModel, to: DocumentModel): string | n
  * - Conflicts (changed elsewhere, HTTP 409) surface as an explicit state the
  *   user resolves by reloading the latest version or overwriting it.
  */
-export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: UseDocumentEditorOptions) {
+export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLockedEdit }: UseDocumentEditorOptions) {
   const [model, setModelState] = useState<DocumentModel>(
     () => parseDocumentContent(doc.content, doc.language) ?? createEmptyDocument(doc.language),
   )
@@ -201,6 +203,14 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
   answersRef.current = answers
   const onFieldSyncedRef = useRef(onFieldSynced)
   onFieldSyncedRef.current = onFieldSynced
+  const onLockedEditRef = useRef(onLockedEdit)
+  onLockedEditRef.current = onLockedEdit
+  /**
+   * While a generation runs, the text (blocks) is locked: it is about to be
+   * replaced, so anything typed would be lost. Font, size, page set-up and
+   * style stay editable (regeneration keeps them).
+   */
+  const blocksLockedRef = useRef(false)
   /** Per field: the value the document text currently reflects. */
   const syncBaselineRef = useRef<Record<string, string>>({ ...(doc.answers ?? {}) })
   const pendingSyncRef = useRef<Set<string>>(new Set())
@@ -222,9 +232,13 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
   }, [])
 
   /** The only way the model changes: keeps the ref current and records an undo step. */
-  const commit = useCallback((after: DocumentModel, options?: CommitOptions & { record?: boolean }): boolean => {
+  const commit = useCallback((after: DocumentModel, options?: CommitOptions & { record?: boolean; force?: boolean }): boolean => {
     const before = modelRef.current
     if (sameModel(before, after)) return false
+    if (blocksLockedRef.current && !options?.force && after.blocks !== before.blocks) {
+      onLockedEditRef.current?.()
+      return false
+    }
     if (options?.record !== false) {
       const now = Date.now()
       const last = coalesceRef.current
@@ -253,6 +267,10 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     coalesceRef.current = null
   }, [])
 
+  const setBlocksLocked = useCallback((locked: boolean): void => {
+    blocksLockedRef.current = locked
+  }, [])
+
   const resetHistory = useCallback((): void => {
     pastRef.current = []
     futureRef.current = []
@@ -264,6 +282,10 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
   const undo = useCallback((): string | null => {
     const previous = pastRef.current.at(-1)
     if (!previous) return null
+    if (blocksLockedRef.current) {
+      onLockedEditRef.current?.()
+      return null
+    }
     const current = modelRef.current
     pastRef.current = pastRef.current.slice(0, -1)
     futureRef.current = [...futureRef.current, current]
@@ -278,6 +300,10 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
   const redo = useCallback((): string | null => {
     const next = futureRef.current.at(-1)
     if (!next) return null
+    if (blocksLockedRef.current) {
+      onLockedEditRef.current?.()
+      return null
+    }
     const current = modelRef.current
     futureRef.current = futureRef.current.slice(0, -1)
     pastRef.current = [...pastRef.current.slice(-(HISTORY_LIMIT - 1)), current]
@@ -321,10 +347,17 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
         .map(([, v]) => v)
       const before = modelRef.current
       const result = replaceTextInModel(before, from, to, { otherAnswerValues })
-      syncBaselineRef.current[questionId] = to
-      if (!result.replaced) continue
+      if (!result.replaced) {
+        syncBaselineRef.current[questionId] = to
+        continue
+      }
       const change = diffBlocks(before, result.model)
-      commit(result.model)
+      // Locked (a generation is running): keep the old baseline and the field pending.
+      if (!commit(result.model)) {
+        pendingSyncRef.current.add(questionId)
+        continue
+      }
+      syncBaselineRef.current[questionId] = to
       dirtyRef.current = true
       setStatus('unsaved')
       if (change) onFieldSyncedRef.current?.({ questionId, from, to, change })
@@ -426,7 +459,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     const current = modelRef.current
     const next = options?.keepLook && !contentHasOwnLook(snapshot.content) ? keepLook(fresh, current) : fresh
     if (options?.undoable) {
-      commit(next)
+      commit(next, { force: true })
     } else {
       resetHistory()
       modelRef.current = next
@@ -608,6 +641,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced }: Use
     canUndo: pastRef.current.length > 0,
     canRedo: futureRef.current.length > 0,
     breakUndoGroup,
+    setBlocksLocked,
     setTitle,
     setAnswer,
     flushFieldSync: runFieldSync,

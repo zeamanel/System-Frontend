@@ -440,3 +440,12 @@
     overflow: visible;
   }
 }
+
+/* Wraps the fields and footer only to disable them while generating; takes no part in the layout. */
+.guided-fields-panel__lock {
+  display: contents;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}

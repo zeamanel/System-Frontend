@@ -113,3 +113,39 @@ describe('useDocumentEditor history', () => {
     expect(text(result.current.model)).toBe('A | B')
   })
 })
+
+describe('useDocumentEditor: text locked while a generation runs', () => {
+  it('refuses changes to the text (and undo), says so, but keeps font and page changes', () => {
+    const onLockedEdit = vi.fn()
+    const doc = docWith(['Hello'])
+    const client = new QueryClient()
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    const { result } = renderHook(() => useDocumentEditor({ document: doc, refresh: vi.fn(async () => doc), onLockedEdit }), { wrapper })
+
+    act(() => result.current.updateModel((m) => ({ ...m, blocks: [{ ...m.blocks[0], html: 'Before lock' } as typeof m.blocks[0]] })))
+    act(() => result.current.setBlocksLocked(true))
+
+    act(() => result.current.updateModel((m) => ({ ...m, blocks: [{ ...m.blocks[0], html: 'Typed while locked' } as typeof m.blocks[0]] })))
+    expect(text(result.current.model)).toBe('Before lock')
+    expect(onLockedEdit).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      expect(result.current.undo()).toBeNull()
+    })
+    expect(text(result.current.model)).toBe('Before lock')
+
+    act(() => result.current.updateModel((m) => ({ ...m, fontSize: 13 })))
+    expect(result.current.model.fontSize).toBe(13)
+
+    // The generated text itself still comes in (as the backend sends it: bare blocks), and is undoable.
+    const generated = { ...docWith([], 2), content: JSON.stringify({ blocks: [{ type: 'paragraph', text: 'Generated' }] }) }
+    act(() => result.current.adoptSnapshot(generated, { keepLook: true, undoable: true }))
+    expect(text(result.current.model)).toBe('Generated')
+    expect(result.current.model.fontSize).toBe(13) // kept by keepLook
+    act(() => result.current.setBlocksLocked(false))
+    act(() => {
+      result.current.undo()
+    })
+    expect(text(result.current.model)).toBe('Before lock')
+  })
+})

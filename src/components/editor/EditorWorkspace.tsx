@@ -132,10 +132,18 @@ export function EditorWorkspace({
 
   // Field-sync reports go to the assistant thread (created below).
   const fieldSyncHandlerRef = useRef<((event: FieldSyncEvent) => void) | null>(null)
+  // One "please wait" notice per few seconds, however many edits are refused.
+  const lockedNoticeAtRef = useRef(0)
   const editor = useDocumentEditor({
     document: doc,
     refresh,
     onFieldSynced: (event) => fieldSyncHandlerRef.current?.(event),
+    onLockedEdit: () => {
+      const now = Date.now()
+      if (now - lockedNoticeAtRef.current < 4000) return
+      lockedNoticeAtRef.current = now
+      toast.push(t('editor.lockedWhileGenerating'))
+    },
   })
   const { model, updateModel } = editor
 
@@ -264,6 +272,11 @@ export function EditorWorkspace({
   const generationPending =
     createJob.isPending ||
     (jobData !== null && jobData.status !== 'completed' && jobData.status !== 'failed')
+  // The text is about to be replaced: lock it so nothing typed meanwhile is lost.
+  const { setBlocksLocked } = editor
+  useLayoutEffect(() => {
+    setBlocksLocked(generationPending)
+  }, [generationPending, setBlocksLocked])
 
   // ---- export ----
   const exportMutation = useCreateExportRequest()
@@ -1095,8 +1108,8 @@ export function EditorWorkspace({
         onTogglePreview={() => setPreviewMode((current) => !current)}
         onUndo={handleUndo}
         onRedo={handleRedo}
-        canUndo={editor.canUndo}
-        canRedo={editor.canRedo}
+        canUndo={editor.canUndo && !generationPending}
+        canRedo={editor.canRedo && !generationPending}
         onSave={() => void editor.save()}
         onShowHistory={() => setHistoryOpen(true)}
         onChooseStyle={() => setStyleOpen(true)}
@@ -1241,7 +1254,8 @@ export function EditorWorkspace({
 
       <A4PagesCanvas
         model={model}
-        editable={!previewMode}
+        editable={!previewMode && !generationPending}
+        lockedNotice={generationPending ? t('editor.generatingLocked') : undefined}
         activeBlockId={activeRef?.blockId ?? null}
         api={api}
         blockLabels={blockLabels}

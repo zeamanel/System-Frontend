@@ -27,6 +27,8 @@ export interface A4PagesCanvasProps {
   fitLabel: string
   pagesLabel: (count: number) => string
   focusRef: { current: EditableRef | null }
+  /** Shown over the pages while they cannot be edited (a generation is running). */
+  lockedNotice?: string
 }
 
 /**
@@ -51,6 +53,7 @@ export function A4PagesCanvas({
   fitLabel,
   pagesLabel,
   focusRef,
+  lockedNotice,
 }: A4PagesCanvasProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const pagesWrapRef = useRef<HTMLDivElement | null>(null)
@@ -180,9 +183,16 @@ export function A4PagesCanvas({
   return (
     <div className="doc-canvas-scroll" ref={scrollRef} data-editor-canvas-root>
       <style>{`@page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 0; }`}</style>
+      {lockedNotice ? (
+        <p className="doc-canvas-locked" role="status" data-testid="canvas-locked">
+          <span className="doc-canvas-locked__dot" aria-hidden="true" />
+          {lockedNotice}
+        </p>
+      ) : null}
       <div
-        className="doc-pages"
+        className={lockedNotice ? 'doc-pages doc-pages--locked' : 'doc-pages'}
         ref={pagesWrapRef}
+        aria-busy={lockedNotice ? true : undefined}
         style={{ zoom, fontFamily: fontStack(model.font), fontSize: `${model.fontSize}pt` }}
         lang={model.language}
       >
