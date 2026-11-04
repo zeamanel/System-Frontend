@@ -1453,3 +1453,16 @@ figure.doc-block--image-right {
   opacity: 0.6;
   transition: opacity var(--transition-base);
 }
+
+/* One page's lines of a paragraph that continues over pages (A4PagesCanvas). */
+.doc-fragment {
+  overflow: hidden;
+  /* clip, not hidden: a hidden box can still be scrolled (the browser does it to show the caret). */
+  overflow: clip;
+  flex: none;
+}
+
+.doc-fragment__inner {
+  /* Keeps the block's own margins inside, so the window offsets line up with the measurement. */
+  display: flow-root;
+}
