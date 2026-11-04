@@ -44,6 +44,8 @@ const FLUSH_WAIT_MS = 15_000
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'conflict'
 
 const AUTOSAVE_DELAY_MS = 1500
+/** Unsaved work is mirrored to the recovery buffer at most this often (and when the page is hidden or closed). */
+export const BUFFER_WRITE_DELAY_MS = 800
 
 interface EditorSnapshot {
   model: DocumentModel
@@ -550,11 +552,42 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc.id])
 
-  // Mirror unsaved work into the recovery buffer.
+  // Mirror unsaved work into the recovery buffer — not on every keystroke (it serialises the
+  // whole document): the first change at once, later ones at most every BUFFER_WRITE_DELAY_MS,
+  // and whatever is pending when the page is hidden or closed.
+  const pendingBufferRef = useRef<EditorSnapshot | null>(null)
+  const bufferTimerRef = useRef<number | null>(null)
+  const writePendingBuffer = useCallback((): void => {
+    if (bufferTimerRef.current !== null) {
+      window.clearTimeout(bufferTimerRef.current)
+      bufferTimerRef.current = null
+    }
+    const snapshot = pendingBufferRef.current
+    pendingBufferRef.current = null
+    if (snapshot && dirtyRef.current) writeBuffer(doc.id, snapshot)
+  }, [doc.id])
+
   useEffect(() => {
     if (!dirtyRef.current) return
-    writeBuffer(doc.id, { model, title, language, answers, baseUpdatedAt: savedAt, baseVersion: savedVersion })
-  }, [model, title, language, answers, doc.id, savedAt, savedVersion])
+    const snapshot: EditorSnapshot = { model, title, language, answers, baseUpdatedAt: savedAt, baseVersion: savedVersion }
+    if (bufferTimerRef.current === null) {
+      // First change after a quiet spell: write at once, then at most once per delay.
+      writeBuffer(doc.id, snapshot)
+      bufferTimerRef.current = window.setTimeout(writePendingBuffer, BUFFER_WRITE_DELAY_MS)
+    } else {
+      pendingBufferRef.current = snapshot
+    }
+  }, [model, title, language, answers, savedAt, savedVersion, doc.id, writePendingBuffer])
+
+  useEffect(() => {
+    window.addEventListener('pagehide', writePendingBuffer)
+    window.addEventListener('beforeunload', writePendingBuffer)
+    return () => {
+      window.removeEventListener('pagehide', writePendingBuffer)
+      window.removeEventListener('beforeunload', writePendingBuffer)
+      writePendingBuffer()
+    }
+  }, [writePendingBuffer])
 
   // Debounced autosave.
   useEffect(() => {

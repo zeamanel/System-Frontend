@@ -561,8 +561,10 @@ export function EditorWorkspace({
   )
 
   // ---- EditorApi: block DOM events → model ops ----
-  const api = useMemo<EditorApi>(
-    () => ({
+  // Rebuilt every render (it closes over the current model), but blocks get one
+  // stable object that forwards to the latest version, so a keystroke in one
+  // block does not re-render the others (BlockView is memoised).
+  const apiImpl: EditorApi = ({
       // Typing in one place is one undo step until a pause (see useDocumentEditor).
       updateText: (blockId, html) =>
         updateModel(
@@ -611,16 +613,24 @@ export function EditorWorkspace({
         }
       },
       setActiveRef,
+    })
+  const apiImplRef = useRef(apiImpl)
+  apiImplRef.current = apiImpl
+  const api = useMemo<EditorApi>(
+    () => ({
+      updateText: (...args) => apiImplRef.current.updateText(...args),
+      updateSecondaryText: (...args) => apiImplRef.current.updateSecondaryText(...args),
+      updateListItem: (...args) => apiImplRef.current.updateListItem(...args),
+      updateTableCell: (...args) => apiImplRef.current.updateTableCell(...args),
+      updateSignatureField: (...args) => apiImplRef.current.updateSignatureField(...args),
+      splitBlock: (...args) => apiImplRef.current.splitBlock(...args),
+      splitListItem: (...args) => apiImplRef.current.splitListItem(...args),
+      backspaceAtStart: (...args) => apiImplRef.current.backspaceAtStart(...args),
+      focusNeighbour: (...args) => apiImplRef.current.focusNeighbour(...args),
+      indentAt: (...args) => apiImplRef.current.indentAt(...args),
+      setActiveRef: (...args) => apiImplRef.current.setActiveRef(...args),
     }),
-    [
-      applyOp,
-      handleBackspaceAtStart,
-      handleFocusNeighbour,
-      model.blocks,
-      queueFocus,
-      setActiveRef,
-      updateModel,
-    ],
+    [],
   )
 
   const insertAfterActive = useCallback(

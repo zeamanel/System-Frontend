@@ -127,6 +127,11 @@ export function A4PagesCanvas({
     setPages((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next))
   }, [model.blocks, contentHeightPx, zoom])
 
+  // Stable for the memoised blocks: an image that finishes loading re-measures with the latest state.
+  const measureRef = useRef(measureAndPaginate)
+  measureRef.current = measureAndPaginate
+  const onImageLoad = useCallback(() => measureRef.current(), [])
+
   // Re-measure whenever content, page geometry or zoom changes.
   useLayoutEffect(() => {
     measureAndPaginate()
@@ -250,7 +255,7 @@ export function A4PagesCanvas({
                     active={editable && block.id === activeBlockId}
                     api={api}
                     labels={blockLabels}
-                    onImageLoad={measureAndPaginate}
+                    onImageLoad={onImageLoad}
                     bilingual={Boolean(model.page.bilingual)}
                   />
                 )
