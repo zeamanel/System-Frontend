@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { askAssistant } from '../../lib/assistant/client'
 import { runDocumentCheck, type DocumentCheckResult } from '../../lib/document-check/check'
-import { applyTextProposal, blockPlainText, insertTextProposal, findPlaceholders, toAssistantBlocks } from '../../lib/assistant/context'
+import {
+  applyTextProposal,
+  blockPlainText,
+  insertTextProposal,
+  findPlaceholders,
+  proposalTargetText,
+  restrictToPage,
+  toAssistantBlocks,
+} from '../../lib/assistant/context'
 import type {
   AssistantMessage,
   AssistantNotes,
+  AssistantProposal,
   AssistantQuestion,
+  AssistantScope,
 } from '../../lib/assistant/types'
+import type { PageSlice } from '../../lib/editor/paginate'
 import type { DocumentModel } from '../../lib/editor/types'
 import type { RevertResult, TrackedChange } from '../../lib/editor/tracked-change'
 import type { FieldSyncEvent } from './useDocumentEditor'
@@ -65,6 +76,10 @@ export interface UseAssistantParams {
   editor: AssistantEditorBinding
   questions: Array<{ id: string; label: string; required?: boolean }>
   selectedBlockId: string | null
+  /** What a message works on; 'block' needs a selected block, 'page' the page from `getPage`. */
+  scope: AssistantScope
+  /** The page with the cursor, as the canvas laid it out (null when unknown). */
+  getPage?: () => readonly PageSlice[] | null
   /** Called for outcomes the user should notice even with the panel closed. */
   onNotice?: (text: string) => void
   labels: {
@@ -80,6 +95,8 @@ export function useAssistant({
   editor,
   questions,
   selectedBlockId,
+  scope,
+  getPage,
   onNotice,
   labels,
 }: UseAssistantParams) {
@@ -182,14 +199,24 @@ export function useAssistant({
       abortRef.current = controller
 
       const { model, answers } = editorRef.current
-      const blocks = toAssistantBlocks(model)
+      let blocks = toAssistantBlocks(model)
+      let scopeBlockIds: string[] | undefined
+      let sentScope: AssistantScope = scope === 'block' && !selectedBlockId ? 'document' : scope
+      if (sentScope === 'page') {
+        const page = getPage?.()
+        if (page?.length) ({ blocks, scopeBlockIds } = restrictToPage(blocks, model, page))
+        else sentScope = 'document'
+      }
       const textById = new Map(blocks.map((b) => [b.id, b.text]))
+      for (const block of blocks) for (const part of block.parts ?? []) textById.set(`${block.id}/${part.id}`, part.text)
       try {
         const reply = await askAssistant(
           {
             documentId,
             message,
             selectedBlockId: selectedBlockId ?? undefined,
+            scope: sentScope,
+            ...(scopeBlockIds ? { scopeBlockIds } : {}),
             blocks,
             answers,
             history,
@@ -209,7 +236,7 @@ export function useAssistant({
             return {
               ...p,
               kind,
-              baseText: kind === 'insert' ? '' : (textById.get(p.blockId) ?? ''),
+              baseText: kind === 'insert' ? '' : (textById.get(p.partId ? `${p.blockId}/${p.partId}` : p.blockId) ?? ''),
               status: 'pending' as const,
             }
           }),
@@ -224,8 +251,25 @@ export function useAssistant({
         setSending(false)
       }
     },
-    [append, documentId, labels.requestFailed, messages, notice, questions, selectedBlockId, sending],
+    [append, documentId, getPage, labels.requestFailed, messages, notice, questions, scope, selectedBlockId, sending],
   )
+
+  /** Applies one proposal as its own tracked change; null when its paragraph (or anchor) is gone. */
+  const applyProposal = useCallback((proposal: AssistantProposal) => {
+    const blocks = editorRef.current.model.blocks
+    if (proposal.kind === 'insert') {
+      const after = proposal.afterBlockId ?? ''
+      if (after && !blocks.some((b) => b.id === after)) return null
+    } else if (proposalTargetText(editorRef.current.model, proposal.blockId, proposal.partId) === null) {
+      return null
+    }
+    const change = editorRef.current.applyTrackedChange((current) =>
+      proposal.kind === 'insert'
+        ? insertTextProposal(current, proposal.afterBlockId ?? '', proposal.newText)
+        : applyTextProposal(current, proposal.blockId, proposal.newText, proposal.partId),
+    )
+    return { change: change ?? undefined, appliedAt: Date.now() }
+  }, [])
 
   const acceptProposal = useCallback(
     (messageId: string, index: number): void => {
@@ -233,37 +277,62 @@ export function useAssistant({
       if (!message || message.kind !== 'reply') return
       const proposal = message.proposals[index]
       if (!proposal || proposal.status !== 'pending') return
-      const blocks = editorRef.current.model.blocks
-      if (proposal.kind === 'insert') {
-        const after = proposal.afterBlockId ?? ''
-        if (after && !blocks.some((b) => b.id === after)) {
-          notice(labels.blockGone, 'error')
-          return
-        }
-      } else {
-        const target = blocks.find((b) => b.id === proposal.blockId)
-        if (!target || (target.type !== 'paragraph' && target.type !== 'heading')) {
-          notice(labels.blockGone, 'error')
-          return
-        }
+      const applied = applyProposal(proposal)
+      if (!applied) {
+        notice(labels.blockGone, 'error')
+        return
       }
-      const change = editorRef.current.applyTrackedChange((current) =>
-        proposal.kind === 'insert'
-          ? insertTextProposal(current, proposal.afterBlockId ?? '', proposal.newText)
-          : applyTextProposal(current, proposal.blockId, proposal.newText),
+      update(messageId, (m) =>
+        m.kind !== 'reply'
+          ? m
+          : { ...m, proposals: m.proposals.map((p, i) => (i === index ? { ...p, status: 'accepted', ...applied } : p)) },
       )
+    },
+    [applyProposal, labels.blockGone, messages, notice, update],
+  )
+
+  /**
+   * Accept every pending proposal of a reply. Each is its own change (Undo on
+   * its card, Ctrl+Z one at a time). Proposals for text edited since, or gone,
+   * stay pending for the user to decide one by one.
+   */
+  const acceptAllProposals = useCallback(
+    (messageId: string): number => {
+      const message = messages.find((m) => m.id === messageId)
+      if (!message || message.kind !== 'reply') return 0
+      const model = editorRef.current.model
+      const ready = message.proposals
+        .map((proposal, index) => ({ proposal, index }))
+        .filter(({ proposal }) => {
+          if (proposal.status !== 'pending') return false
+          if (proposal.kind === 'insert') return true
+          return proposalTargetText(model, proposal.blockId, proposal.partId) === proposal.baseText
+        })
+      // Replacements first, then new clauses back to front, so several after one block keep their order.
+      const order = [
+        ...ready.filter(({ proposal }) => proposal.kind !== 'insert'),
+        ...ready.filter(({ proposal }) => proposal.kind === 'insert').reverse(),
+      ]
+      const results = new Map<number, NonNullable<ReturnType<typeof applyProposal>>>()
+      for (const { proposal, index } of order) {
+        const applied = applyProposal(proposal)
+        if (applied) results.set(index, applied)
+      }
+      if (results.size === 0) return 0
       update(messageId, (m) =>
         m.kind !== 'reply'
           ? m
           : {
               ...m,
-              proposals: m.proposals.map((p, i) =>
-                i === index ? { ...p, status: 'accepted', change: change ?? undefined, appliedAt: Date.now() } : p,
-              ),
+              proposals: m.proposals.map((p, i) => {
+                const applied = results.get(i)
+                return applied ? { ...p, status: 'accepted', ...applied } : p
+              }),
             },
       )
+      return results.size
     },
-    [labels.blockGone, messages, notice, update],
+    [applyProposal, messages, update],
   )
 
   const rejectProposal = useCallback(
@@ -272,6 +341,17 @@ export function useAssistant({
         m.kind !== 'reply'
           ? m
           : { ...m, proposals: m.proposals.map((p, i) => (i === index ? { ...p, status: 'rejected' } : p)) },
+      )
+    },
+    [update],
+  )
+
+  const rejectAllProposals = useCallback(
+    (messageId: string): void => {
+      update(messageId, (m) =>
+        m.kind !== 'reply'
+          ? m
+          : { ...m, proposals: m.proposals.map((p) => (p.status === 'pending' ? { ...p, status: 'rejected' } : p)) },
       )
     },
     [update],
@@ -394,7 +474,9 @@ export function useAssistant({
     postGenerationNotes,
     postFieldSync,
     acceptProposal,
+    acceptAllProposals,
     rejectProposal,
+    rejectAllProposals,
     undoProposal,
     undoFieldSync,
     answerQuestion,
@@ -407,6 +489,13 @@ export function useAssistant({
       const block = editorRef.current.model.blocks.find((b) => b.id === blockId)
       return block ? blockPlainText(block) : null
     },
+    /** Current text of what a replace proposal rewrites (a paragraph, list item or cell); null when gone. */
+    currentTargetText: (blockId: string, partId?: string): string | null =>
+      proposalTargetText(editorRef.current.model, blockId, partId),
+    blockType: (blockId: string): string | null =>
+      editorRef.current.model.blocks.find((b) => b.id === blockId)?.type ?? null,
+    /** An informational line in the thread. */
+    postNotice: (text: string): void => notice(text),
   }
 }
 

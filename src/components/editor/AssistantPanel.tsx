@@ -9,6 +9,7 @@ import type {
   AssistantOfflineInfo,
   AssistantProposal,
   AssistantQuestion,
+  AssistantScope,
 } from '../../lib/assistant/types'
 import { Button } from '../ui'
 import type { SaveStatus } from './useDocumentEditor'
@@ -17,8 +18,13 @@ import './AssistantPanel.css'
 
 export interface AssistantPanelProps {
   assistant: AssistantController
-  /** Plain text of the selected block, or null for "whole document". */
+  /** Plain text of the selected block, or null when nothing is selected. */
   selectedText: string | null
+  /** What a message works on, and how the user changes it. */
+  scope: AssistantScope
+  onScopeChange: (scope: AssistantScope) => void
+  /** Page with the cursor (1-based), or null when no block is selected. */
+  pageNumber: number | null
   saveStatus: SaveStatus
   lastSavedAt: number | null
   questionLabels: Record<string, string>
@@ -35,6 +41,9 @@ export interface AssistantPanelProps {
 export function AssistantPanel({
   assistant,
   selectedText,
+  scope,
+  onScopeChange,
+  pageNumber,
   saveStatus,
   lastSavedAt,
   questionLabels,
@@ -130,18 +139,70 @@ export function AssistantPanel({
         <button
           type="button"
           className="assistant-chip"
-          disabled={assistant.sending || !selectedText}
-          onClick={() => submit(t('assistant.quick.improvePrompt'))}
+          disabled={assistant.sending}
+          onClick={() =>
+            submit(
+              t(
+                scope === 'block'
+                  ? 'assistant.quick.improvePrompt'
+                  : scope === 'page'
+                    ? 'assistant.quick.improvePromptPage'
+                    : 'assistant.quick.improvePromptDocument',
+              ),
+            )
+          }
+          data-testid="assistant-improve"
         >
           {t('assistant.quick.improve')}
         </button>
       </div>
 
       <form className="assistant-composer" onSubmit={handleSubmit}>
+        <div className="assistant-scope" role="radiogroup" aria-label={t('assistant.scope.label')} data-testid="assistant-scope">
+          <span className="assistant-scope__label">{t('assistant.scope.label')}</span>
+          <ScopeOption
+            label={t('assistant.scope.document')}
+            checked={scope === 'document'}
+            onSelect={() => onScopeChange('document')}
+            testId="assistant-scope-document"
+          />
+          <ScopeOption
+            label={pageNumber !== null ? t('assistant.scope.page', { page: String(pageNumber) }) : t('assistant.scope.pageNone')}
+            checked={scope === 'page'}
+            disabled={pageNumber === null}
+            title={pageNumber === null ? t('assistant.scope.needCursor') : undefined}
+            onSelect={() => onScopeChange('page')}
+            testId="assistant-scope-page"
+          />
+          <ScopeOption
+            label={t('assistant.scope.block')}
+            checked={scope === 'block'}
+            disabled={!selectedText}
+            title={!selectedText ? t('assistant.scope.needCursor') : undefined}
+            onSelect={() => onScopeChange('block')}
+            testId="assistant-scope-block"
+          />
+        </div>
         <p className="assistant-composer__context" data-testid="assistant-context">
-          {selectedText
-            ? t('assistant.contextSelected', { text: truncate(selectedText, 60) })
-            : t('assistant.contextWhole')}
+          <span>
+            {scope === 'block' && selectedText
+              ? t('assistant.contextSelected', { text: truncate(selectedText, 60) })
+              : scope === 'page' && pageNumber !== null
+                ? t('assistant.contextPage', { page: String(pageNumber) })
+                : t('assistant.contextWhole')}
+          </span>
+          {scope !== 'document' ? (
+            <button
+              type="button"
+              className="assistant-composer__clear"
+              onClick={() => onScopeChange('document')}
+              aria-label={t('assistant.scope.clear')}
+              title={t('assistant.scope.clear')}
+              data-testid="assistant-scope-clear"
+            >
+              ×
+            </button>
+          ) : null}
         </p>
         <textarea
           className="assistant-composer__input"
@@ -166,6 +227,39 @@ export function AssistantPanel({
         </Button>
       </form>
     </section>
+  )
+}
+
+function ScopeOption({
+  label,
+  checked,
+  disabled,
+  title,
+  onSelect,
+  testId,
+}: {
+  label: string
+  checked: boolean
+  disabled?: boolean
+  title?: string
+  onSelect: () => void
+  testId: string
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      className={`assistant-scope__option${checked ? ' assistant-scope__option--checked' : ''}`}
+      disabled={disabled}
+      title={title}
+      // Keep the cursor in the document: the page and the selection come from it.
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onSelect}
+      data-testid={testId}
+    >
+      {label}
+    </button>
   )
 }
 
@@ -298,6 +392,17 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
               </Button>
             </div>
           ))}
+          {message.proposals.filter((proposal) => proposal.status === 'pending').length >= 2 ? (
+            <ProposalBulkActions
+              pending={message.proposals.filter((proposal) => proposal.status === 'pending').length}
+              onAcceptAll={() => {
+                const pending = message.proposals.filter((proposal) => proposal.status === 'pending').length
+                const applied = assistant.acceptAllProposals(message.id)
+                if (applied < pending) assistant.postNotice(t('assistant.proposal.leftPending', { count: String(pending - applied) }))
+              }}
+              onRejectAll={() => assistant.rejectAllProposals(message.id)}
+            />
+          ) : null}
           {message.proposals.map((proposal, index) => (
             <ProposalCard
               key={`${message.id}-p-${index}`}
@@ -307,8 +412,9 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
                   ? proposal.afterBlockId
                     ? assistant.currentBlockText(proposal.afterBlockId)
                     : ''
-                  : assistant.currentBlockText(proposal.blockId)
+                  : assistant.currentTargetText(proposal.blockId, proposal.partId)
               }
+              partKind={proposal.partId ? assistant.blockType(proposal.blockId) : null}
               saveStatus={saveStatus}
               lastSavedAt={lastSavedAt}
               onAccept={() => assistant.acceptProposal(message.id, index)}
@@ -469,9 +575,32 @@ function proposalShowTarget(proposal: AssistantProposal): string {
   return proposal.change?.added?.[0] ?? proposal.afterBlockId ?? ''
 }
 
+function ProposalBulkActions({
+  pending,
+  onAcceptAll,
+  onRejectAll,
+}: {
+  pending: number
+  onAcceptAll: () => void
+  onRejectAll: () => void
+}) {
+  const { t } = useI18n()
+  return (
+    <div className="assistant-actions assistant-actions--bulk" data-testid="assistant-bulk">
+      <Button variant="primary" size="sm" onClick={onAcceptAll} data-testid="assistant-accept-all">
+        {t('assistant.proposal.acceptAll', { count: String(pending) })}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onRejectAll} data-testid="assistant-reject-all">
+        {t('assistant.proposal.rejectAll')}
+      </Button>
+    </div>
+  )
+}
+
 function ProposalCard({
   proposal,
   currentText,
+  partKind,
   saveStatus,
   lastSavedAt,
   onAccept,
@@ -481,6 +610,8 @@ function ProposalCard({
 }: {
   proposal: AssistantProposal
   currentText: string | null
+  /** Set when the change rewrites one list item or table cell. */
+  partKind: string | null
   saveStatus: SaveStatus
   lastSavedAt: number | null
   onAccept: () => void
@@ -514,6 +645,11 @@ function ProposalCard({
     <div className={`assistant-proposal assistant-proposal--${proposal.status}`} data-testid="assistant-proposal">
       <p className="assistant-notes__label">{t(isInsert ? 'assistant.proposal.insertTitle' : 'assistant.proposal.title')}</p>
       {proposal.reason ? <p className="assistant-msg__text">{proposal.reason}</p> : null}
+      {partKind === 'list' || partKind === 'table' ? (
+        <p className="assistant-proposal__where" data-testid="assistant-proposal-part">
+          {t(partKind === 'list' ? 'assistant.proposal.inListItem' : 'assistant.proposal.inTableCell')}
+        </p>
+      ) : null}
       {isInsert && currentText !== null ? (
         <p className="assistant-proposal__where" data-testid="assistant-proposal-where">
           {proposal.afterBlockId && currentText

@@ -30,6 +30,8 @@ export interface A4PagesCanvasProps {
   focusRef: { current: EditableRef | null }
   /** Shown over the pages while they cannot be edited (a generation is running). */
   lockedNotice?: string
+  /** Told how blocks are laid out on pages, whenever that changes. */
+  onPagesChange?: (pages: PageSlice[][]) => void
 }
 
 /**
@@ -55,6 +57,7 @@ export function A4PagesCanvas({
   pagesLabel,
   focusRef,
   lockedNotice,
+  onPagesChange,
 }: A4PagesCanvasProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const pagesWrapRef = useRef<HTMLDivElement | null>(null)
@@ -310,6 +313,12 @@ export function A4PagesCanvas({
       document.removeEventListener('selectionchange', onSelectionChange)
     }
   }, [])
+
+  const onPagesChangeRef = useRef(onPagesChange)
+  onPagesChangeRef.current = onPagesChange
+  useEffect(() => {
+    onPagesChangeRef.current?.(pages)
+  }, [pages])
 
   // Restore caret after re-pagination moved the focused block between pages.
   useLayoutEffect(() => {

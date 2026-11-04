@@ -244,4 +244,153 @@ describe('Assistant panel', () => {
     expect(input.message).toBe('Hello')
     expect(input.blocks.some((b) => b.text.includes('Clause one.'))).toBe(true)
   })
+
+  it('works on the selection, the page or the whole document, and × goes back to the whole document', async () => {
+    const { doc, template } = await createRentalDocument('The tenant will pay rent.')
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    const blockId = firstParagraphId()
+    const context = () => screen.getByTestId('assistant-context')
+    const sent = async () => {
+      askAssistantMock.mockResolvedValueOnce({ reply: 'ok', questions: [], proposals: [], fieldUpdates: [] })
+      const calls = askAssistantMock.mock.calls.length
+      fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Hello' } })
+      fireEvent.click(screen.getByTestId('assistant-send'))
+      await waitFor(() => expect(askAssistantMock.mock.calls.length).toBe(calls + 1))
+      await waitFor(() => expect(screen.queryByTestId('assistant-thinking')).toBeNull())
+      return askAssistantMock.mock.calls.at(-1)?.[0] as { scope: string; selectedBlockId?: string; scopeBlockIds?: string[] }
+    }
+
+    // Nothing selected: the whole document; the page and the selection need the cursor.
+    expect(context()).toHaveTextContent('Working on: the whole document')
+    expect(screen.getByTestId('assistant-scope-block')).toBeDisabled()
+    expect(screen.getByTestId('assistant-scope-page')).toBeDisabled()
+    expect((await sent()).scope).toBe('document')
+
+    // Clicking into a paragraph selects it.
+    const outer = document.querySelector<HTMLElement>(`[data-block-id="${blockId}"]`)
+    const surface = outer?.querySelector<HTMLElement>('[data-block-id]') ?? outer
+    surface?.focus()
+    await waitFor(() => expect(context()).toHaveTextContent('Working on: “The tenant will pay rent.”'))
+    expect(screen.getByTestId('assistant-scope-block')).toHaveAttribute('aria-checked', 'true')
+    expect(await sent()).toMatchObject({ scope: 'block', selectedBlockId: blockId })
+
+    // × goes back to the whole document, and stays there while the cursor is in the page.
+    fireEvent.click(screen.getByTestId('assistant-scope-clear'))
+    expect(context()).toHaveTextContent('Working on: the whole document')
+    expect(screen.queryByTestId('assistant-scope-clear')).toBeNull()
+    expect((await sent()).scope).toBe('document')
+
+    // The page with the cursor.
+    fireEvent.click(screen.getByTestId('assistant-scope-page'))
+    expect(screen.getByTestId('assistant-scope-page')).toHaveTextContent('Page 1')
+    expect(context()).toHaveTextContent('Working on: page 1 only')
+    const page = await sent()
+    expect(page.scope).toBe('page')
+    expect(page.scopeBlockIds).toContain(blockId)
+
+    fireEvent.click(screen.getByTestId('assistant-scope-block'))
+    expect(context()).toHaveTextContent('Working on: “The tenant will pay rent.”')
+  })
+
+  it('changes list items and description cells, and Apply all applies every change', async () => {
+    const content = JSON.stringify({
+      blocks: [
+        { type: 'paragraph', text: 'The tenant will pay rent.' },
+        { type: 'list', ordered: false, items: ['Keep the house clean', 'Pay the bills'] },
+        { type: 'table', headers: ['Item', 'Price'], rows: [['Desk', '5,000']] },
+      ],
+    })
+    const { doc, template } = await createRentalDocument(content)
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    askAssistantMock.mockResolvedValueOnce({ reply: 'ok', questions: [], proposals: [], fieldUpdates: [] })
+    fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Make it formal' } })
+    fireEvent.click(screen.getByTestId('assistant-send'))
+    await screen.findByTestId('assistant-reply')
+
+    type Sent = { blocks: Array<{ id: string; type: string; parts?: Array<{ id: string; text: string }> }> }
+    const { blocks } = askAssistantMock.mock.calls.at(-1)?.[0] as Sent
+    const paragraph = blocks.find((b) => b.type === 'paragraph')
+    const list = blocks.find((b) => b.type === 'list')
+    const table = blocks.find((b) => b.type === 'table')
+    expect(list?.parts?.map((p) => p.text)).toEqual(['Keep the house clean', 'Pay the bills'])
+    // Amounts are never offered.
+    expect(table?.parts?.map((p) => p.text)).toEqual(['Item', 'Price', 'Desk'])
+    if (!paragraph || !list?.parts || !table?.parts) throw new Error('missing blocks')
+
+    askAssistantMock.mockResolvedValueOnce({
+      reply: 'I made the whole document formal.',
+      questions: [],
+      proposals: [
+        { blockId: paragraph.id, newText: 'The Tenant shall pay the rent.', reason: 'Formal.' },
+        { blockId: list.id, partId: list.parts[0].id, newText: 'Keep the premises clean', reason: 'Formal.' },
+        { blockId: table.id, partId: table.parts[2].id, newText: 'Office desk', reason: 'Clearer.' },
+      ],
+      fieldUpdates: [],
+    } satisfies AssistantReply)
+    fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Make the whole document formal' } })
+    fireEvent.click(screen.getByTestId('assistant-send'))
+
+    const bulk = await screen.findByTestId('assistant-bulk')
+    expect(within(bulk).getByTestId('assistant-accept-all')).toHaveTextContent('Apply all (3)')
+    const cards = screen.getAllByTestId('assistant-proposal')
+    expect(within(cards[1]).getByTestId('assistant-proposal-part')).toHaveTextContent('In a list item')
+    expect(within(cards[2]).getByTestId('assistant-proposal-part')).toHaveTextContent('In a table cell')
+
+    fireEvent.click(within(bulk).getByTestId('assistant-accept-all'))
+    await waitFor(() => expect(document.querySelector(`[data-block-id="${paragraph.id}"]`)).toHaveTextContent('The Tenant shall pay the rent.'))
+    const listEl = document.querySelector(`[data-block-id="${list.id}"]`)
+    expect(listEl).toHaveTextContent('Keep the premises clean')
+    expect(listEl).toHaveTextContent('Pay the bills')
+    const tableEl = document.querySelector(`[data-block-id="${table.id}"]`)
+    expect(tableEl).toHaveTextContent('Office desk')
+    expect(tableEl).toHaveTextContent('5,000')
+    expect(screen.queryByTestId('assistant-bulk')).toBeNull()
+    expect(screen.getAllByTestId('assistant-proposal-undo')).toHaveLength(3)
+
+    // Each change still undoes on its own.
+    fireEvent.click(within(screen.getAllByTestId('assistant-proposal')[1]).getByTestId('assistant-proposal-undo'))
+    await waitFor(() => expect(document.querySelector(`[data-block-id="${list.id}"]`)).toHaveTextContent('Keep the house clean'))
+    expect(document.querySelector(`[data-block-id="${paragraph.id}"]`)).toHaveTextContent('The Tenant shall pay the rent.')
+  })
+
+  it('Apply all leaves changes to edited text for the user, and Dismiss all dismisses the rest', async () => {
+    const content = JSON.stringify({ blocks: [{ type: 'paragraph', text: 'First clause.' }, { type: 'paragraph', text: 'Second clause.' }] })
+    const { doc, template } = await createRentalDocument(content)
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    const ids = [...document.querySelectorAll('[data-block-id]')]
+      .filter((el) => !el.parentElement?.closest('[data-block-id]'))
+      .map((el) => el.getAttribute('data-block-id') ?? '')
+    askAssistantMock.mockResolvedValueOnce({
+      reply: 'ok',
+      questions: [],
+      proposals: [
+        { blockId: ids[0], newText: 'First clause, rewritten.', reason: 'r' },
+        { blockId: ids[1], newText: 'Second clause, rewritten.', reason: 'r' },
+      ],
+      fieldUpdates: [],
+    } satisfies AssistantReply)
+    fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Rewrite' } })
+    fireEvent.click(screen.getByTestId('assistant-send'))
+    await screen.findByTestId('assistant-bulk')
+
+    // The user edits the second paragraph before accepting.
+    const outer = document.querySelector<HTMLElement>(`[data-block-id="${ids[1]}"]`)
+    const surface = outer?.querySelector<HTMLElement>('[data-block-id]') ?? outer
+    if (!surface) throw new Error('no surface')
+    surface.focus()
+    fireEvent.input(surface, { target: { innerHTML: 'Second clause, edited by me.' } })
+
+    fireEvent.click(screen.getByTestId('assistant-accept-all'))
+    await waitFor(() => expect(document.querySelector(`[data-block-id="${ids[0]}"]`)).toHaveTextContent('First clause, rewritten.'))
+    expect(document.querySelector(`[data-block-id="${ids[1]}"]`)).toHaveTextContent('Second clause, edited by me.')
+    expect(screen.getByTestId('assistant-thread')).toHaveTextContent('1 change(s) were not applied')
+
+    const second = screen.getAllByTestId('assistant-proposal')[1]
+    expect(within(second).getByTestId('assistant-proposal-accept')).toHaveTextContent(/apply anyway/i)
+    fireEvent.click(within(second).getByText('Dismiss'))
+    expect(second).toHaveTextContent(/dismissed/i)
+  })
 })

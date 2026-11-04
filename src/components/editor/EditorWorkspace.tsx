@@ -82,7 +82,9 @@ import { useAssistant } from './useAssistant'
 import { useIssueText } from './check-issue-text'
 import type { DocumentCheckResult } from '../../lib/document-check/check'
 import { consumePendingNotes } from '../../lib/assistant/pending-notes'
-import { blockPlainText } from '../../lib/assistant/context'
+import { blockPlainText, pageIndexOf } from '../../lib/assistant/context'
+import type { AssistantScope } from '../../lib/assistant/types'
+import type { PageSlice } from '../../lib/editor/paginate'
 import { COMPACT_LAYOUT_QUERY, useMediaQuery } from '../../hooks/use-media-query'
 import { ChatIcon, DocumentIcon, PanelLeftIcon, SlidersIcon, XIcon } from '../icons'
 import './editor.css'
@@ -298,11 +300,28 @@ export function EditorWorkspace({
     () => Object.fromEntries(assistantQuestions.map((q) => [q.id, q.label])),
     [assistantQuestions],
   )
+  // What the assistant works on. It follows the selection ("this block") until the user picks
+  // the whole document or the page, which then sticks until they pick the selection again.
+  const [pages, setPages] = useState<PageSlice[][]>([])
+  const [pinnedScope, setPinnedScope] = useState<'document' | 'page' | null>(null)
+  const cursorPage = useMemo(
+    () => (activeRef ? pageIndexOf(pages, model, activeRef) : -1),
+    [activeRef, model, pages],
+  )
+  const assistantScope: AssistantScope =
+    pinnedScope === 'page' ? (cursorPage >= 0 ? 'page' : 'document') : (pinnedScope ?? (activeBlock ? 'block' : 'document'))
+  const handleScopeChange = useCallback((scope: AssistantScope): void => {
+    setPinnedScope(scope === 'block' ? null : scope)
+  }, [])
+  const getCursorPage = useCallback(() => (cursorPage >= 0 ? (pages[cursorPage] ?? null) : null), [cursorPage, pages])
+
   const assistant = useAssistant({
     documentId: doc.id,
     editor,
     questions: assistantQuestions,
     selectedBlockId: activeRef?.blockId ?? null,
+    scope: assistantScope,
+    getPage: getCursorPage,
     onNotice: (text) => toast.push(text),
     labels: {
       blockGone: t('assistant.blockGone'),
@@ -1279,6 +1298,7 @@ export function EditorWorkspace({
           count === 1 ? t('editor.pagesCountOne') : t('editor.pagesCount', { count: String(count) })
         }
         focusRef={focusRef}
+        onPagesChange={setPages}
       />
 
       <aside className="editor-side editor-side--right" aria-hidden={!rightOpen}>
@@ -1327,6 +1347,9 @@ export function EditorWorkspace({
             <AssistantPanel
               assistant={assistant}
               selectedText={selectedText}
+              scope={assistantScope}
+              onScopeChange={handleScopeChange}
+              pageNumber={cursorPage >= 0 ? cursorPage + 1 : null}
               saveStatus={editor.status}
               lastSavedAt={editor.lastSavedAt}
               questionLabels={questionLabels}
