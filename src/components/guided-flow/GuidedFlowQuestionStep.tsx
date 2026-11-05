@@ -5,6 +5,8 @@ import { SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
 import type { TemplateQuestion } from '../../lib/repositories'
 import { ArrowLeftIcon, ArrowRightIcon } from '../icons'
+import { QuestionSelect } from './QuestionSelect'
+import { isSelectQuestion } from './select-question'
 import {
   Badge,
   Button,
@@ -75,7 +77,14 @@ export function GuidedFlowQuestionStep({
 
       <CardBody>
         <div style={{ marginTop: 'var(--space-4)' }}>
-          {isMultiline ? (
+          {isSelectQuestion(question) ? (
+            <QuestionSelect
+              question={question}
+              value={answer}
+              error={fieldError || undefined}
+              onChange={onAnswerChange}
+            />
+          ) : isMultiline ? (
             <Textarea
               value={answer}
               onChange={(e) => onAnswerChange(e.target.value)}

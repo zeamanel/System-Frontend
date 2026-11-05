@@ -7,6 +7,8 @@ import { RecentAnswerChips } from '../saved-answers'
 import type { TemplateQuestion } from '../../lib/repositories'
 import { SparkIcon } from '../icons'
 import { Badge, Button, Card, CardBody, CardTitle, Input, Textarea } from '../ui'
+import { QuestionSelect } from './QuestionSelect'
+import { isSelectQuestion } from './select-question'
 
 export interface GuidedFlowQuickFillStepProps {
   questions: TemplateQuestion[]
@@ -70,7 +72,23 @@ export function GuidedFlowQuickFillStep({
             )
             return (
               <div key={question.id} className="guided-flow__quickfill-field">
-                {isMultilineQuestion(question) ? (
+                {isSelectQuestion(question) ? (
+                  <QuestionSelect
+                    id={`quickfill-${question.id}`}
+                    question={question}
+                    label={
+                      <>
+                        {question.label}
+                        {question.required ? (
+                          <Badge variant="neutral">{t('flow.required')}</Badge>
+                        ) : null}
+                      </>
+                    }
+                    value={value}
+                    error={invalid[question.id] ? t('flow.required') : undefined}
+                    onChange={(next) => onAnswerChange(question.id, next)}
+                  />
+                ) : isMultilineQuestion(question) ? (
                   <Textarea
                     id={`quickfill-${question.id}`}
                     rows={3}

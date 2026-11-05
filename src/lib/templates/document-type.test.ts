@@ -16,6 +16,10 @@ describe('matchesDocumentKind', () => {
     expect(matchesDocumentKind('trade_license_renewal', 'application')).toBe(true)
     expect(matchesDocumentKind('work_experience_certificate', 'certificate')).toBe(true)
     expect(matchesDocumentKind('cv_resume', 'cv')).toBe(true)
+    expect(matchesDocumentKind('periodic_performance_report', 'report')).toBe(true)
+    expect(matchesDocumentKind('court_caseflow_performance_report', 'report')).toBe(true)
+    expect(matchesDocumentKind('annual_action_and_budget_plan', 'plan')).toBe(true)
+    expect(matchesDocumentKind('performance_feedback_letter', 'letter')).toBe(true)
   })
 
   it('keeps kinds apart, and an exact type always matches', () => {
