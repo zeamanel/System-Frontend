@@ -958,5 +958,10 @@
   "assistant.proposal.rejectAll": "Dismiss all",
   "assistant.proposal.leftPending": "{count} change(s) were not applied because that text was edited or removed after the suggestion. Check them one by one below.",
   "assistant.proposal.inListItem": "In a list item",
-  "assistant.proposal.inTableCell": "In a table cell"
+  "assistant.proposal.inTableCell": "In a table cell",
+  "editor.askAi": "Ask AI",
+  "editor.askAiTitle": "Ask the assistant to rewrite or explain this part",
+  "editor.tipBlocks": "Tip: click any paragraph to edit it directly. Press ✦ Ask AI next to it to have the assistant rewrite it.",
+  "editor.tipDismiss": "Got it",
+  "editor.askAiShort": "AI"
 }

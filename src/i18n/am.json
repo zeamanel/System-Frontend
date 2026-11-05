@@ -958,5 +958,10 @@
   "assistant.proposal.rejectAll": "ሁሉንም ተው",
   "assistant.proposal.leftPending": "{count} ለውጥ(ዎች) አልተተገበሩም፣ ምክንያቱም ጽሑፉ ከአስተያየቱ በኋላ ተስተካክሏል ወይም ተሰርዟል። ከታች አንድ በአንድ ይመልከቷቸው።",
   "assistant.proposal.inListItem": "በዝርዝር ንጥል ውስጥ",
-  "assistant.proposal.inTableCell": "በሰንጠረዥ ሕዋስ ውስጥ"
+  "assistant.proposal.inTableCell": "በሰንጠረዥ ሕዋስ ውስጥ",
+  "editor.askAi": "AI ጠይቅ",
+  "editor.askAiTitle": "ረዳቱ ይህን ክፍል እንዲያሻሽል ወይም እንዲያብራራ ይጠይቁ",
+  "editor.tipBlocks": "ጠቃሚ ምክር፦ ማንኛውንም አንቀጽ ጠቅ አድርገው በቀጥታ ያስተካክሉት። ረዳቱ እንዲያሻሽለው ከጎኑ ያለውን ✦ AI ጠይቅ ይጫኑ።",
+  "editor.tipDismiss": "ገባኝ",
+  "editor.askAiShort": "AI"
 }
