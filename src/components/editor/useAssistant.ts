@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { askAssistant } from '../../lib/assistant/client'
+import { askAssistant, type AssistantPartial } from '../../lib/assistant/client'
 import { runDocumentCheck, type DocumentCheckResult } from '../../lib/document-check/check'
 import {
   applyTextProposal,
@@ -15,6 +15,7 @@ import type {
   AssistantNotes,
   AssistantProposal,
   AssistantQuestion,
+  AssistantReply,
   AssistantScope,
 } from '../../lib/assistant/types'
 import type { PageSlice } from '../../lib/editor/paginate'
@@ -46,7 +47,13 @@ function readThread(documentId: string): AssistantMessage[] {
   try {
     const raw = globalThis.sessionStorage?.getItem(THREAD_PREFIX + documentId)
     const parsed = raw ? (JSON.parse(raw) as unknown) : null
-    return Array.isArray(parsed) ? (parsed as AssistantMessage[]) : []
+    if (!Array.isArray(parsed)) return []
+    // A reply that was still streaming when the page went away: keep what arrived, or drop it.
+    return (parsed as AssistantMessage[]).flatMap((m) => {
+      if (m.kind !== 'reply' || !m.streaming) return [m]
+      if (!m.text && m.proposals.length === 0) return []
+      return [{ ...m, streaming: false }]
+    })
   } catch {
     return []
   }
@@ -209,6 +216,39 @@ export function useAssistant({
       }
       const textById = new Map(blocks.map((b) => [b.id, b.text]))
       for (const block of blocks) for (const part of block.parts ?? []) textById.set(`${block.id}/${part.id}`, part.text)
+      const toProposals = (list: AssistantReply['proposals']): AssistantProposal[] =>
+        list.map((p) => {
+          const kind = p.kind === 'insert' ? ('insert' as const) : ('replace' as const)
+          return {
+            ...p,
+            kind,
+            baseText: kind === 'insert' ? '' : (textById.get(p.partId ? `${p.blockId}/${p.partId}` : p.blockId) ?? ''),
+            status: 'pending' as const,
+          }
+        })
+      // The answer streams into one reply message: it appears with the first words and
+      // fills in (reply text, then proposals) until the final answer replaces it.
+      const replyId = newMessageId()
+      let placed = false
+      const onPartial = (partial: AssistantPartial): void => {
+        const message: AssistantMessage = {
+          id: replyId,
+          createdAt: Date.now(),
+          role: 'assistant',
+          kind: 'reply',
+          text: partial.reply,
+          questions: [],
+          proposals: toProposals(partial.proposals),
+          fieldUpdates: [],
+          streaming: true,
+        }
+        if (placed) {
+          update(replyId, () => message)
+        } else {
+          placed = true
+          append(message)
+        }
+      }
       try {
         const reply = await askAssistant(
           {
@@ -222,28 +262,23 @@ export function useAssistant({
             history,
             allowInsert: true,
           },
-          { model, questions, signal: controller.signal },
+          { model, questions, signal: controller.signal, onPartial },
         )
-        append({
-          id: newMessageId(),
+        const final: AssistantMessage = {
+          id: replyId,
           createdAt: Date.now(),
           role: 'assistant',
           kind: 'reply',
           text: reply.reply,
           questions: reply.questions,
-          proposals: reply.proposals.map((p) => {
-            const kind = p.kind === 'insert' ? ('insert' as const) : ('replace' as const)
-            return {
-              ...p,
-              kind,
-              baseText: kind === 'insert' ? '' : (textById.get(p.partId ? `${p.blockId}/${p.partId}` : p.blockId) ?? ''),
-              status: 'pending' as const,
-            }
-          }),
+          proposals: toProposals(reply.proposals),
           fieldUpdates: reply.fieldUpdates,
           offline: reply.offline,
-        })
+        }
+        if (placed) update(replyId, () => final)
+        else append(final)
       } catch (error) {
+        if (placed) setMessages((current) => current.filter((m) => m.id !== replyId))
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           notice(labels.requestFailed, 'error')
         }
@@ -251,7 +286,7 @@ export function useAssistant({
         setSending(false)
       }
     },
-    [append, documentId, getPage, labels.requestFailed, messages, notice, questions, scope, selectedBlockId, sending],
+    [append, documentId, getPage, labels.requestFailed, messages, notice, questions, scope, selectedBlockId, sending, update],
   )
 
   /** Applies one proposal as its own tracked change; null when its paragraph (or anchor) is gone. */

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { RateLimitError } from '../api'
 import { createEmptyDocument, createParagraph } from '../editor/model'
 import { diffBlocks } from '../editor/tracked-change'
@@ -121,6 +121,79 @@ describe('askAssistant', () => {
     })
     expect(network.offline?.reason).toBe('unavailable')
     expect(localDocumentCheck(model, questions, { tenant: 'Abebe' }, 'demo').emptyRequired).toEqual([])
+  })
+
+  /** A streamed answer, delivered in chunks that cut lines in odd places. */
+  function streamed(lines: unknown[], { cut = 7, contentType = 'application/x-ndjson' } = {}): Response {
+    const text = lines.map((line) => JSON.stringify(line)).join('\n') + '\n'
+    const bytes = new TextEncoder().encode(text)
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let i = 0; i < bytes.length; i += cut) controller.enqueue(bytes.slice(i, i + cut))
+        controller.close()
+      },
+    })
+    return new Response(body, { headers: { 'content-type': contentType } })
+  }
+
+  const proposal = { kind: 'replace' as const, blockId: 'b1', newText: 'Rent is 5000 birr.', reason: 'Filled in.' }
+
+  it('streams: the reply and proposals as they arrive, then the final answer', async () => {
+    const seen: Array<{ reply: string; proposals: number }> = []
+    let options: unknown
+    const reply = await askAssistant(input, {
+      model,
+      questions,
+      onPartial: (partial) => seen.push({ reply: partial.reply, proposals: partial.proposals.length }),
+      client: {
+        post: <T,>(_path: string, _body?: unknown, opts?: unknown) => {
+          options = opts
+          return Promise.resolve(
+            streamed([
+              { type: 'reply', text: 'I filled' },
+              { type: 'reply', text: 'I filled in the rent.' },
+              { type: 'proposal', proposal },
+              { type: 'done', response: { reply: 'I filled in the rent.', questions: [], proposals: [proposal], fieldUpdates: [] } },
+            ]) as T,
+          )
+        },
+      },
+    })
+    expect(options).toMatchObject({ responseType: 'response', headers: { Accept: 'application/x-ndjson, application/json' } })
+    expect(seen).toEqual([
+      { reply: 'I filled', proposals: 0 },
+      { reply: 'I filled in the rent.', proposals: 0 },
+      { reply: 'I filled in the rent.', proposals: 1 },
+    ])
+    expect(reply.reply).toBe('I filled in the rent.')
+    expect(reply.proposals).toEqual([proposal])
+  })
+
+  it('works with a backend that answers with plain JSON', async () => {
+    const onPartial = vi.fn()
+    const json = new Response(JSON.stringify({ reply: 'Plain.', questions: [], proposals: [], fieldUpdates: [] }), {
+      headers: { 'content-type': 'application/json' },
+    })
+    const reply = await askAssistant(input, { model, questions, onPartial, client: { post: <T,>() => Promise.resolve(json as T) } })
+    expect(reply.reply).toBe('Plain.')
+    expect(onPartial).not.toHaveBeenCalled()
+  })
+
+  it('an error line or a cut-off stream ends in the honest offline reply', async () => {
+    const failed = await askAssistant(input, {
+      model,
+      questions,
+      onPartial: () => undefined,
+      client: { post: <T,>() => Promise.resolve(streamed([{ type: 'reply', text: 'Hal' }, { type: 'error', code: 'SERVICE_UNAVAILABLE', message: 'x' }]) as T) },
+    })
+    expect(failed.offline?.reason).toBe('unavailable')
+    const cut = await askAssistant(input, {
+      model,
+      questions,
+      onPartial: () => undefined,
+      client: { post: <T,>() => Promise.resolve(streamed([{ type: 'reply', text: 'Hal' }]) as T) },
+    })
+    expect(cut.offline?.reason).toBe('unavailable')
   })
 })
 

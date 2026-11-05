@@ -108,7 +108,7 @@ export function AssistantPanel({
             />
           </li>
         ))}
-        {assistant.sending ? (
+        {assistant.sending && !assistant.messages.some((m) => m.kind === 'reply' && m.streaming) ? (
           <li className="assistant-msg assistant-msg--assistant assistant-msg--pending" data-testid="assistant-thinking">
             {t('assistant.sending')}
           </li>
@@ -374,7 +374,12 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
       return (
         <div className="assistant-reply" data-testid="assistant-reply">
           {message.offline ? <OfflineView info={message.offline} onShowBlock={onShowBlock} /> : null}
-          {message.text ? <p className="assistant-msg__text">{message.text}</p> : null}
+          {message.text || message.streaming ? (
+            <p className="assistant-msg__text" data-testid={message.streaming ? 'assistant-streaming' : undefined}>
+              {message.text}
+              {message.streaming ? <span className="assistant-msg__caret" aria-hidden="true" /> : null}
+            </p>
+          ) : null}
           {message.questions.length > 0 && !message.offline ? (
             <ul className="assistant-questions">
               {message.questions.map((question, index) => (
@@ -398,7 +403,7 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
               </Button>
             </div>
           ))}
-          {message.proposals.filter((proposal) => proposal.status === 'pending').length >= 2 ? (
+          {!message.streaming && message.proposals.filter((proposal) => proposal.status === 'pending').length >= 2 ? (
             <ProposalBulkActions
               pending={message.proposals.filter((proposal) => proposal.status === 'pending').length}
               onAcceptAll={() => {
@@ -421,6 +426,7 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
                   : assistant.currentTargetText(proposal.blockId, proposal.partId)
               }
               partKind={proposal.partId ? assistant.blockType(proposal.blockId) : null}
+              waiting={Boolean(message.streaming)}
               saveStatus={saveStatus}
               lastSavedAt={lastSavedAt}
               onAccept={() => assistant.acceptProposal(message.id, index)}
@@ -607,6 +613,7 @@ function ProposalCard({
   proposal,
   currentText,
   partKind,
+  waiting = false,
   saveStatus,
   lastSavedAt,
   onAccept,
@@ -618,6 +625,8 @@ function ProposalCard({
   currentText: string | null
   /** Set when the change rewrites one list item or table cell. */
   partKind: string | null
+  /** The answer is still arriving: the change can be read but not applied yet. */
+  waiting?: boolean
   saveStatus: SaveStatus
   lastSavedAt: number | null
   onAccept: () => void
@@ -692,13 +701,14 @@ function ProposalCard({
             <Button
               variant="primary"
               size="sm"
-              disabled={currentText === null}
+              disabled={currentText === null || waiting}
+              title={waiting ? t('assistant.proposal.waiting') : undefined}
               onClick={onAccept}
               data-testid="assistant-proposal-accept"
             >
               {stale ? t('assistant.proposal.applyAnyway') : t('assistant.proposal.accept')}
             </Button>
-            <Button variant="ghost" size="sm" onClick={onReject}>
+            <Button variant="ghost" size="sm" disabled={waiting} onClick={onReject}>
               {t('assistant.proposal.reject')}
             </Button>
           </>

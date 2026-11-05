@@ -963,5 +963,6 @@
   "editor.askAiTitle": "Gargaaraan kutaa kana akka fooyyessu ykn ibsu gaafadhu",
   "editor.tipBlocks": "Gorsa: keeyyata kamiyyuu tuqiitii kallattiin gulaali. Akka gargaaraan isa fooyyessuuf ✦ AI gaafadhu cinaa isaa jiru tuqi.",
   "editor.tipDismiss": "Hubadheera",
-  "editor.askAiShort": "AI"
+  "editor.askAiShort": "AI",
+  "assistant.proposal.waiting": "Hanga deebiin xumuramutti eegi"
 }

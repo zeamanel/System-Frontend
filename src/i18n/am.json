@@ -963,5 +963,6 @@
   "editor.askAiTitle": "ረዳቱ ይህን ክፍል እንዲያሻሽል ወይም እንዲያብራራ ይጠይቁ",
   "editor.tipBlocks": "ጠቃሚ ምክር፦ ማንኛውንም አንቀጽ ጠቅ አድርገው በቀጥታ ያስተካክሉት። ረዳቱ እንዲያሻሽለው ከጎኑ ያለውን ✦ AI ጠይቅ ይጫኑ።",
   "editor.tipDismiss": "ገባኝ",
-  "editor.askAiShort": "AI"
+  "editor.askAiShort": "AI",
+  "assistant.proposal.waiting": "መልሱ እስኪጠናቀቅ ይጠብቁ"
 }
