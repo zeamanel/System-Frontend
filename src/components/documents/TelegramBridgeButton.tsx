@@ -22,6 +22,7 @@ import {
 import { ToastContext } from '../ui/toast/ToastContext'
 import { Button, Dialog, Spinner } from '../ui'
 import { ExternalLinkIcon, SmartphoneIcon } from '../icons'
+import { QrCode } from '../telegram/QrCode'
 
 export interface TelegramBridgeTransferPayload {
   profile?: TelegramProfile | null
@@ -63,8 +64,9 @@ function isTerminalBridgeStatus(status: string): boolean {
   return status === 'denied' || status === 'expired' || status === 'revoked' || status === 'dismissed'
 }
 
+/** "481516" → "481 516": easy to read and type, and it never wraps. */
 function formatPageCode(code: string): string {
-  return code.split('').join(' ')
+  return code.length > 4 ? code.replace(/(\d{3})(?=\d)/g, '$1 ') : code
 }
 
 function TelegramBridgeButtonInner({
@@ -342,6 +344,14 @@ function TelegramBridgeButtonInner({
                 >
                   {formatPageCode(session.pageCode)}
                 </div>
+
+                {session.deepLink ? (
+                  // On a computer: scan with the phone and Telegram opens the bot with this code.
+                  <div className="telegram-bridge-qr" data-testid="telegram-bridge-qr">
+                    <QrCode value={session.deepLink} label={t('telegram.qr.label', { bot: `@${session.botUsername}` })} size={152} />
+                    <p className="telegram-bridge-qr__caption">{t('telegram.qr.scanCode')}</p>
+                  </div>
+                ) : null}
 
                 <a
                   href={session.deepLink || 'https://t.me/Qal_copy_bot'}

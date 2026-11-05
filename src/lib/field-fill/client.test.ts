@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError, RateLimitError } from '../api'
-import { extractFieldFromFile, FieldFillError, MAX_FIELD_FILE_BYTES, uploadSource } from './client'
+import { extractFieldFromFile, FieldFillError, MAX_FIELD_FILE_BYTES, uploadSource, readFileText } from './client'
 
 const input = { fieldLabel: 'Tenant name', fieldId: 'tenant_name', language: 'en', source: { kind: 'telegram' as const, itemId: 'evt_1' } }
 
@@ -36,5 +36,28 @@ describe('uploadSource', () => {
     expect(await uploadSource(file)).toEqual({ kind: 'upload', filename: 'lease.txt', mimeType: 'text/plain', dataBase64: btoa('Tenant: Almaz') })
     const big = new File([new Uint8Array(MAX_FIELD_FILE_BYTES + 1)], 'big.pdf')
     await expect(uploadSource(big)).rejects.toMatchObject({ reason: 'too-large' })
+  })
+})
+
+describe('readFileText', () => {
+  const source = { kind: 'upload' as const, filename: 'lease.pdf', mimeType: 'application/pdf', dataBase64: 'AAAA' }
+
+  it('reads the whole file through the backend and maps its answer', async () => {
+    const post = vi.fn().mockResolvedValue({ text: 'የኪራይ ውል', sourceName: 'lease.pdf', method: 'transcribed', illegible: true, truncated: false, language: 'Amharic' })
+    expect(await readFileText(source, { client: { post } })).toEqual({
+      text: 'የኪራይ ውል',
+      sourceName: 'lease.pdf',
+      method: 'transcribed',
+      illegible: true,
+      truncated: false,
+      language: 'Amharic',
+    })
+    expect(post).toHaveBeenCalledWith('/ai/read-file', { source }, { auth: 'required' })
+  })
+
+  it('says it is offline in demo mode, and maps failures like a field fill', async () => {
+    await expect(readFileText(source, { dataSource: 'fixtures' })).rejects.toMatchObject({ reason: 'offline' })
+    const post = vi.fn().mockRejectedValue(new ApiError(422, 'no text'))
+    await expect(readFileText(source, { client: { post } })).rejects.toMatchObject({ reason: 'unsupported' })
   })
 })

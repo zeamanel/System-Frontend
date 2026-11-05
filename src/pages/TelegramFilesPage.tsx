@@ -16,6 +16,9 @@ import {
 import { TelegramBridgeButton } from '../components/documents/TelegramBridgeButton'
 import { Button, Dialog, Spinner } from '../components/ui'
 import { CheckIcon, CopyIcon, ShieldIcon, SmartphoneIcon, TrashIcon } from '../components/icons'
+import { QrCode } from '../components/telegram/QrCode'
+
+const DEFAULT_BOT_USERNAME = 'Qal_copy_bot'
 
 export default function TelegramFilesPage() {
   const { t } = useI18n()
@@ -107,6 +110,9 @@ export default function TelegramFilesPage() {
     })
   }, [items, selectedAccount, searchQuery])
 
+  // The bot's real username comes from Telegram (via the backend); the default is the production bot.
+  const botName = botHealth?.bot?.username || DEFAULT_BOT_USERNAME
+
   return (
     <div className="telegram-files-page" data-testid="telegram-files-page">
       {/* Header */}
@@ -154,6 +160,24 @@ export default function TelegramFilesPage() {
               void loadData()
             }}
           />
+        </div>
+      </div>
+
+      {/* Open the bot on the phone: scan the code instead of searching Telegram for it. */}
+      <div className="telegram-files-page__bot-card" data-testid="telegram-bot-card">
+        <QrCode value={`https://t.me/${botName}`} label={t('telegram.qr.label', { bot: `@${botName}` })} size={112} />
+        <div className="telegram-files-page__bot-card-text">
+          <p className="telegram-files-page__bot-card-title">{t('telegramFiles.botCardTitle')}</p>
+          <p className="telegram-files-page__bot-card-body">{t('telegramFiles.botCardBody', { bot: `@${botName}` })}</p>
+          <a
+            className="telegram-files-page__help-link"
+            href={`https://t.me/${botName}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="telegram-bot-card-link"
+          >
+            t.me/{botName}
+          </a>
         </div>
       </div>
 
