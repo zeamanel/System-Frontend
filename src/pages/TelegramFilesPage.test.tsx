@@ -120,4 +120,14 @@ describe('TelegramFilesPage', () => {
     renderPage('admin')
     expect(await screen.findByRole('button', { name: /sync webhook/i })).toBeInTheDocument()
   })
+
+  it('shows a QR code that opens the bot on a phone, with the link beside it', async () => {
+    renderPage('user')
+    const card = await screen.findByTestId('telegram-bot-card')
+    const qr = await screen.findByRole('img', { name: /QR code that opens @Qal_copy_bot in Telegram/i })
+    expect(card).toContainElement(qr)
+    expect(qr).toHaveAttribute('data-value', 'https://t.me/Qal_copy_bot')
+    expect(screen.getByTestId('telegram-bot-card-link')).toHaveAttribute('href', 'https://t.me/Qal_copy_bot')
+    expect(card).toHaveTextContent('Send files from your phone')
+  })
 })

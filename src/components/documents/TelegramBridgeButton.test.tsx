@@ -58,6 +58,11 @@ describe('TelegramBridgeButton', () => {
     // Deep link to bot
     const botLink = screen.getByTestId('telegram-open-bot-link')
     expect(botLink).toBeInTheDocument()
+
+    // A QR code of the same link, for scanning with a phone: it carries this page's code.
+    const qr = screen.getByRole('img', { name: /QR code that opens @Qal_copy_bot in Telegram/i })
+    expect(qr).toHaveAttribute('data-value', botLink.getAttribute('href'))
+    expect(qr.getAttribute('data-value')).toContain('start=code_4815')
     expect(botLink).toHaveAttribute('href', expect.stringContaining('start=code_4815'))
   })
 

@@ -82,8 +82,8 @@
   "documents.openFileError": "Faayilii banuun hin danda'amne. Maaloo bifa deeggaramu (.txt, .md, .html, .json, .docx) ta'uu isaa mirkaneeffadhaa.",
   "documents.connectTelegram": "Bilbila Walqabsiisi",
   "documents.telegramBridgeTitle": "Telegram dhaan Bilbila Walqabsiisi",
-  "documents.telegramPageCodeLabel": "Filannoo A: Koodii Fuula Dijitii 4 Bilbilarra Galchaa",
-  "documents.telegramPageCodeInstructions": "Koodii dijitii 4 kana bootii Telegram keessatti galchaa (yookiin Bootii Banaa) fi PDF, Word (.docx), yookiin barruu kamiyyuu ergaa.",
+  "documents.telegramPageCodeLabel": "Filannoo A: Koodii fuulaa bilbila keessanirratti galchaa",
+  "documents.telegramPageCodeInstructions": "Koodii kana bootii Telegram keessatti barreessaa, koodii QR iskaanii godhaa, yookiin Bootii Banaa; sana booda PDF, Word (.docx), suuraa yookiin barruu kamiyyuu ergaa.",
   "documents.telegramOpenBot": "@Qal_copy_bot Bani ↗",
   "documents.telegramPingQalIdLabel": "Filannoo B: Eeyyama ID Qal Dijitii 4 Gaafadhaa",
   "documents.telegramPingPlaceholder": "fkn 7392",
@@ -965,5 +965,9 @@
   "editor.tipDismiss": "Hubadheera",
   "editor.askAiShort": "AI",
   "assistant.proposal.waiting": "Hanga deebiin xumuramutti eegi",
-  "templates.startFailed": "Unka kana banuun hin danda’amne. Walqunnamtii keessan mirkaneeffadhaatii irra deebi’aa yaalaa."
+  "templates.startFailed": "Unka kana banuun hin danda’amne. Walqunnamtii keessan mirkaneeffadhaatii irra deebi’aa yaalaa.",
+  "telegram.qr.label": "Koodii QR {bot} Telegram irratti banu",
+  "telegram.qr.scanCode": "Kompiitara irra jirtu? Kaameraa bilbila keessaniin iskaanii godhaa: Telegram koodii kana ergamee jiruun bootii ni bana.",
+  "telegramFiles.botCardTitle": "Bilbila keessanii faayiloota ergaa",
+  "telegramFiles.botCardBody": "{bot} Telegram irratti banuuf koodii kana kaameraa bilbila keessaniin iskaanii godhaa, sana booda suuraa, PDF, faayila Word ykn ergaa sagalee ergaa."
 }
