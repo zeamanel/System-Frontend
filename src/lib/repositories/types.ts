@@ -44,8 +44,10 @@ export interface TemplateQuestion {
   id: string
   label: string
   required: boolean
-  /** 'text', 'textarea', or 'file' (attach a file whose text goes into the field named by `fills`). */
+  /** 'text', 'textarea', 'select' (pick one of `options`), or 'file' (attach a file whose text goes into the field named by `fills`). */
   type?: string
+  /** A select field's choices; the answer is the chosen option's `value`. */
+  options?: Array<{ value: string; label: string }>
   /** A file field: the id of the field its text goes into. */
   fills?: string
 }

@@ -55,6 +55,8 @@ const DOC_TYPES = [
   'minutes',
   'affidavit',
   'cv',
+  'report',
+  'plan',
 ] as const
 
 const INSTITUTIONS = [

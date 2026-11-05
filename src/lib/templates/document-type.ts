@@ -15,6 +15,8 @@ const KIND_WORDS: Record<string, readonly string[]> = {
   minutes: ['minutes', 'resolution'],
   affidavit: ['affidavit', 'sworn'],
   cv: ['cv', 'resume'],
+  report: ['report'],
+  plan: ['plan'],
 }
 
 export function matchesDocumentKind(documentTypeId: string, kind: string): boolean {

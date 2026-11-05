@@ -138,6 +138,37 @@ describe('GuidedFieldsPanel Independent Scroll Locking & Layout', () => {
     expect(document.getElementById('field-court_name')?.tagName).toBe('INPUT')
   })
 
+  it('shows a select field as a dropdown of its choices and stores the chosen value', () => {
+    const { props } = renderPanel({
+      template: {
+        ...mockTemplate,
+        questions: [
+          {
+            id: 'letter_mode',
+            label: 'Purpose of Document',
+            type: 'select',
+            required: true,
+            options: [
+              { value: 'evaluation_feedback', label: 'Written Evaluation Feedback' },
+              { value: 'report_transmittal', label: 'Cover Letter Transmitting Report' },
+            ],
+          },
+        ],
+      },
+      answers: { letter_mode: 'report_transmittal' },
+    })
+    const select = document.getElementById('field-letter_mode') as HTMLSelectElement
+    expect(select.tagName).toBe('SELECT')
+    expect(select.value).toBe('report_transmittal')
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      'Choose…',
+      'Written Evaluation Feedback',
+      'Cover Letter Transmitting Report',
+    ])
+    fireEvent.change(select, { target: { value: 'evaluation_feedback' } })
+    expect(props.onAnswerChange).toHaveBeenCalledWith('letter_mode', 'evaluation_feedback')
+  })
+
   it('renders children inside the scrollable body', () => {
     render(
       <QueryClientProvider client={new QueryClient()}>

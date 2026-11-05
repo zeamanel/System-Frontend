@@ -179,6 +179,42 @@ describe('GuidedFlowWizard', () => {
     })
   })
 
+  it('a select question is a dropdown of its choices, and the answer is the chosen value', async () => {
+    const { onComplete } = renderWizard({
+      ...mockTemplate,
+      questions: [
+        {
+          id: 'institution_type',
+          label: 'Institution / Sector Type',
+          required: true,
+          type: 'select',
+          options: [
+            { value: 'government_bureau', label: 'Government Bureau / Civil Service' },
+            { value: 'court_judiciary', label: 'Court & Judiciary' },
+          ],
+        },
+        { id: 'organization_name', label: 'Organization name', required: true },
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // setup → questions
+    fireEvent.click(screen.getByRole('button', { name: /all questions \(2\)/i }))
+
+    const select = screen.getByLabelText(/institution \/ sector type/i) as HTMLSelectElement
+    expect(select.tagName).toBe('SELECT')
+    expect([...select.options].map((o) => o.value)).toEqual(['', 'government_bureau', 'court_judiciary'])
+
+    // Nothing chosen yet: it is required.
+    fireEvent.change(screen.getByLabelText(/organization name/i), { target: { value: 'Federal First Instance Court' } })
+    fireEvent.click(screen.getByRole('button', { name: /generate document draft/i }))
+    expect(screen.getAllByText('Required')).toHaveLength(3) // 2 badges + the error on the empty select
+
+    fireEvent.change(select, { target: { value: 'court_judiciary' } })
+    expect(select.value).toBe('court_judiciary')
+    fireEvent.click(screen.getByRole('button', { name: /generate document draft/i }))
+    await waitFor(() => expect(screen.getByText(/ai document generator/i)).toBeInTheDocument())
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
   it('surfaces previously saved party details as one-click quick-fill chips', () => {
     saveReusableAnswers({ 'employer-name': 'Sunshine PLC' })
     const partyTemplate: TemplateDetail = {

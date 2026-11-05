@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n'
 import * as billing from '../lib/billing/client'
+import { getRepositories } from '../lib/repositories'
 import BillingPage from './BillingPage'
 
 const PLANS: billing.BillingOverview['plans'] = [
@@ -49,6 +50,22 @@ describe('BillingPage', () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.chapa.co/pay/1'))
     expect(checkout).toHaveBeenCalledWith('pro')
     vi.unstubAllGlobals()
+  })
+
+  it("shows how many of today's AI credits are left", async () => {
+    vi.spyOn(billing, 'getBillingOverview').mockResolvedValue(overview())
+    vi.spyOn(getRepositories().generation, 'usage').mockResolvedValue({
+      generationsToday: 2,
+      generationsThisMonth: 2,
+      creditsUsedThisMonth: 12,
+      dailyQuotaLimit: 300,
+      monthlyCreditLimit: null,
+      creditsUsedToday: 12,
+      creditsLeftToday: 288,
+      creditsResetAt: '2026-11-06T00:00:00.000Z',
+    })
+    renderPage()
+    expect(await screen.findByTestId('ai-credits-today')).toHaveTextContent('AI credits today: 288 of 300 left')
   })
 
   it('shows the active plan and the payment history', async () => {

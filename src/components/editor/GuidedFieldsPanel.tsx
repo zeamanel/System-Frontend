@@ -15,6 +15,8 @@ import { organizationSuggestionsForField } from '../../lib/organization/autofill
 import type { TemplateDetail, TemplateQuestion } from '../../lib/repositories'
 import type { OutlineEntry } from '../../lib/editor/model'
 import { Badge, Button, Input, Select, Spinner, Textarea } from '../ui'
+import { QuestionSelect } from '../guided-flow/QuestionSelect'
+import { isSelectQuestion } from '../guided-flow/select-question'
 import { AlertIcon, PaperclipIcon, SparkIcon } from '../icons'
 import { AiNotice } from '../layout/AiNotice'
 import { FieldFileFillDialog } from './FieldFileFillDialog'
@@ -809,7 +811,23 @@ export function GuidedFieldsPanel({
                   </div>
                 ) : (
                   <>
-                    {isMultilineQuestion(question) ? (
+                    {isSelectQuestion(question) ? (
+                      <QuestionSelect
+                        id={`field-${question.id}`}
+                        question={question}
+                        label={
+                          <>
+                            {question.label}
+                            {question.required ? (
+                              <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
+                            ) : null}
+                          </>
+                        }
+                        value={currentValue}
+                        error={invalid[question.id] ? t('editor.fieldRequired') : undefined}
+                        onChange={(value) => onAnswerChange(question.id, value)}
+                      />
+                    ) : isMultilineQuestion(question) ? (
                       <Textarea
                         id={`field-${question.id}`}
                         label={
