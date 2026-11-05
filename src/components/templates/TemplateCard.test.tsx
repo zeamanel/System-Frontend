@@ -3,6 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { TemplateCard } from './TemplateCard'
+import { I18nProvider } from '../../i18n'
+import { ToastProvider } from '../ui'
+import { getRepositories } from '../../lib/repositories'
 import type { TemplateSummary } from '../../lib/repositories'
 
 const template: TemplateSummary = {
@@ -85,5 +88,24 @@ describe('TemplateCard', () => {
     const useBtn = screen.getByRole('button', { name: /use template/i })
     fireEvent.click(useBtn)
     expect(onUseTemplate).toHaveBeenCalledWith(template)
+  })
+
+  it('says so when the document cannot be created, instead of doing nothing', async () => {
+    const create = vi.spyOn(getRepositories().documents, 'create').mockRejectedValue(new Error('Template letter not found'))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <I18nProvider>
+          <ToastProvider>
+            <MemoryRouter>
+              <TemplateCard template={template} categoryLabel="Business" useTemplateLabel="Use Template" favoriteAddLabel="Add" favoriteRemoveLabel="Remove" />
+            </MemoryRouter>
+          </ToastProvider>
+        </I18nProvider>
+      </QueryClientProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /use template/i }))
+    expect(await screen.findByText(/could not open this template/i)).toBeInTheDocument()
+    create.mockRestore()
   })
 })

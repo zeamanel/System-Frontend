@@ -72,6 +72,7 @@ import type {
   MediaRecord,
   MediaRepository,
 } from './types'
+import { matchesDocumentKind } from '../templates/document-type'
 import type {
   ExportRequest,
   ExportRequestInput,
@@ -289,7 +290,7 @@ export function applyTemplateOptions(
     if (
       options?.documentType &&
       options.documentType !== 'all' &&
-      template.documentTypeId !== options.documentType
+      !matchesDocumentKind(template.documentTypeId, options.documentType)
     ) {
       return false
     }
@@ -314,6 +315,20 @@ export function applyTemplateOptions(
 
 /** How long the other languages' template texts are kept for searching. */
 const OTHER_LANGUAGE_TTL_MS = 5 * 60 * 1000
+
+/**
+ * Built-in template ids the app once listed that are copies of backend
+ * templates: old links and favourites open the backend template instead.
+ */
+const TEMPLATE_ALIASES: Record<string, string> = {
+  'rental-agreement': 'lease-agreement',
+  'residential-lease-oromoo': 'lease-agreement',
+  invoice: 'commercial-invoice',
+  receipt: 'payment-receipt',
+  'personal-affidavit': 'sworn-affidavit-declaration',
+  'application-letter': 'official-application-letter',
+  'certificate-of-service': 'work-experience-certificate',
+}
 
 class HttpTemplatesRepository implements TemplatesRepository {
   constructor(
@@ -356,7 +371,11 @@ class HttpTemplatesRepository implements TemplatesRepository {
       apiTemplates = []
     }
 
-    // Merge: backend records take precedence, missing templates supplemented from fallback fixtures
+    // When the backend answers, its catalogue is the catalogue: a built-in template it
+    // does not know could be opened but never used (creating its document fails).
+    // The built-in list stands in only while the backend cannot be reached.
+    if (apiTemplates.length > 0) return apiTemplates
+
     const seenSlugs = new Set<string>()
     const seenIds = new Set<string>()
     const result: TemplateSummary[] = []
@@ -450,13 +469,17 @@ class HttpTemplatesRepository implements TemplatesRepository {
   }
 
   async get(id: string, locale: Locale): Promise<TemplateDetail | null> {
+    // Built-in templates that were copies of backend ones open the backend template.
+    const lookup = TEMPLATE_ALIASES[id] ?? id
+    let reached = false
     try {
       const record = await nullOnNotFound(() =>
         apiClient.get<TemplateDetailApiRecord>(
-          `/templates/${encodeURIComponent(id)}`,
+          `/templates/${encodeURIComponent(lookup)}`,
           { query: { locale }, auth: 'optional' },
         ),
       )
+      reached = true
       if (record) {
         return {
           ...mapTemplate(record),
@@ -469,8 +492,10 @@ class HttpTemplatesRepository implements TemplatesRepository {
         } satisfies TemplateDetail
       }
     } catch {
-      // In case of error, fall through to fixture lookup
+      // The backend cannot be reached: fall through to the built-in templates.
     }
+    // The backend answered that it does not have this template: it cannot be used.
+    if (reached) return null
 
     const fixture = (await this.fallbackFixturesOrNone()).find(
       (f) => f.id === id || f.slug === id || f.documentTypeId === id,

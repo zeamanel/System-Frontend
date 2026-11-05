@@ -964,5 +964,6 @@
   "editor.tipBlocks": "Gorsa: keeyyata kamiyyuu tuqiitii kallattiin gulaali. Akka gargaaraan isa fooyyessuuf ✦ AI gaafadhu cinaa isaa jiru tuqi.",
   "editor.tipDismiss": "Hubadheera",
   "editor.askAiShort": "AI",
-  "assistant.proposal.waiting": "Hanga deebiin xumuramutti eegi"
+  "assistant.proposal.waiting": "Hanga deebiin xumuramutti eegi",
+  "templates.startFailed": "Unka kana banuun hin danda’amne. Walqunnamtii keessan mirkaneeffadhaatii irra deebi’aa yaalaa."
 }

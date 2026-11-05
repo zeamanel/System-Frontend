@@ -964,5 +964,6 @@
   "editor.tipBlocks": "Tip: click any paragraph to edit it directly. Press ✦ Ask AI next to it to have the assistant rewrite it.",
   "editor.tipDismiss": "Got it",
   "editor.askAiShort": "AI",
-  "assistant.proposal.waiting": "Wait until the answer is finished"
+  "assistant.proposal.waiting": "Wait until the answer is finished",
+  "templates.startFailed": "Could not open this template. Check your connection and try again."
 }
