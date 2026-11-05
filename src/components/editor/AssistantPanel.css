@@ -487,3 +487,27 @@
     animation: none;
   }
 }
+
+/* The answer is still being written. */
+.assistant-msg__caret {
+  display: inline-block;
+  width: 0.45em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background-color: currentColor;
+  opacity: 0.6;
+  animation: assistant-caret 1s steps(2, start) infinite;
+}
+
+@keyframes assistant-caret {
+  to {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-msg__caret {
+    animation: none;
+  }
+}

@@ -9,6 +9,7 @@ import type {
   TemplateSummary,
 } from '../types'
 import { createSearchMatcher, normalizeSearchText } from '../../search/text'
+import { matchesDocumentKind } from '../../templates/document-type'
 
 export function pickText(localized: LocalizedText, locale: Locale): string {
   if (locale === 'om' && localized.om) {
@@ -224,7 +225,7 @@ export function computeRelevanceScore(
   if (
     options?.documentType &&
     options.documentType !== 'all' &&
-    fixture.documentTypeId === options.documentType
+    matchesDocumentKind(fixture.documentTypeId, options.documentType)
   ) {
     score += 35
   }
@@ -272,7 +273,7 @@ export function filterAndSortTemplates(
     }
 
     if (options?.documentType && options.documentType !== 'all') {
-      if (fixture.documentTypeId !== options.documentType) return false
+      if (!matchesDocumentKind(fixture.documentTypeId, options.documentType)) return false
     }
 
     if (options?.favoritesOnly) {

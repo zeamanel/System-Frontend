@@ -524,25 +524,35 @@ describe('HttpTemplatesRepository', () => {
     })
   })
 
-  it('merges missing fixture templates into catalog and falls back on 404', async () => {
-    fetchMock.mockImplementation(() =>
-      jsonResponse([
-        templateRecord('Custom API Template', 99),
-      ]),
-    )
+  it('shows only the backend catalogue when it answers: a built-in template it does not know cannot be used', async () => {
+    fetchMock.mockImplementation(() => jsonResponse([templateRecord('Custom API Template', 99)]))
     const repos = createHttpRepositories()
 
     const all = await repos.templates.list('en')
-    // Both API records and missing fixture templates are present
-    expect(all.some((t) => t.title === 'Custom API Template')).toBe(true)
-    expect(all.some((t) => t.slug === 'power-of-attorney')).toBe(true)
+    expect(all.map((t) => t.title)).toEqual(['Custom API Template'])
 
-    // Falls back to fixture on 404
+    // The backend says it has no such template: nothing to open (no built-in stand-in).
     fetchMock.mockResolvedValue(notFound())
+    expect(await repos.templates.get('power-of-attorney', 'en')).toBeNull()
+  })
+
+  it('stands in with the built-in templates while the backend cannot be reached', async () => {
+    fetchMock.mockRejectedValue(new TypeError('offline'))
+    const repos = createHttpRepositories()
+
+    const all = await repos.templates.list('en')
+    expect(all.some((t) => t.slug === 'power-of-attorney')).toBe(true)
     const detail = await repos.templates.get('power-of-attorney', 'en')
-    expect(detail).not.toBeNull()
     expect(detail?.slug).toBe('power-of-attorney')
     expect(detail?.questions.length).toBeGreaterThan(0)
+  })
+
+  it('opens the backend template for built-in ids that were copies of one', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ ...templateRecord('Lease Agreement', 90), slug: 'lease-agreement', questions: [] }))
+    const repos = createHttpRepositories()
+    const detail = await repos.templates.get('rental-agreement', 'en')
+    expect(detail?.title).toBe('Lease Agreement')
+    expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain('/templates/lease-agreement')
   })
 })
 

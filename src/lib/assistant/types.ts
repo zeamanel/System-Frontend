@@ -57,6 +57,8 @@ export type AssistantMessage =
       fieldUpdates: AssistantFieldUpdate[]
       /** Set when the AI was not reached and this is the offline check. */
       offline?: AssistantOfflineInfo
+      /** The answer is still arriving: proposals cannot be applied yet. */
+      streaming?: boolean
     })
   | (MessageBase & { role: 'assistant'; kind: 'generation-notes'; notes: AssistantNotes })
   | (MessageBase & {

@@ -61,8 +61,11 @@ export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   /** JSON-serialisable request body, or FormData sent as multipart. */
   body?: unknown
-  /** `'blob'` returns the response body as a Blob (images). */
-  responseType?: 'json' | 'blob'
+  /**
+   * `'blob'` returns the response body as a Blob (images); `'response'` returns
+   * the Response itself, for reading a streamed body (errors are still thrown).
+   */
+  responseType?: 'json' | 'blob' | 'response'
   /** Query parameters; undefined/null values are skipped. */
   query?: QueryParams
   /** Extra headers merged over the defaults. */
@@ -292,6 +295,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw await toApiError(response)
   }
 
+  if (responseType === 'response') {
+    return response as T
+  }
   if (response.status === 204) {
     return undefined as T
   }

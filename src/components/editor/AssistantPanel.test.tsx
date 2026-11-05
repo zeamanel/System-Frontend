@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n'
@@ -392,5 +392,68 @@ describe('Assistant panel', () => {
     expect(within(second).getByTestId('assistant-proposal-accept')).toHaveTextContent(/apply anyway/i)
     fireEvent.click(within(second).getByText('Dismiss'))
     expect(second).toHaveTextContent(/dismissed/i)
+  })
+
+  it('shows a streamed answer as it is written; its changes can be applied once it is complete', async () => {
+    const { doc, template } = await createRentalDocument('The tenant will pay rent.')
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    const blockId = firstParagraphId()
+    const proposal = { kind: 'replace' as const, blockId, newText: 'The Tenant shall pay the rent.', reason: 'More formal.' }
+
+    let finish: () => void = () => undefined
+    const finished = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    let partial: ((p: { reply: string; proposals: AssistantReply['proposals'] }) => void) | undefined
+    askAssistantMock.mockImplementationOnce(async (_input: unknown, options: { onPartial?: typeof partial }) => {
+      partial = options.onPartial
+      await finished
+      return { reply: 'I propose a more formal clause.', questions: [], proposals: [proposal], fieldUpdates: [] } satisfies AssistantReply
+    })
+
+    fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Make it formal' } })
+    fireEvent.click(screen.getByTestId('assistant-send'))
+    // Before the first words: "working on it".
+    await screen.findByTestId('assistant-thinking')
+    await waitFor(() => expect(partial).toBeDefined())
+
+    act(() => partial?.({ reply: 'I propose', proposals: [] }))
+    expect(await screen.findByTestId('assistant-streaming')).toHaveTextContent('I propose')
+    expect(screen.queryByTestId('assistant-thinking')).toBeNull()
+
+    act(() => partial?.({ reply: 'I propose a more formal clause.', proposals: [proposal] }))
+    const card = await screen.findByTestId('assistant-proposal')
+    expect(card).toHaveTextContent('More formal.')
+    // Readable, not yet applicable.
+    expect(within(card).getByTestId('assistant-proposal-accept')).toBeDisabled()
+    expect(screen.getAllByTestId('assistant-reply')).toHaveLength(1)
+
+    await act(async () => finish())
+    await waitFor(() => expect(screen.queryByTestId('assistant-streaming')).toBeNull())
+    expect(screen.getAllByTestId('assistant-reply')).toHaveLength(1)
+    const ready = screen.getByTestId('assistant-proposal')
+    expect(within(ready).getByTestId('assistant-proposal-accept')).not.toBeDisabled()
+    fireEvent.click(within(ready).getByTestId('assistant-proposal-accept'))
+    await waitFor(() =>
+      expect(document.querySelector(`[data-block-id="${blockId}"]`)).toHaveTextContent('The Tenant shall pay the rent.'),
+    )
+  })
+
+  it('a reply still streaming when the page was left comes back finished (or not at all if empty)', async () => {
+    const { doc, template } = await createRentalDocument('Clause.')
+    const base = { role: 'assistant', kind: 'reply', questions: [], proposals: [], fieldUpdates: [], streaming: true }
+    window.sessionStorage.setItem(
+      `docuA4.assistant.thread.${doc.id}`,
+      JSON.stringify([
+        { ...base, id: 'm1', createdAt: 1, text: 'Half an answer' },
+        { ...base, id: 'm2', createdAt: 2, text: '' },
+      ]),
+    )
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    expect(await screen.findByText('Half an answer')).toBeInTheDocument()
+    expect(screen.queryByTestId('assistant-streaming')).toBeNull()
+    expect(screen.getAllByTestId('assistant-reply')).toHaveLength(1)
   })
 })
