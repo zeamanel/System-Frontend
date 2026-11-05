@@ -16,6 +16,8 @@ import {
 import { useOrganization } from '../hooks/use-organization'
 import { useRecommendedTemplates } from '../hooks/use-templates'
 import { useUsage } from '../hooks/use-usage'
+import { useAiCredits } from '../hooks/use-ai-credits'
+import { AiCreditsToday } from '../components/usage/AiCreditsToday'
 import { CreateDocumentDialog } from '../components/create-document/CreateDocumentDialog'
 import { DocumentListItem } from '../components/documents/DocumentListItem'
 import { OpenLocalFileButton } from '../components/documents/OpenLocalFileButton'
@@ -57,6 +59,7 @@ export default function DashboardPage() {
   const recommended = useRecommendedTemplates()
   const organization = useOrganization()
   const usage = useUsage()
+  const credits = useAiCredits()
   const favoriteIds = useFavoriteTemplateIdSet()
   const toggleFavorite = useToggleFavoriteTemplate()
 
@@ -224,6 +227,7 @@ export default function DashboardPage() {
         </Panel>
 
         <Panel title={t('dashboard.usage')}>
+          {credits.data ? <AiCreditsToday credits={credits.data} /> : null}
           {usage.isPending ? (
             <PanelLoading />
           ) : usage.isError ? (
@@ -234,7 +238,7 @@ export default function DashboardPage() {
                 {usage.data.documentsThisMonth}
               </CardRow>
             </dl>
-          ) : (
+          ) : credits.data ? null : (
             <p className="panel-note">{t('dashboard.usageUnavailable')}</p>
           )}
         </Panel>

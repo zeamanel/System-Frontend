@@ -15,6 +15,9 @@ import {
   type PlanName,
 } from '../lib/billing/client'
 import { Badge, Button, PageHeader, PanelError, PanelLoading } from '../components/ui'
+import { AiCreditsToday } from '../components/usage/AiCreditsToday'
+import { useAiCredits } from '../hooks/use-ai-credits'
+import { queryKeys } from '../lib/query-keys'
 
 /** How long the return page keeps asking for a confirmation (2 s apart). */
 const MAX_STATUS_CHECKS = 15
@@ -61,6 +64,7 @@ export default function BillingPage() {
   const [params, setParams] = useSearchParams()
   const returningPaymentId = params.get('payment')
   const overview = useQuery({ queryKey: ['billing'], queryFn: () => getBillingOverview() })
+  const credits = useAiCredits()
   const [paying, setPaying] = useState<string | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [returned, setReturned] = useState<PaymentSummary | null>(null)
@@ -82,6 +86,7 @@ export default function BillingPage() {
         setReturned(payment)
         if (payment.status !== 'pending') {
           void queryClient.invalidateQueries({ queryKey: ['billing'] })
+          void queryClient.invalidateQueries({ queryKey: queryKeys.generation.usage })
           return
         }
       } catch {
@@ -159,6 +164,7 @@ export default function BillingPage() {
                 <strong>{planName(data.free.name)}</strong> · {t('billing.dailyCredits', { count: String(data.free.dailyCredits) })}
               </p>
             )}
+            {credits.data ? <AiCreditsToday credits={credits.data} /> : null}
           </section>
 
           {!data.paymentsEnabled ? (

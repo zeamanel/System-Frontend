@@ -25,6 +25,7 @@ export const queryKeys = {
   generation: {
     all: ['generation'] as const,
     request: (id: string) => ['generation', 'request', id] as const,
+    usage: ['generation', 'usage'] as const,
   },
   favorites: {
     all: ['favorites'] as const,

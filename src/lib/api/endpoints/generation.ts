@@ -66,6 +66,12 @@ export interface GenerationUsageApiRecord {
   creditsUsedThisMonth: number
   dailyQuotaLimit: number
   monthlyCreditLimit: number | null
+  /** Credits spent since UTC midnight (older backends omit it). */
+  creditsUsedToday?: number
+  /** max(0, dailyQuotaLimit - creditsUsedToday). */
+  creditsLeftToday?: number
+  /** ISO time the daily allowance starts again (next UTC midnight). */
+  creditsResetAt?: string
 }
 
 export function getGenerationUsage(
