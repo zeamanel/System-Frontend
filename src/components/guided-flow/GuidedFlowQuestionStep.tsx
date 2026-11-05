@@ -7,6 +7,7 @@ import type { TemplateQuestion } from '../../lib/repositories'
 import { ArrowLeftIcon, ArrowRightIcon } from '../icons'
 import { QuestionSelect } from './QuestionSelect'
 import { isSelectQuestion } from './select-question'
+import { FileUploadField } from '../file-upload/FileUploadField'
 import {
   Badge,
   Button,
@@ -77,7 +78,16 @@ export function GuidedFlowQuestionStep({
 
       <CardBody>
         <div style={{ marginTop: 'var(--space-4)' }}>
-          {isSelectQuestion(question) ? (
+          {question.type === 'file_upload' ? (
+            <FileUploadField
+              id={`question-${question.id}`}
+              label={question.label}
+              value={answer}
+              fileName=""
+              onChange={(inputId) => onAnswerChange(inputId)}
+              error={fieldError || undefined}
+            />
+          ) : isSelectQuestion(question) ? (
             <QuestionSelect
               question={question}
               value={answer}
