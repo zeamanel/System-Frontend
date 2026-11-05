@@ -969,5 +969,18 @@
   "telegram.qr.label": "QR code that opens {bot} in Telegram",
   "telegram.qr.scanCode": "On a computer? Scan with your phone camera: Telegram opens the bot with this code already sent.",
   "telegramFiles.botCardTitle": "Send files from your phone",
-  "telegramFiles.botCardBody": "Scan this code with your phone camera to open {bot} in Telegram, then send photos, PDFs, Word files or voice messages."
+  "telegramFiles.botCardBody": "Scan this code with your phone camera to open {bot} in Telegram, then send photos, PDFs, Word files or voice messages.",
+  "fileRead.title": "Attach the file to translate",
+  "fileRead.lead": "Pick one of your Telegram files or upload one (PDF, Word, photo or text, up to 4 MB). SenedDesk reads its text; you check it before translating.",
+  "fileRead.textLabel": "Text read from the file (check and correct it)",
+  "fileRead.count": "{count} of {max} characters",
+  "fileRead.transcribed": "Read by AI from a photo or scan: compare it with the original, especially names and numbers.",
+  "fileRead.illegible": "Part of the file could not be read and is marked [illegible]. Type those words in from the original if you can.",
+  "fileRead.tooLong": "At most {max} characters can be translated at once. Split the document and translate it in parts.",
+  "fileRead.use": "Use this text",
+  "fileRead.attach": "Attach file",
+  "fileRead.replace": "Attach another file",
+  "fileRead.hint": "PDF, Word, photo or text. Its text goes into the box below, where you can check it. Or paste the text there yourself.",
+  "fileRead.attached": "{name} — its text is in “{field}” below.",
+  "fileRead.targetLanguage": "The document is translated into this language."
 }

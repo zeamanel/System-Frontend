@@ -7,12 +7,15 @@ import type { TelegramHubItem } from '../../lib/api/endpoints/telegram-bridge'
 import {
   extractFieldFromFile,
   FieldFillError,
+  MAX_TRANSLATION_CHARS,
+  readFileText,
   uploadSource,
   type FieldFillFailure,
   type FieldFillResult,
   type FieldFillSource,
+  type FileReadResult,
 } from '../../lib/field-fill/client'
-import { Badge, Button, Dialog, Input, Spinner } from '../ui'
+import { Badge, Button, Dialog, Input, Spinner, Textarea } from '../ui'
 import { UploadIcon } from '../icons'
 
 export interface FieldFileFillDialogProps {
@@ -22,12 +25,20 @@ export interface FieldFileFillDialogProps {
   language: string
   onUse: (value: string) => void
   onClose: () => void
+  /**
+   * 'field' (default): find one field's value in the file. 'document': read the
+   * whole file (a file field, e.g. the document to translate); `onUseText` gets
+   * the text, checked and corrected by the user, and the file's name.
+   */
+  mode?: 'field' | 'document'
+  onUseText?: (text: string, sourceName: string) => void
 }
 
 type Step =
   | { kind: 'choose' }
   | { kind: 'reading'; name: string }
   | { kind: 'result'; result: FieldFillResult }
+  | { kind: 'document'; result: FileReadResult }
   | { kind: 'error'; reason: FieldFillFailure }
 
 /**
@@ -35,7 +46,16 @@ type Step =
  * see the value SenedDesk found and the words it came from, then confirm. The
  * field changes only on "Use this value".
  */
-export function FieldFileFillDialog({ open, fieldLabel, fieldId, language, onUse, onClose }: FieldFileFillDialogProps) {
+export function FieldFileFillDialog({
+  open,
+  fieldLabel,
+  fieldId,
+  language,
+  onUse,
+  onClose,
+  mode = 'field',
+  onUseText,
+}: FieldFileFillDialogProps) {
   const { t } = useI18n()
   const [step, setStep] = useState<Step>({ kind: 'choose' })
   const [files, setFiles] = useState<TelegramHubItem[] | null>(null)
@@ -62,6 +82,12 @@ export function FieldFileFillDialog({ open, fieldLabel, fieldId, language, onUse
   const read = async (name: string, source: () => Promise<FieldFillSource>): Promise<void> => {
     setStep({ kind: 'reading', name })
     try {
+      if (mode === 'document') {
+        const read = await readFileText(await source())
+        setValue(read.text)
+        setStep({ kind: 'document', result: read })
+        return
+      }
       const result = await extractFieldFromFile({ fieldLabel, fieldId, language, source: await source() })
       setValue(result.value)
       setStep({ kind: 'result', result })
@@ -81,7 +107,9 @@ export function FieldFileFillDialog({ open, fieldLabel, fieldId, language, onUse
   if (step.kind === 'choose') {
     body = (
       <>
-        <p className="field-fill__lead">{t('fieldFill.lead', { field: fieldLabel })}</p>
+        <p className="field-fill__lead">
+          {mode === 'document' ? t('fileRead.lead') : t('fieldFill.lead', { field: fieldLabel })}
+        </p>
         <h3 className="field-fill__heading">{t('fieldFill.telegramFiles')}</h3>
         {files === null ? (
           <p className="field-fill__muted">
@@ -141,6 +169,52 @@ export function FieldFileFillDialog({ open, fieldLabel, fieldId, language, onUse
       </p>
     )
     footer = tryAnother
+  } else if (step.kind === 'document') {
+    const { result } = step
+    const length = value.trim().length
+    body = (
+      <div className="field-fill__result" data-testid="file-read-result">
+        <Textarea
+          id={`file-read-text-${fieldId}`}
+          label={t('fileRead.textLabel')}
+          value={value}
+          rows={12}
+          onChange={(event) => setValue(event.target.value)}
+        />
+        <p className="field-fill__source">
+          {t('fieldFill.from', { name: result.sourceName })}
+          {result.language ? ` · ${result.language}` : ''} ·{' '}
+          <span data-testid="file-read-count">{t('fileRead.count', { count: length.toLocaleString(), max: MAX_TRANSLATION_CHARS.toLocaleString() })}</span>
+        </p>
+        {result.method === 'transcribed' ? <p className="field-fill__muted">{t('fileRead.transcribed')}</p> : null}
+        {result.illegible ? (
+          <p className="field-fill__error" role="alert">
+            {t('fileRead.illegible')}
+          </p>
+        ) : null}
+        {result.truncated || length > MAX_TRANSLATION_CHARS ? (
+          <p className="field-fill__error" role="alert" data-testid="file-read-too-long">
+            {t('fileRead.tooLong', { max: MAX_TRANSLATION_CHARS.toLocaleString() })}
+          </p>
+        ) : null}
+      </div>
+    )
+    footer = (
+      <>
+        {tryAnother}
+        <Button
+          variant="primary"
+          disabled={!value.trim()}
+          onClick={() => {
+            onUseText?.(value.trim(), result.sourceName)
+            onClose()
+          }}
+          data-testid="file-read-use"
+        >
+          {t('fileRead.use')}
+        </Button>
+      </>
+    )
   } else if (step.result.confidence === 'not_found') {
     body = <p className="field-fill__muted">{t('fieldFill.notFound', { field: fieldLabel, name: step.result.sourceName })}</p>
     footer = tryAnother
@@ -188,7 +262,14 @@ export function FieldFileFillDialog({ open, fieldLabel, fieldId, language, onUse
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={t('fieldFill.title', { field: fieldLabel })} footer={footer} width="md" closeLabel={t('common.close')}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={mode === 'document' ? t('fileRead.title') : t('fieldFill.title', { field: fieldLabel })}
+      footer={footer}
+      width="md"
+      closeLabel={t('common.close')}
+    >
       {body}
     </Dialog>
   )

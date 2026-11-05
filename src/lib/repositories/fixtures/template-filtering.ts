@@ -96,6 +96,7 @@ export function toDetail(
           : pickText(question.label, effectiveLocale),
       required: Boolean(question.required),
       type: question.type,
+      ...(question.fills ? { fills: question.fills } : {}),
     })),
   }
 }

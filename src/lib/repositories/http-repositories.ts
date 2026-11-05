@@ -164,7 +164,7 @@ interface TemplateApiRecord {
 }
 
 interface TemplateDetailApiRecord extends TemplateApiRecord {
-  questions?: { id: string; label: string; required?: boolean; type?: string }[]
+  questions?: { id: string; label: string; required?: boolean; type?: string; fills?: string }[]
 }
 
 // ---------- Documents ----------
@@ -488,6 +488,7 @@ class HttpTemplatesRepository implements TemplatesRepository {
             label: question.label,
             required: question.required ?? false,
             type: question.type,
+            ...(question.fills ? { fills: question.fills } : {}),
           })),
         } satisfies TemplateDetail
       }

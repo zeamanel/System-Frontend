@@ -44,7 +44,10 @@ export interface TemplateQuestion {
   id: string
   label: string
   required: boolean
+  /** 'text', 'textarea', or 'file' (attach a file whose text goes into the field named by `fills`). */
   type?: string
+  /** A file field: the id of the field its text goes into. */
+  fills?: string
 }
 
 export interface TemplateSummary {
@@ -264,18 +267,21 @@ export interface TemplateFixture {
     label: LocalizedText
     required: boolean
     type?: string
+    fills?: string
   }[]
   requiredFields?: {
     id: string
     label: LocalizedText
     required?: boolean
     type?: string
+    fills?: string
   }[]
   optionalFields?: {
     id: string
     label: LocalizedText
     required?: boolean
     type?: string
+    fills?: string
   }[]
   createdAt?: string
   updatedAt?: string

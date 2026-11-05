@@ -703,3 +703,65 @@ describe('Fill a field from a file (paperclip)', () => {
   })
 })
 
+describe('file fields (document translation)', () => {
+  const translation: TemplateDetail = {
+    ...mockTemplate,
+    id: 'document-translation',
+    documentTypeId: 'document_translation',
+    questions: [
+      { id: 'source_file', label: 'File to translate', type: 'file', fills: 'source_text', required: false },
+      { id: 'source_text', label: 'Text to translate', type: 'textarea', required: true },
+    ],
+  }
+
+  it('attaches a file, shows the text read for checking, and puts it in the field it fills', async () => {
+    vi.spyOn(telegramApi, 'getTelegramHubMedia').mockResolvedValue({ items: [] } as never)
+    const read = vi.spyOn(fieldFillClient, 'readFileText').mockResolvedValue({
+      text: 'የኪራይ ውል\nአከራይ፡ አበበ ከበደ',
+      sourceName: 'lease.pdf',
+      method: 'transcribed',
+      illegible: false,
+      truncated: false,
+      language: 'Amharic',
+    })
+    const { user, props } = renderPanel({ template: translation })
+
+    expect(screen.getByTestId('file-field-source_file')).toHaveTextContent('File to translate')
+    expect(screen.getByTestId('translation-target-note')).toHaveTextContent('translated into this language')
+    expect(screen.queryByLabelText('File to translate')).toBeNull() // not a text box
+    await user.click(screen.getByTestId('file-field-attach-source_file'))
+
+    const dialog = await screen.findByRole('dialog', { name: /attach the file to translate/i })
+    const upload = within(dialog).getByTestId('field-fill-upload')
+    await user.upload(upload, new File(['%PDF-1.4'], 'lease.pdf', { type: 'application/pdf' }))
+
+    const result = await within(dialog).findByTestId('file-read-result')
+    expect(read).toHaveBeenCalledWith(expect.objectContaining({ kind: 'upload', filename: 'lease.pdf' }))
+    expect(within(result).getByRole('textbox')).toHaveValue('የኪራይ ውል\nአከራይ፡ አበበ ከበደ')
+    expect(result).toHaveTextContent(/read by ai from a photo or scan/i)
+    expect(within(result).getByTestId('file-read-count')).toHaveTextContent('21 of 20,000 characters')
+
+    // The user corrects the text before using it.
+    fireEvent.change(within(result).getByRole('textbox'), { target: { value: 'የኪራይ ውል\nአከራይ፡ አበበ ከበደ ተሰማ' } })
+    await user.click(within(dialog).getByTestId('file-read-use'))
+    expect(props.onAnswerChange).toHaveBeenCalledWith('source_text', 'የኪራይ ውል\nአከራይ፡ አበበ ከበደ ተሰማ')
+    expect(props.onAnswerChange).toHaveBeenCalledWith('source_file', 'lease.pdf')
+  })
+
+  it('shows what was attached, counts the text, and will not translate a text over the limit', async () => {
+    const long = 'ቃ'.repeat(fieldFillClient.MAX_TRANSLATION_CHARS + 1)
+    const { user, props } = renderPanel({ template: translation, answers: { source_file: 'lease.pdf', source_text: long } })
+    expect(screen.getByTestId('file-field-attached-source_file')).toHaveTextContent('lease.pdf')
+    expect(screen.getByTestId('file-field-attach-source_file')).toHaveTextContent('Attach another file')
+    expect(screen.getAllByText(/at most 20,000 characters can be translated at once/i).length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: /generate content/i }))
+    expect(props.onGenerate).not.toHaveBeenCalled()
+  })
+
+  it('translates pasted text without a file', async () => {
+    const { user, props } = renderPanel({ template: translation, answers: { source_text: 'Hello' } })
+    await user.click(screen.getByRole('button', { name: /generate content/i }))
+    expect(props.onGenerate).toHaveBeenCalled()
+  })
+})
+

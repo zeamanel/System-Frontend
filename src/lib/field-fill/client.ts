@@ -88,3 +88,48 @@ export async function uploadSource(file: File): Promise<FieldFillSource> {
   const dataBase64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
   return { kind: 'upload', filename: file.name, mimeType: file.type || 'application/octet-stream', dataBase64 }
 }
+
+/** Longest text a document translation takes in one go (the backend's limit). */
+export const MAX_TRANSLATION_CHARS = 20_000
+
+export interface FileReadResult {
+  text: string
+  sourceName: string
+  /** Read straight from the file's text, or transcribed by the AI from a photo or scan. */
+  method: 'text' | 'transcribed'
+  /** Part of a photo or scan could not be read. */
+  illegible: boolean
+  /** The file's text was very long and was cut. */
+  truncated: boolean
+  language?: string
+}
+
+/**
+ * The whole text of a file the user picked (POST /api/v1/ai/read-file), for a
+ * template's file field: the user checks it before it is worked on. Demo
+ * (fixture) mode has no AI, so it says so.
+ */
+export async function readFileText(source: FieldFillSource, options: ExtractFieldOptions = {}): Promise<FileReadResult> {
+  const dataSource = options.dataSource ?? env.dataSource
+  if (dataSource !== 'http' && !options.client) throw new FieldFillError('offline')
+  const client = options.client ?? apiClient
+  try {
+    const response = await client.post<Partial<FileReadResult>>('/ai/read-file', { source }, { auth: 'required' })
+    return {
+      text: typeof response.text === 'string' ? response.text : '',
+      sourceName: typeof response.sourceName === 'string' ? response.sourceName : '',
+      method: response.method === 'transcribed' ? 'transcribed' : 'text',
+      illegible: response.illegible === true,
+      truncated: response.truncated === true,
+      ...(typeof response.language === 'string' && response.language ? { language: response.language } : {}),
+    }
+  } catch (error) {
+    if (error instanceof RateLimitError) throw new FieldFillError(error.code === 'QUOTA_EXCEEDED' ? 'quota' : 'rate-limit')
+    if (error instanceof ApiError) {
+      if (error.status === 404) throw new FieldFillError('not-found')
+      if (error.status === 413) throw new FieldFillError('too-large')
+      if (error.status === 415 || error.status === 422) throw new FieldFillError('unsupported')
+    }
+    throw new FieldFillError('failed')
+  }
+}

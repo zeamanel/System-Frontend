@@ -969,5 +969,18 @@
   "telegram.qr.label": "{bot}ን በቴሌግራም የሚከፍት QR ኮድ",
   "telegram.qr.scanCode": "በኮምፒውተር ላይ ነዎት? በስልክዎ ካሜራ ይቃኙ፦ ቴሌግራም ቦቱን ይህ ኮድ ተልኮ ይከፍታል።",
   "telegramFiles.botCardTitle": "ከስልክዎ ፋይሎችን ይላኩ",
-  "telegramFiles.botCardBody": "{bot}ን በቴሌግራም ለመክፈት ይህን ኮድ በስልክዎ ካሜራ ይቃኙ፤ ከዚያ ፎቶ፣ PDF፣ Word ፋይል ወይም የድምፅ መልእክት ይላኩ።"
+  "telegramFiles.botCardBody": "{bot}ን በቴሌግራም ለመክፈት ይህን ኮድ በስልክዎ ካሜራ ይቃኙ፤ ከዚያ ፎቶ፣ PDF፣ Word ፋይል ወይም የድምፅ መልእክት ይላኩ።",
+  "fileRead.title": "የሚተረጎመውን ፋይል ያያይዙ",
+  "fileRead.lead": "ከቴሌግራም ፋይሎችዎ አንዱን ይምረጡ ወይም ይጫኑ (PDF፣ Word፣ ፎቶ ወይም ጽሑፍ፣ እስከ 4 MB)። SenedDesk ጽሑፉን ያነባል፤ ከመተርጎሙ በፊት እርስዎ ያረጋግጣሉ።",
+  "fileRead.textLabel": "ከፋይሉ የተነበበው ጽሑፍ (ያረጋግጡና ያርሙ)",
+  "fileRead.count": "ከ{max} ቁምፊዎች {count}",
+  "fileRead.transcribed": "ከፎቶ ወይም ከስካን በAI የተነበበ፤ በተለይ ስሞችንና ቁጥሮችን ከዋናው ጋር ያነጻጽሩ።",
+  "fileRead.illegible": "የፋይሉ ከፊል ሊነበብ አልቻለም፤ [illegible] ተብሎ ተመልክቷል። ከቻሉ እነዚያን ቃላት ከዋናው ይጻፉ።",
+  "fileRead.tooLong": "በአንድ ጊዜ ሊተረጎም የሚችለው እስከ {max} ቁምፊ ብቻ ነው። ሰነዱን ከፍለው በክፍል ይተርጉሙ።",
+  "fileRead.use": "ይህን ጽሑፍ ተጠቀም",
+  "fileRead.attach": "ፋይል ያያይዙ",
+  "fileRead.replace": "ሌላ ፋይል ያያይዙ",
+  "fileRead.hint": "PDF፣ Word፣ ፎቶ ወይም ጽሑፍ። ጽሑፉ ከታች ባለው ሳጥን ውስጥ ይገባል፤ እዚያ ያረጋግጡታል። ወይም ጽሑፉን እዚያ ራስዎ ይለጥፉ።",
+  "fileRead.attached": "{name} — ጽሑፉ ከታች ባለው “{field}” ውስጥ ነው።",
+  "fileRead.targetLanguage": "ሰነዱ ወደዚህ ቋንቋ ይተረጎማል።"
 }

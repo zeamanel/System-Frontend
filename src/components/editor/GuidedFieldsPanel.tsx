@@ -18,6 +18,7 @@ import { Badge, Button, Input, Select, Spinner, Textarea } from '../ui'
 import { AlertIcon, PaperclipIcon, SparkIcon } from '../icons'
 import { AiNotice } from '../layout/AiNotice'
 import { FieldFileFillDialog } from './FieldFileFillDialog'
+import { MAX_TRANSLATION_CHARS } from '../../lib/field-fill/client'
 
 export const ADDITIONAL_INSTRUCTIONS_FIELD_ID = 'additional_instructions'
 
@@ -162,6 +163,8 @@ export function GuidedFieldsPanel({
   // "Fill from a file": shown on the field the user is in.
   const [focusedFieldId, setFocusedFieldId] = useState<string | null>(null)
   const [fillTarget, setFillTarget] = useState<{ id: string; label: string; apply: (value: string) => void } | null>(null)
+  /** A file field whose file is being read (its text goes into the field it fills). */
+  const [readTarget, setReadTarget] = useState<{ id: string; label: string; fills: string } | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [telegramProfiles, setTelegramProfiles] = useState<TelegramVaultProfile[]>([])
   const [partySlots, setPartySlots] = useState<Record<string, PartySlotState[]>>({})
@@ -198,6 +201,9 @@ export function GuidedFieldsPanel({
   const missingRequiredIds = questions
     .filter((q) => q.required && !(answers[q.id] ?? '').trim())
     .map((q) => q.id)
+  /** Fields filled from an attached file (the text to translate): they have a length limit. */
+  const fileFilledIds = new Set(questions.filter((q) => q.type === 'file' && q.fills).map((q) => q.fills as string))
+  const tooLongIds = [...fileFilledIds].filter((id) => (answers[id] ?? '').trim().length > MAX_TRANSLATION_CHARS)
 
   const loadTelegramProfiles = useCallback(async () => {
     try {
@@ -436,6 +442,7 @@ export function GuidedFieldsPanel({
     if (isPromptOnly && !answers[ADDITIONAL_INSTRUCTIONS_FIELD_ID]?.trim()) {
       missing[ADDITIONAL_INSTRUCTIONS_FIELD_ID] = true
     }
+    for (const id of tooLongIds) missing[id] = true
     setInvalid(missing)
     if (Object.keys(missing).length > 0) return
     if (hasContent) {
@@ -494,6 +501,11 @@ export function GuidedFieldsPanel({
           value={language}
           onChange={(event) => onLanguageChange(event.target.value)}
         />
+        {fileFilledIds.size > 0 ? (
+          <p className="guided-file-field__hint" data-testid="translation-target-note">
+            {t('fileRead.targetLanguage')}
+          </p>
+        ) : null}
 
         {confirming ? (
           <div className="editor-panel__confirm" role="alertdialog" aria-label={t('editor.regenerate')}>
@@ -640,6 +652,35 @@ export function GuidedFieldsPanel({
             onAppendInstructions={handleAppendInstructions}
           />
           {questions.map((question) => {
+            if (question.type === 'file' && question.fills) {
+              const fills = question.fills
+              const attached = answers[question.id] ?? ''
+              const target = questions.find((q) => q.id === fills)
+              return (
+                <div key={question.id} className="editor-panel__field guided-file-field" data-testid={`file-field-${question.id}`}>
+                  <span className="field__label">
+                    {question.label}
+                    {question.required ? <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge> : null}
+                  </span>
+                  {attached ? (
+                    <p className="guided-file-field__attached" data-testid={`file-field-attached-${question.id}`}>
+                      <PaperclipIcon size={13} /> {t('fileRead.attached', { name: attached, field: target?.label ?? '' })}
+                    </p>
+                  ) : (
+                    <p className="guided-file-field__hint">{t('fileRead.hint')}</p>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<PaperclipIcon size={14} />}
+                    onClick={() => setReadTarget({ id: question.id, label: question.label, fills })}
+                    data-testid={`file-field-attach-${question.id}`}
+                  >
+                    {attached ? t('fileRead.replace') : t('fileRead.attach')}
+                  </Button>
+                </div>
+              )
+            }
             const fieldKey = (question as { key?: string; id: string }).key ?? question.id
             const isParty = isPartyFieldKey(fieldKey)
             const currentValue = answers[question.id] ?? ''
@@ -779,11 +820,24 @@ export function GuidedFieldsPanel({
                             ) : null}
                           </>
                         }
-                        hint={t('editor.fieldMultilineHint')}
-                        hintMode="focus"
-                        error={invalid[question.id] ? t('editor.fieldRequired') : undefined}
+                        hint={
+                          fileFilledIds.has(question.id)
+                            ? t('fileRead.count', {
+                                count: currentValue.trim().length.toLocaleString(),
+                                max: MAX_TRANSLATION_CHARS.toLocaleString(),
+                              })
+                            : t('editor.fieldMultilineHint')
+                        }
+                        hintMode={fileFilledIds.has(question.id) ? undefined : 'focus'}
+                        error={
+                          fileFilledIds.has(question.id) && currentValue.trim().length > MAX_TRANSLATION_CHARS
+                            ? t('fileRead.tooLong', { max: MAX_TRANSLATION_CHARS.toLocaleString() })
+                            : invalid[question.id]
+                              ? t('editor.fieldRequired')
+                              : undefined
+                        }
                         value={currentValue}
-                        rows={3}
+                        rows={fileFilledIds.has(question.id) ? 10 : 3}
                         onChange={(e) => onAnswerChange(question.id, e.target.value)}
                         placeholder={t('editor.fieldPlaceholder')}
                       />
@@ -978,6 +1032,22 @@ export function GuidedFieldsPanel({
         </footer>
       )}
       </fieldset>
+      {readTarget ? (
+        <FieldFileFillDialog
+          open
+          mode="document"
+          fieldId={readTarget.id}
+          fieldLabel={readTarget.label}
+          language={language}
+          onUse={() => undefined}
+          onUseText={(text, sourceName) => {
+            onAnswerChange(readTarget.fills, text)
+            onAnswerChange(readTarget.id, sourceName)
+            setInvalid((current) => ({ ...current, [readTarget.fills]: false }))
+          }}
+          onClose={() => setReadTarget(null)}
+        />
+      ) : null}
       {fillTarget ? (
         <FieldFileFillDialog
           open

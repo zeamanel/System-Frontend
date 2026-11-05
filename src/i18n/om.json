@@ -969,5 +969,18 @@
   "telegram.qr.label": "Koodii QR {bot} Telegram irratti banu",
   "telegram.qr.scanCode": "Kompiitara irra jirtu? Kaameraa bilbila keessaniin iskaanii godhaa: Telegram koodii kana ergamee jiruun bootii ni bana.",
   "telegramFiles.botCardTitle": "Bilbila keessanii faayiloota ergaa",
-  "telegramFiles.botCardBody": "{bot} Telegram irratti banuuf koodii kana kaameraa bilbila keessaniin iskaanii godhaa, sana booda suuraa, PDF, faayila Word ykn ergaa sagalee ergaa."
+  "telegramFiles.botCardBody": "{bot} Telegram irratti banuuf koodii kana kaameraa bilbila keessaniin iskaanii godhaa, sana booda suuraa, PDF, faayila Word ykn ergaa sagalee ergaa.",
+  "fileRead.title": "Faayila hiikamu maxxansaa",
+  "fileRead.lead": "Faayiloota Telegram keessanii keessaa tokko filadhaa ykn tokko olkaa’aa (PDF, Word, suuraa ykn barruu, hanga 4 MB). SenedDesk barruu isaa dubbisa; hiikuun dura isin mirkaneessitu.",
+  "fileRead.textLabel": "Barruu faayila irraa dubbifame (mirkaneessaa fi sirreessaa)",
+  "fileRead.count": "Qubee {max} keessaa {count}",
+  "fileRead.transcribed": "Suuraa ykn iskaanii irraa AI’n dubbifame: keessumaa maqaalee fi lakkoofsota kan jalqabaa wajjin walbira qabaa.",
+  "fileRead.illegible": "Kutaan faayilichaa dubbifamuu hin dandeenye, [illegible] jedhamee mallattaa’eera. Yoo dandeessan jechoota sana kan jalqabaa irraa barreessaa.",
+  "fileRead.tooLong": "Yeroo tokkotti qubee {max} qofatu hiikamuu danda’a. Sanadicha qoqqoodaatii kutaan hiikaa.",
+  "fileRead.use": "Barruu kana fayyadami",
+  "fileRead.attach": "Faayila maxxansaa",
+  "fileRead.replace": "Faayila biraa maxxansaa",
+  "fileRead.hint": "PDF, Word, suuraa ykn barruu. Barruun isaa saanduqa armaan gadii keessa seena, achitti mirkaneessitu. Ykn barruu achitti ofii keessaniin maxxansaa.",
+  "fileRead.attached": "{name} — barruun isaa “{field}” armaan gadii keessa jira.",
+  "fileRead.targetLanguage": "Sanadichi gara afaan kanaatti hiikama."
 }
