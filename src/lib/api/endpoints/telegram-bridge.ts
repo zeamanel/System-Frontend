@@ -95,8 +95,8 @@ export interface TelegramHubItem {
   createdAt: string
   /** What is in the file; absent from an older backend. */
   items?: TelegramFileItem[]
-  /** 'pending': still being read; 'none': nothing to list. */
-  itemsStatus?: 'ready' | 'pending' | 'none'
+  /** 'pending': being read now; 'on_demand': read when the user selects the file; 'none': nothing to list. */
+  itemsStatus?: 'ready' | 'pending' | 'on_demand' | 'none'
   /** The summary view leaves the image out; this says there is one. */
   hasImage?: boolean
 }

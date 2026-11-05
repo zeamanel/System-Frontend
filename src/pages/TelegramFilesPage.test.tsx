@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n'
 import { ToastProvider } from '../components/ui'
 import TelegramFilesPage from './TelegramFilesPage'
+import * as telegramBridge from '../lib/api/endpoints/telegram-bridge'
 import { __resetTelegramBridgeFixtures } from '../lib/api/endpoints/telegram-bridge'
 import { SessionContext } from '../session/context'
 import type { SessionContextValue } from '../session/context'
@@ -109,6 +110,19 @@ describe('TelegramFilesPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/File removed from view/i)).toBeInTheDocument()
     })
+  })
+
+  it('removes only the file whose button was clicked, and asks the backend to remove just that file', async () => {
+    renderPage()
+    await screen.findByText('Vehicle_Sale_Agreement.txt')
+    expect(screen.getByText('almaz-id-card.png')).toBeInTheDocument()
+    const remove = vi.spyOn(telegramBridge, 'dismissTelegramHubItem')
+
+    fireEvent.click(screen.getAllByLabelText('Remove from List')[0])
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
+    // The file's own id, never its session's id (that would hide every file of the session).
+    expect(remove.mock.calls[0][0]).toMatch(/^evt_fixture_/)
+    await waitFor(() => expect(screen.queryAllByLabelText('Remove from List')).toHaveLength(1))
   })
 
   it('shows the webhook sync control only to administrators', async () => {

@@ -59,46 +59,87 @@ describe('FieldFileFillDialog with the items found in each file', () => {
     expect(extract).not.toHaveBeenCalled()
   })
 
-  it('lists the items that fit the field first', async () => {
+  it('shows a dropdown of the items beside each file, the ones that fit the field first', async () => {
     vi.spyOn(telegramApi, 'getTelegramHubMedia').mockResolvedValue({ items: [file({})], accounts: [] })
     renderDialog()
-    const chips = within(await screen.findByTestId('field-fill-items-f1')).getAllByRole('button')
-    expect(chips.map((c) => c.getAttribute('title'))).toEqual(['Tenant', 'Landlord', 'Vehicle', 'Monthly rent'])
+    const select = (await screen.findByTestId('field-fill-items-f1')) as HTMLSelectElement
+    expect(select.tagName).toBe('SELECT')
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      '4 items found — choose',
+      'Tenant: Almaz Kebede',
+      'Landlord: Abebe Bekele',
+      'Vehicle: Toyota Corolla',
+      'Monthly rent: 15,000.00',
+    ])
   })
 
-  it('fills the field with the ticked items, which can still be edited', async () => {
+  it('fills the field with the items chosen from the dropdown, which can still be edited', async () => {
     vi.spyOn(telegramApi, 'getTelegramHubMedia').mockResolvedValue({ items: [file({})], accounts: [] })
     const { onUse } = renderDialog()
-    const items = await screen.findByTestId('field-fill-items-f1')
+    const select = (await screen.findByTestId('field-fill-items-f1')) as HTMLSelectElement
     expect(screen.queryByTestId('field-fill-selected')).toBeNull()
 
-    fireEvent.click(within(items).getByTitle('Tenant'))
-    fireEvent.click(within(items).getByTitle('Vehicle'))
+    fireEvent.change(select, { target: { value: '0' } }) // Vehicle
+    fireEvent.change(select, { target: { value: '2' } }) // Tenant
     const box = within(screen.getByTestId('field-fill-selected')).getByRole('textbox') as HTMLInputElement
-    expect(box.value).toBe('Almaz Kebede Toyota Corolla')
+    expect(box.value).toBe('Toyota Corolla Almaz Kebede')
+    expect([...select.options].map((o) => o.textContent)).toContain('✓ Vehicle: Toyota Corolla')
 
-    fireEvent.click(within(items).getByTitle('Vehicle')) // untick
+    fireEvent.change(select, { target: { value: '0' } }) // choosing it again removes it
     expect(box.value).toBe('Almaz Kebede')
     fireEvent.change(box, { target: { value: 'Almaz K. Kebede' } })
     fireEvent.click(screen.getByTestId('field-fill-use-items'))
     expect(onUse).toHaveBeenCalledWith('Almaz K. Kebede')
   })
 
-  it('still searches a file with AI when asked, and offers "+N more" for long lists', async () => {
-    const many = Array.from({ length: 9 }, (_, i) => ({ label: `L${i}`, value: `V${i}`, kind: 'other' as const }))
-    vi.spyOn(telegramApi, 'getTelegramHubMedia').mockResolvedValue({ items: [file({ items: many })], accounts: [] })
+  it('still searches a file with AI when it is selected after its items are read', async () => {
+    vi.spyOn(telegramApi, 'getTelegramHubMedia').mockResolvedValue({ items: [file({})], accounts: [] })
     const extract = vi.spyOn(fieldFillClient, 'extractFieldFromFile').mockResolvedValue({
       value: 'Almaz Kebede', evidence: 'Tenant: Almaz Kebede', confidence: 'high', evidenceVerified: true, sourceName: 'lease.pdf',
     })
     renderDialog()
-    const items = await screen.findByTestId('field-fill-items-f1')
-    expect(within(items).getAllByRole('button')).toHaveLength(7) // 6 items + "+3 more"
-    fireEvent.click(within(items).getByRole('button', { name: '+3 more' }))
-    expect(within(items).getAllByRole('button')).toHaveLength(10) // 9 items + "Show fewer"
-
-    fireEvent.click(screen.getByRole('button', { name: /lease\.pdf/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /lease\.pdf/i }))
     expect(await screen.findByTestId('field-fill-result')).toBeInTheDocument()
     expect(extract).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads the items of a bigger file when it is selected, then offers them in the dropdown', async () => {
+    const unread = file({ items: [], itemsStatus: 'on_demand', filename: 'big-lease.pdf' })
+    vi.spyOn(telegramApi, 'getTelegramHubMedia').mockResolvedValue({ items: [unread], accounts: [] })
+    let finish: (value: fieldFillClient.FileItemsResult) => void = () => undefined
+    const read = vi.spyOn(fieldFillClient, 'extractFileItems').mockReturnValue(new Promise((resolve) => (finish = resolve)))
+    const searchWithAi = vi.spyOn(fieldFillClient, 'extractFieldFromFile')
+    renderDialog()
+
+    const button = await screen.findByRole('button', { name: /big-lease\.pdf/i })
+    expect(button).toHaveTextContent('Read items')
+    expect(screen.queryByTestId('field-fill-items-f1')).toBeNull()
+    fireEvent.click(button)
+    expect(await screen.findByText(/reading what is in this file/i)).toBeInTheDocument()
+    expect(read).toHaveBeenCalledWith('f1')
+
+    await act(async () => {
+      finish({ itemsStatus: 'ready', items: [{ label: 'Tenant', value: 'Almaz Kebede', kind: 'name' }] })
+    })
+    expect(await screen.findByTestId('field-fill-suggested-f1')).toHaveTextContent('Almaz Kebede')
+    expect((screen.getByTestId('field-fill-items-f1') as HTMLSelectElement).options).toHaveLength(2)
+    expect(screen.getByRole('button', { name: /big-lease\.pdf/i })).toHaveTextContent('Search with AI')
+    expect(searchWithAi).not.toHaveBeenCalled()
+  })
+
+  it('says why a file could not be read, and lets the user try again by selecting it again', async () => {
+    vi.spyOn(telegramApi, 'getTelegramHubMedia').mockResolvedValue({ items: [file({ items: [], itemsStatus: 'on_demand' })], accounts: [] })
+    const read = vi
+      .spyOn(fieldFillClient, 'extractFileItems')
+      .mockRejectedValueOnce(new fieldFillClient.FieldFillError('quota'))
+      .mockResolvedValueOnce({ itemsStatus: 'none', items: [] })
+    renderDialog()
+    fireEvent.click(await screen.findByRole('button', { name: /lease\.pdf/i }))
+    expect(await screen.findByTestId('field-fill-items-error-f1')).toHaveTextContent("used today's AI allowance")
+    fireEvent.click(screen.getByRole('button', { name: /lease\.pdf/i }))
+    await waitFor(() => expect(screen.queryByTestId('field-fill-items-error-f1')).toBeNull())
+    expect(await screen.findByText('Nothing to list in this file.')).toBeInTheDocument()
+    expect(read).toHaveBeenCalledTimes(2)
   })
 
   it('shows a file that is still being read, and updates when its items arrive', async () => {

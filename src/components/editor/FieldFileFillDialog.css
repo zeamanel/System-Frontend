@@ -161,71 +161,35 @@
   color: var(--color-text-secondary);
 }
 
-.field-fill__items {
+.field-fill__row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
-.field-fill__items-label {
-  width: 100%;
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
+.field-fill__row .field-fill__file {
+  flex: 1 1 14rem;
+  min-width: 0;
+  width: auto;
 }
 
-.field-fill__chip {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
+.field-fill__select {
+  flex: 1 1 11rem;
+  min-width: 0;
   max-width: 100%;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   background-color: var(--color-surface);
-  text-align: left;
-  cursor: pointer;
-}
-
-.field-fill__chip:hover,
-.field-fill__chip:focus-visible {
-  border-color: var(--color-border-strong);
-  background-color: var(--color-action-ghost-hover);
-}
-
-.field-fill__chip--fits {
-  border-color: var(--color-border-strong);
-}
-
-.field-fill__chip--on {
-  border-color: var(--color-selected);
-  background-color: var(--color-selected);
-  color: var(--color-on-selected);
-}
-
-.field-fill__chip--on:hover,
-.field-fill__chip--on:focus-visible {
-  background-color: var(--color-action-primary-hover);
-}
-
-.field-fill__chip-label {
-  font-size: var(--text-xs);
-  opacity: 0.75;
-}
-
-.field-fill__chip-value {
+  color: var(--color-text);
+  font: inherit;
   font-size: var(--text-sm);
-  overflow-wrap: anywhere;
 }
 
-.field-fill__more {
-  padding: var(--space-1) var(--space-2);
-  border: 0;
-  background: none;
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  text-decoration: underline;
-  cursor: pointer;
+.field-fill__reading {
+  flex: 1 1 11rem;
+  margin: 0;
 }
 
 .field-fill__selected {

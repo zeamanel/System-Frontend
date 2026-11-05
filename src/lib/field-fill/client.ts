@@ -1,5 +1,6 @@
 import { env } from '../../config/env'
 import { apiClient, ApiError, RateLimitError } from '../api'
+import type { TelegramFileItem } from '../api/endpoints/telegram-bridge'
 
 /**
  * "Fill this field from a file" (POST /api/v1/ai/extract-field).
@@ -130,6 +131,33 @@ export async function readFileText(source: FieldFillSource, options: ExtractFiel
       if (error.status === 413) throw new FieldFillError('too-large')
       if (error.status === 415 || error.status === 422) throw new FieldFillError('unsupported')
     }
+    throw new FieldFillError('failed')
+  }
+}
+
+export interface FileItemsResult {
+  items: TelegramFileItem[]
+  /** 'ready': items listed; 'none': nothing to list. */
+  itemsStatus: 'ready' | 'none'
+}
+
+/**
+ * Reads the items (names, dates, numbers, amounts, clauses) of one of the user's
+ * Telegram files now (POST /api/v1/ai/extract-items). Small files and photos are
+ * read when they arrive; a bigger file is read here, when it is selected. Read
+ * once: the backend keeps the result with the file.
+ */
+export async function extractFileItems(itemId: string, options: ExtractFieldOptions = {}): Promise<FileItemsResult> {
+  const dataSource = options.dataSource ?? env.dataSource
+  if (dataSource !== 'http' && !options.client) throw new FieldFillError('offline')
+  const client = options.client ?? apiClient
+  try {
+    const response = await client.post<Partial<FileItemsResult>>('/ai/extract-items', { itemId }, { auth: 'required' })
+    const items = Array.isArray(response.items) ? response.items : []
+    return { items, itemsStatus: items.length > 0 ? 'ready' : 'none' }
+  } catch (error) {
+    if (error instanceof RateLimitError) throw new FieldFillError(error.code === 'QUOTA_EXCEEDED' ? 'quota' : 'rate-limit')
+    if (error instanceof ApiError && error.status === 404) throw new FieldFillError('not-found')
     throw new FieldFillError('failed')
   }
 }

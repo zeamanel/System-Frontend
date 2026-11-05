@@ -3,9 +3,11 @@ import './FieldFileFillDialog.css'
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '../../i18n'
 import { getTelegramHubMedia } from '../../lib/api'
+import type { MessageKey } from '../../i18n'
 import type { TelegramFileItem, TelegramHubItem } from '../../lib/api/endpoints/telegram-bridge'
 import {
   extractFieldFromFile,
+  extractFileItems,
   FieldFillError,
   MAX_TRANSLATION_CHARS,
   readFileText,
@@ -35,8 +37,6 @@ export interface FieldFileFillDialogProps {
   onUseText?: (text: string, sourceName: string) => void
 }
 
-/** Items shown on a file before "+N more". */
-const VISIBLE_ITEMS = 6
 /** How often files still being read are checked again, and for how long. */
 const ITEMS_POLL_MS = 3000
 const ITEMS_POLL_MAX_MS = 2 * 60 * 1000
@@ -70,7 +70,9 @@ export function FieldFileFillDialog({
   /** Items ticked in the list: "<file id>:<item index>" in the order they were ticked. */
   const [picked, setPicked] = useState<string[]>([])
   const [pickedText, setPickedText] = useState('')
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  /** Files whose items are being read now (selected before they were read), and why one could not be. */
+  const [readingItems, setReadingItems] = useState<Set<string>>(new Set())
+  const [itemErrors, setItemErrors] = useState<Record<string, FieldFillFailure>>({})
   const uploadRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -79,7 +81,8 @@ export function FieldFileFillDialog({
     setFiles(null)
     setPicked([])
     setPickedText('')
-    setExpanded(new Set())
+    setReadingItems(new Set())
+    setItemErrors({})
     let cancelled = false
     getTelegramHubMedia(undefined, { summary: true })
       .then((media) => {
@@ -119,6 +122,24 @@ export function FieldFileFillDialog({
       return (k === key ? item : files?.find((f) => f.id === fileId)?.items?.[index])?.value
     }
     setPickedText(next.map(valueOf).filter(Boolean).join(' '))
+  }
+
+  /** Selecting a file whose items were not read yet reads them now (bigger files are not read on arrival). */
+  const readItems = async (file: TelegramHubItem): Promise<void> => {
+    setItemErrors(({ [file.id]: _gone, ...rest }) => rest)
+    setReadingItems((current) => new Set(current).add(file.id))
+    try {
+      const result = await extractFileItems(file.id)
+      setFiles((current) => current?.map((f) => (f.id === file.id ? { ...f, items: result.items, itemsStatus: result.itemsStatus } : f)) ?? current)
+    } catch (error) {
+      setItemErrors((current) => ({ ...current, [file.id]: error instanceof FieldFillError ? error.reason : 'failed' }))
+    } finally {
+      setReadingItems((current) => {
+        const next = new Set(current)
+        next.delete(file.id)
+        return next
+      })
+    }
   }
 
   const read = async (name: string, source: () => Promise<FieldFillSource>): Promise<void> => {
@@ -186,24 +207,65 @@ export function FieldFileFillDialog({
             {files.map((file) => {
               const ranked = rankItems(file.items ?? [], fieldLabel)
               const best = mode === 'field' ? bestItem(file.items ?? [], fieldLabel) : null
-              const showAll = expanded.has(file.id)
-              const shown = showAll ? ranked : ranked.slice(0, VISIBLE_ITEMS)
+              const reading = readingItems.has(file.id) || file.itemsStatus === 'pending'
+              const unread = mode === 'field' && file.itemsStatus === 'on_demand' && !reading
               return (
                 <li key={file.id} className="field-fill__card">
-                  <button
-                    type="button"
-                    className="field-fill__file"
-                    onClick={() => void read(file.filename, async () => ({ kind: 'telegram', itemId: file.id }))}
-                  >
-                    {file.imageDataUrl ? <img src={file.imageDataUrl} alt="" className="field-fill__thumb" /> : null}
-                    <span className="field-fill__file-text">
-                      <span className="field-fill__file-name">{file.filename}</span>
-                      <span className="field-fill__file-preview">{file.text.slice(0, 90) || file.accountLabel}</span>
-                    </span>
-                    {mode === 'field' ? <span className="field-fill__file-action">{t('fieldFill.searchFile')}</span> : null}
-                  </button>
+                  <div className="field-fill__row">
+                    <button
+                      type="button"
+                      className="field-fill__file"
+                      onClick={() =>
+                        unread
+                          ? void readItems(file)
+                          : void read(file.filename, async () => ({ kind: 'telegram', itemId: file.id }))
+                      }
+                    >
+                      {file.imageDataUrl ? <img src={file.imageDataUrl} alt="" className="field-fill__thumb" /> : null}
+                      <span className="field-fill__file-text">
+                        <span className="field-fill__file-name">{file.filename}</span>
+                        <span className="field-fill__file-preview">{file.text.slice(0, 90) || file.accountLabel}</span>
+                      </span>
+                      {mode === 'field' ? (
+                        <span className="field-fill__file-action">{unread ? t('fieldFill.readItems') : t('fieldFill.searchFile')}</span>
+                      ) : null}
+                    </button>
+                    {mode === 'field' ? (
+                      reading ? (
+                        <p className="field-fill__muted field-fill__reading" role="status">
+                          <Spinner size={12} /> {t('fieldFill.itemsReading')}
+                        </p>
+                      ) : ranked.length > 0 ? (
+                        <select
+                          className="field-fill__select"
+                          value=""
+                          aria-label={t('fieldFill.itemsOf', { name: file.filename })}
+                          data-testid={`field-fill-items-${file.id}`}
+                          onChange={(event) => {
+                            const entry = ranked.find((r) => String(r.index) === event.target.value)
+                            if (entry) togglePicked(`${file.id}:${entry.index}`, entry.item)
+                          }}
+                        >
+                          <option value="">{t('fieldFill.itemsSelect', { count: String(ranked.length) })}</option>
+                          {ranked.map(({ item, index }) => (
+                            <option key={index} value={String(index)}>
+                              {picked.includes(`${file.id}:${index}`) ? '✓ ' : ''}
+                              {item.label}: {item.value}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null
+                    ) : null}
+                  </div>
                   {mode === 'field' ? (
                     <>
+                      {itemErrors[file.id] ? (
+                        <p className="field-fill__error" role="alert" data-testid={`field-fill-items-error-${file.id}`}>
+                          {t(`fieldFill.itemsError.${itemErrors[file.id]}` as MessageKey)}
+                        </p>
+                      ) : file.itemsStatus === 'none' ? (
+                        <p className="field-fill__muted">{t('fieldFill.itemsNone')}</p>
+                      ) : null}
                       {best ? (
                         <div className="field-fill__suggested" data-testid={`field-fill-suggested-${file.id}`}>
                           <span className="field-fill__suggested-text">
@@ -220,49 +282,6 @@ export function FieldFileFillDialog({
                           >
                             {t('fieldFill.useItem')}
                           </Button>
-                        </div>
-                      ) : null}
-                      {file.itemsStatus === 'pending' ? (
-                        <p className="field-fill__muted" role="status">
-                          <Spinner size={12} /> {t('fieldFill.itemsReading')}
-                        </p>
-                      ) : null}
-                      {shown.length > 0 ? (
-                        <div className="field-fill__items" data-testid={`field-fill-items-${file.id}`}>
-                          <span className="field-fill__items-label">{t('fieldFill.inside')}</span>
-                          {shown.map(({ item, index, score }) => {
-                            const key = `${file.id}:${index}`
-                            const on = picked.includes(key)
-                            return (
-                              <button
-                                key={key}
-                                type="button"
-                                className={`field-fill__chip${on ? ' field-fill__chip--on' : ''}${score > 0 ? ' field-fill__chip--fits' : ''}`}
-                                aria-pressed={on}
-                                title={item.label}
-                                onClick={() => togglePicked(key, item)}
-                              >
-                                <span className="field-fill__chip-label">{item.label}</span>
-                                <span className="field-fill__chip-value">{item.value}</span>
-                              </button>
-                            )
-                          })}
-                          {ranked.length > VISIBLE_ITEMS ? (
-                            <button
-                              type="button"
-                              className="field-fill__more"
-                              onClick={() =>
-                                setExpanded((current) => {
-                                  const next = new Set(current)
-                                  if (next.has(file.id)) next.delete(file.id)
-                                  else next.add(file.id)
-                                  return next
-                                })
-                              }
-                            >
-                              {showAll ? t('fieldFill.fewerItems') : t('fieldFill.moreItems', { count: String(ranked.length - VISIBLE_ITEMS) })}
-                            </button>
-                          ) : null}
                         </div>
                       ) : null}
                     </>

@@ -64,10 +64,11 @@ export default function TelegramFilesPage() {
     return () => clearInterval(interval)
   }, [loadData])
 
-  const handleDismiss = async (id: string, sessionId: string) => {
+  const handleDismiss = async (id: string) => {
     try {
-      await dismissTelegramHubItem(sessionId || id)
-      setItems((prev) => prev.filter((item) => item.id !== id && item.sessionId !== sessionId))
+      // Only this file: the other files of the same session stay.
+      await dismissTelegramHubItem(id)
+      setItems((prev) => prev.filter((item) => item.id !== id))
       setActionNotice(t('telegramFiles.dismissSuccess'))
       setTimeout(() => setActionNotice(null), 3000)
     } catch (err) {
@@ -357,7 +358,7 @@ export default function TelegramFilesPage() {
                     type="button"
                     className="telegram-file-card__btn--danger"
                     title={t('telegramFiles.dismissTooltip')}
-                    onClick={() => handleDismiss(item.id, item.sessionId)}
+                    onClick={() => handleDismiss(item.id)}
                     aria-label={t('telegramFiles.dismiss')}
                   >
                     <TrashIcon size={16} />
