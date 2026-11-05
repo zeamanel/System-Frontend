@@ -958,5 +958,10 @@
   "assistant.proposal.rejectAll": "Dismiss all",
   "assistant.proposal.leftPending": "{count} change(s) were not applied because that text was edited or removed after the suggestion. Check them one by one below.",
   "assistant.proposal.inListItem": "In a list item",
-  "assistant.proposal.inTableCell": "In a table cell"
+  "assistant.proposal.inTableCell": "In a table cell",
+  "editor.askAi": "AI gaafadhu",
+  "editor.askAiTitle": "Gargaaraan kutaa kana akka fooyyessu ykn ibsu gaafadhu",
+  "editor.tipBlocks": "Gorsa: keeyyata kamiyyuu tuqiitii kallattiin gulaali. Akka gargaaraan isa fooyyessuuf ✦ AI gaafadhu cinaa isaa jiru tuqi.",
+  "editor.tipDismiss": "Hubadheera",
+  "editor.askAiShort": "AI"
 }

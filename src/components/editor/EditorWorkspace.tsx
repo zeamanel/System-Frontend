@@ -123,6 +123,26 @@ export interface NewCustomerDocumentInput {
  * canvas (centre) + formatting controls (right). Owns selection/focus state
  * and wires every block interaction to pure model operations.
  */
+
+/** The one-time "click a paragraph / Ask AI" tip (per browser; sign-out keeps it). */
+const BLOCK_TIP_KEY = 'docuA4.tip.blockActions.v1'
+
+function readFlag(key: string): boolean {
+  try {
+    return globalThis.localStorage?.getItem(key) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeFlag(key: string): void {
+  try {
+    globalThis.localStorage?.setItem(key, '1')
+  } catch {
+    // Storage unavailable: the tip may show again next time.
+  }
+}
+
 export function EditorWorkspace({
   document: doc,
   template,
@@ -357,12 +377,32 @@ export function EditorWorkspace({
   const openAssistant = useCallback((): void => showRightTab('assistant'), [showRightTab])
 
   const { postGenerationNotes } = assistant
+  // ---- first-time guidance: "click a paragraph to edit it, or Ask AI next to it" ----
+  // Shown once (per browser) right after a generated document lands; gone for good on
+  // "Got it" or the first use of Ask AI.
+  const [blockTipVisible, setBlockTipVisible] = useState(false)
+  const offerBlockTip = useCallback((): void => {
+    if (!readFlag(BLOCK_TIP_KEY)) setBlockTipVisible(true)
+  }, [])
+  const dismissBlockTip = useCallback((): void => {
+    setBlockTipVisible(false)
+    writeFlag(BLOCK_TIP_KEY)
+  }, [])
+
   const showGenerationNotes = useCallback((): void => {
     const pending = consumePendingNotes(doc.id)
     if (!pending) return
     postGenerationNotes(pending.notes)
     openAssistant()
-  }, [doc.id, openAssistant, postGenerationNotes])
+    offerBlockTip()
+  }, [doc.id, offerBlockTip, openAssistant, postGenerationNotes])
+
+  const tipBlockId = useMemo(
+    () =>
+      model.blocks.find((block) => (block.type === 'paragraph' || block.type === 'heading') && block.html.replace(/<[^>]*>/g, '').trim())
+        ?.id ?? null,
+    [model.blocks],
+  )
 
   // Notes from a generation that finished before this editor opened (guided flow).
   useEffect(() => {
@@ -428,6 +468,22 @@ export function EditorWorkspace({
     setActiveRefState(ref)
     if (ref) focusRef.current = ref
   }, [])
+
+  // "Ask AI" next to a block: the assistant works on that block, ready to type.
+  const handleAskAi = useCallback(
+    (blockId: string): void => {
+      if (activeRef?.blockId !== blockId) setActiveRef({ blockId })
+      setPinnedScope(null)
+      showRightTab('assistant')
+      dismissBlockTip()
+      window.setTimeout(() => document.querySelector<HTMLTextAreaElement>('[data-testid="assistant-input"]')?.focus(), 0)
+    },
+    [activeRef?.blockId, dismissBlockTip, setActiveRef, showRightTab],
+  )
+  const askAiLabels = useMemo(
+    () => ({ label: t('editor.askAi'), shortLabel: t('editor.askAiShort'), title: t('editor.askAiTitle'), onAsk: handleAskAi }),
+    [handleAskAi, t],
+  )
 
   // Apply queued focus after the model re-renders (split/insert/remove ops).
   useLayoutEffect(() => {
@@ -790,6 +846,7 @@ export function EditorWorkspace({
         editor.adoptSnapshot(fresh, { keepLook: true, undoable: true })
         toast.push(t('editor.regenerated'))
         showGenerationNotes()
+        offerBlockTip()
       }
       setStreamAdopted(true)
     })()
@@ -1330,6 +1387,12 @@ export function EditorWorkspace({
         onPagesChange={setPages}
         blockTones={streamPreview?.tones}
         streamTailId={streamPreview?.tailId ?? null}
+        askAi={askAiLabels}
+        tip={
+          blockTipVisible
+            ? { text: t('editor.tipBlocks'), dismissLabel: t('editor.tipDismiss'), onDismiss: dismissBlockTip, highlightBlockId: tipBlockId }
+            : undefined
+        }
       />
 
       <aside className="editor-side editor-side--right" aria-hidden={!rightOpen}>

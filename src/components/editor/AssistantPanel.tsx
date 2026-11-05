@@ -183,7 +183,13 @@ export function AssistantPanel({
             testId="assistant-scope-block"
           />
         </div>
-        <p className="assistant-composer__context" data-testid="assistant-context">
+        {/* A new key when what the assistant works on changes: the line flashes, so the link
+            between a click on the page and the panel is visible. */}
+        <p
+          key={`${scope}:${scope === 'block' ? (selectedText ?? '') : scope === 'page' ? String(pageNumber) : ''}`}
+          className="assistant-composer__context assistant-composer__context--changed"
+          data-testid="assistant-context"
+        >
           <span>
             {scope === 'block' && selectedText
               ? t('assistant.contextSelected', { text: truncate(selectedText, 60) })

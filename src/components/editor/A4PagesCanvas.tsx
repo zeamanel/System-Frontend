@@ -10,6 +10,7 @@ import { documentStyleId } from '../../lib/editor/styles'
 import { useMediaUrls } from '../../hooks/use-media'
 import { cssEscape, findEditable, focusEditable, type EditableRef } from './caret'
 import { BlockView, type BlockLabels } from './blocks/BlockView'
+import { SparkIcon } from '../icons'
 import type { EditorApi } from './editor-api'
 import './editor.css'
 
@@ -36,7 +37,21 @@ export interface A4PagesCanvasProps {
   blockTones?: ReadonlyMap<string, 'streamed' | 'stale'>
   /** The newest streamed block: the page follows it while the user watches the writing. */
   streamTailId?: string | null
+  /** The "Ask AI" button shown in the page margin next to the block with the cursor. */
+  askAi?: { label: string; shortLabel: string; title: string; onAsk: (blockId: string) => void }
+  /** A one-time tip shown above the page; `highlightBlockId` gets a brief outline. */
+  tip?: { text: string; dismissLabel: string; onDismiss: () => void; highlightBlockId?: string | null }
 }
+
+/** Blocks the assistant can work on (paragraphs, headings, list items, table description cells). */
+const ASK_AI_BLOCK_TYPES = new Set(['paragraph', 'heading', 'list', 'table'])
+/** How much of its label the button shows, by the room in the page margin (screen px). */
+const ASK_AI_SIZES = [
+  { size: 'full', width: 80, minMargin: 88 },
+  { size: 'short', width: 50, minMargin: 58 },
+  { size: 'icon', width: 28, minMargin: 0 },
+] as const
+type AskAiSize = (typeof ASK_AI_SIZES)[number]['size']
 
 /**
  * The centre panel: realistic A4 paper pages on a grey workspace.
@@ -64,6 +79,8 @@ export function A4PagesCanvas({
   onPagesChange,
   blockTones,
   streamTailId,
+  askAi,
+  tip,
 }: A4PagesCanvasProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const pagesWrapRef = useRef<HTMLDivElement | null>(null)
@@ -348,6 +365,44 @@ export function A4PagesCanvas({
     tail.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' })
   }, [streamTailId, pages])
 
+  // "Ask AI" sits in the right margin of the page, level with the top of the block with the
+  // cursor. It lives outside the zoomed pages (so it keeps its size at any zoom) and is
+  // positioned from the block's place on screen.
+  const askBlock = activeBlockId ? blocksById.get(activeBlockId) : undefined
+  const askBlockId = askAi && editable && askBlock && ASK_AI_BLOCK_TYPES.has(askBlock.type) ? askBlock.id : null
+  const [askAnchor, setAskAnchor] = useState<{ top: number; left: number; size: AskAiSize } | null>(null)
+  useLayoutEffect(() => {
+    if (!askBlockId) {
+      setAskAnchor(null)
+      return
+    }
+    const update = (): void => {
+      const scroller = scrollRef.current
+      const element = pagesWrapRef.current?.querySelector<HTMLElement>(`.doc-block[data-block-id="${cssEscape(askBlockId)}"]`)
+      const sheet = element?.closest<HTMLElement>('.a4-sheet')
+      if (!scroller || !element || !sheet) {
+        setAskAnchor(null)
+        return
+      }
+      const view = scroller.getBoundingClientRect()
+      const block = element.getBoundingClientRect()
+      const page = sheet.getBoundingClientRect()
+      const marginPx = model.page.margins.right * (96 / 25.4) * zoom
+      const fit = ASK_AI_SIZES.find((option) => marginPx >= option.minMargin) ?? ASK_AI_SIZES[2]
+      const next = {
+        top: Math.round(block.top - view.top + scroller.scrollTop),
+        left: Math.round(page.right - view.left + scroller.scrollLeft - fit.width - Math.max(4, (marginPx - fit.width) / 2)),
+        size: fit.size,
+      }
+      setAskAnchor((current) =>
+        current && current.top === next.top && current.left === next.left && current.size === next.size ? current : next,
+      )
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [askBlockId, pages, zoom, model.blocks, model.page.margins.right, textGeometry])
+
   const onPagesChangeRef = useRef(onPagesChange)
   onPagesChangeRef.current = onPagesChange
   useEffect(() => {
@@ -371,9 +426,22 @@ export function A4PagesCanvas({
           <span className="doc-canvas-locked__dot" aria-hidden="true" />
           {lockedNotice}
         </p>
+      ) : tip ? (
+        <div className="doc-canvas-tip" role="status" data-testid="canvas-tip">
+          <SparkIcon size={16} aria-hidden="true" className="doc-canvas-tip__icon" />
+          <span>{tip.text}</span>
+          <button type="button" className="doc-canvas-tip__dismiss" onClick={tip.onDismiss} data-testid="canvas-tip-dismiss">
+            {tip.dismissLabel}
+          </button>
+        </div>
       ) : null}
       <div
-        className={['doc-pages', lockedNotice ? 'doc-pages--locked' : null, blockTones?.size ? 'doc-pages--streaming' : null]
+        className={[
+          'doc-pages',
+          editable ? 'doc-pages--editable' : null,
+          lockedNotice ? 'doc-pages--locked' : null,
+          blockTones?.size ? 'doc-pages--streaming' : null,
+        ]
           .filter(Boolean)
           .join(' ')}
         ref={pagesWrapRef}
@@ -447,7 +515,7 @@ export function A4PagesCanvas({
                           labels={blockLabels}
                           onImageLoad={onImageLoad}
                           bilingual={Boolean(model.page.bilingual)}
-                          tone={blockTones?.get(block.id)}
+                          tone={blockTones?.get(block.id) ?? (tip?.highlightBlockId === block.id ? 'hint' : undefined)}
                         />
                       </div>
                     </div>
@@ -464,7 +532,7 @@ export function A4PagesCanvas({
                     labels={blockLabels}
                     onImageLoad={onImageLoad}
                     bilingual={Boolean(model.page.bilingual)}
-                    tone={blockTones?.get(block.id)}
+                    tone={blockTones?.get(block.id) ?? (tip?.highlightBlockId === block.id ? 'hint' : undefined)}
                   />
                 )
               })}
@@ -486,6 +554,23 @@ export function A4PagesCanvas({
           </article>
         ))}
       </div>
+
+      {askAnchor && askBlockId && askAi ? (
+        <button
+          type="button"
+          className={`doc-ask-ai doc-ask-ai--${askAnchor.size}`}
+          style={{ top: `${askAnchor.top}px`, left: `${askAnchor.left}px` }}
+          // Keep the cursor where it is: the assistant works on this block.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => askAi.onAsk(askBlockId)}
+          aria-label={askAi.title}
+          title={askAi.title}
+          data-testid="ask-ai"
+        >
+          <SparkIcon size={14} aria-hidden="true" />
+          {askAnchor.size === 'icon' ? null : <span>{askAnchor.size === 'full' ? askAi.label : askAi.shortLabel}</span>}
+        </button>
+      ) : null}
 
       <div className="doc-canvas-toolbar" role="toolbar" aria-label={zoomLabel}>
         <span className="doc-canvas-toolbar__pages">{pagesLabel(pages.length)}</span>

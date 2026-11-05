@@ -469,3 +469,21 @@
 .assistant-check__group--warning .assistant-notes__label {
   color: var(--color-warning);
 }
+
+.assistant-composer__context--changed {
+  animation: assistant-context-flash 900ms ease-out;
+  border-radius: var(--radius-sm, 4px);
+}
+
+@keyframes assistant-context-flash {
+  from {
+    background-color: var(--color-action-ghost-hover);
+    color: var(--color-text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-composer__context--changed {
+    animation: none;
+  }
+}
