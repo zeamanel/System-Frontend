@@ -61,6 +61,14 @@ describe('runDocumentCheck', () => {
     expect(path).toBe('/documents/doc%201/check')
     expect(body.answers).toEqual({ tenant: 'Sara' })
     expect(body.content.blocks[1]).toMatchObject({ type: 'image', src: '' })
+    expect(body).not.toHaveProperty('purpose')
+  })
+
+  it('says when the check is for printing', async () => {
+    const post = vi.fn(async () => ({ ok: true, summary: { errors: 0, warnings: 0 }, issues: [] }))
+    await runDocumentCheck({ documentId: 'd', model, answers: {}, questions, purpose: 'print' }, { client: { post } as never })
+    const [, body] = post.mock.calls[0] as unknown as [string, { purpose?: string }]
+    expect(body.purpose).toBe('print')
   })
 
   it('falls back to the local check when the backend fails', async () => {

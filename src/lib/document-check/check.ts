@@ -46,6 +46,8 @@ export interface RunDocumentCheckInput {
   answers: Record<string, string>
   questions: CheckQuestion[]
   signal?: AbortSignal
+  /** 'print': the user is printing (the backend counts it for template health). */
+  purpose?: 'print'
 }
 
 export interface RunDocumentCheckOptions {
@@ -140,6 +142,7 @@ export async function runDocumentCheck(
           blocks: input.model.blocks.map((block) => (block.type === 'image' ? { ...block, src: '' } : block)),
         },
         answers: input.answers,
+        ...(input.purpose ? { purpose: input.purpose } : {}),
       },
       { signal: input.signal, auth: 'required' },
     )

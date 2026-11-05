@@ -1003,7 +1003,7 @@ export function EditorWorkspace({
     try {
       // A slow or failed check never blocks printing.
       result = await Promise.race([
-        runCheck({ post: false }),
+        runCheck({ post: false, purpose: 'print' }),
         new Promise<null>((resolve) => window.setTimeout(() => resolve(null), PRINT_CHECK_TIMEOUT_MS)),
       ])
     } catch {

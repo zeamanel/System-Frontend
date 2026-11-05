@@ -471,11 +471,11 @@ export function useAssistant({
    * the user chooses to review the problems.
    */
   const runCheck = useCallback(
-    async ({ post = true }: { post?: boolean } = {}): Promise<DocumentCheckResult> => {
+    async ({ post = true, purpose }: { post?: boolean; purpose?: 'print' } = {}): Promise<DocumentCheckResult> => {
       setChecking(true)
       try {
         const { model, answers } = editorRef.current
-        const result = await runDocumentCheck({ documentId, model, answers, questions })
+        const result = await runDocumentCheck({ documentId, model, answers, questions, purpose })
         if (post) append({ id: newMessageId(), createdAt: Date.now(), role: 'assistant', kind: 'check', result })
         return result
       } finally {
