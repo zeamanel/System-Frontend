@@ -37,6 +37,26 @@ export interface TelegramProfile {
   extraInfo?: string
 }
 
+/** What a piece of information in a file is (read when the file reached the bot). */
+export type TelegramFileItemKind =
+  | 'name'
+  | 'phone'
+  | 'email'
+  | 'address'
+  | 'id_number'
+  | 'date'
+  | 'amount'
+  | 'organization'
+  | 'clause'
+  | 'other'
+
+/** One piece of information found in a file: its label in the file's own words, and its value as written. */
+export interface TelegramFileItem {
+  label: string
+  value: string
+  kind: TelegramFileItemKind
+}
+
 export interface TelegramBridgeStatusRecord {
   sessionId: string
   pageCode: string
@@ -73,6 +93,12 @@ export interface TelegramHubItem {
   text: string
   profile: TelegramProfile
   createdAt: string
+  /** What is in the file; absent from an older backend. */
+  items?: TelegramFileItem[]
+  /** 'pending': still being read; 'none': nothing to list. */
+  itemsStatus?: 'ready' | 'pending' | 'none'
+  /** The summary view leaves the image out; this says there is one. */
+  hasImage?: boolean
 }
 
 export interface TelegramHubAccount {
@@ -106,6 +132,8 @@ export interface SyncTelegramWebhookResponse {
 export interface TelegramBridgeOptions {
   client?: ApiClient
   dataSource?: DataSource
+  /** Without images and with shortened text: the fast list for the file picker. */
+  summary?: boolean
 }
 
 // ---------- Deterministic in-memory simulation for fixture mode ----------
@@ -149,6 +177,13 @@ let fixtureHubItems: TelegramHubItem[] = [
       idNumber: 'ET-AA-2024-98765',
     },
     createdAt: new Date().toISOString(),
+    items: [
+      { label: 'Seller', value: 'Abebe Bikila', kind: 'name' },
+      { label: 'Buyer', value: 'Kebede Chala', kind: 'name' },
+      { label: 'Vehicle', value: 'Toyota Corolla', kind: 'other' },
+    ],
+    itemsStatus: 'ready',
+    hasImage: false,
   },
   {
     id: 'evt_fixture_2',
@@ -169,6 +204,13 @@ let fixtureHubItems: TelegramHubItem[] = [
       idNumber: 'ET-AA-481516',
     },
     createdAt: new Date().toISOString(),
+    items: [
+      { label: 'Full name', value: 'Almaz Kebede', kind: 'name' },
+      { label: 'ID number', value: 'ET-AA-481516', kind: 'id_number' },
+      { label: 'Address', value: 'Bole Sub-City, Woreda 03', kind: 'address' },
+    ],
+    itemsStatus: 'ready',
+    hasImage: true,
   },
 ]
 
@@ -444,10 +486,10 @@ export async function getTelegramHubMedia(
   }
 
   const client = options?.client ?? apiClient
-  const query =
-    sessionIds && sessionIds.length > 0
-      ? `?sessionIds=${encodeURIComponent(sessionIds.join(','))}`
-      : ''
+  const params = new URLSearchParams()
+  if (sessionIds && sessionIds.length > 0) params.set('sessionIds', sessionIds.join(','))
+  if (options?.summary) params.set('view', 'summary')
+  const query = params.size > 0 ? `?${params.toString()}` : ''
   return client.get<TelegramHubMediaResponse>(`/telegram-bridge/media${query}`, {
     auth: 'optional',
   })

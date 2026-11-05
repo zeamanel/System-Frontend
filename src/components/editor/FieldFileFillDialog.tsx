@@ -3,7 +3,7 @@ import './FieldFileFillDialog.css'
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '../../i18n'
 import { getTelegramHubMedia } from '../../lib/api'
-import type { TelegramHubItem } from '../../lib/api/endpoints/telegram-bridge'
+import type { TelegramFileItem, TelegramHubItem } from '../../lib/api/endpoints/telegram-bridge'
 import {
   extractFieldFromFile,
   FieldFillError,
@@ -15,6 +15,7 @@ import {
   type FieldFillSource,
   type FileReadResult,
 } from '../../lib/field-fill/client'
+import { bestItem, rankItems } from '../../lib/field-fill/rank-items'
 import { Badge, Button, Dialog, Input, Spinner, Textarea } from '../ui'
 import { UploadIcon } from '../icons'
 
@@ -33,6 +34,12 @@ export interface FieldFileFillDialogProps {
   mode?: 'field' | 'document'
   onUseText?: (text: string, sourceName: string) => void
 }
+
+/** Items shown on a file before "+N more". */
+const VISIBLE_ITEMS = 6
+/** How often files still being read are checked again, and for how long. */
+const ITEMS_POLL_MS = 3000
+const ITEMS_POLL_MAX_MS = 2 * 60 * 1000
 
 type Step =
   | { kind: 'choose' }
@@ -60,14 +67,21 @@ export function FieldFileFillDialog({
   const [step, setStep] = useState<Step>({ kind: 'choose' })
   const [files, setFiles] = useState<TelegramHubItem[] | null>(null)
   const [value, setValue] = useState('')
+  /** Items ticked in the list: "<file id>:<item index>" in the order they were ticked. */
+  const [picked, setPicked] = useState<string[]>([])
+  const [pickedText, setPickedText] = useState('')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const uploadRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
     setStep({ kind: 'choose' })
     setFiles(null)
+    setPicked([])
+    setPickedText('')
+    setExpanded(new Set())
     let cancelled = false
-    getTelegramHubMedia()
+    getTelegramHubMedia(undefined, { summary: true })
       .then((media) => {
         if (!cancelled) setFiles(media.items)
       })
@@ -78,6 +92,34 @@ export function FieldFileFillDialog({
       cancelled = true
     }
   }, [open])
+
+  // Files whose items are still being read: look again until they are (or for two minutes).
+  const anyPending = files?.some((file) => file.itemsStatus === 'pending') ?? false
+  useEffect(() => {
+    if (!open || !anyPending || step.kind !== 'choose') return
+    const startedAt = Date.now()
+    const timer = window.setInterval(() => {
+      if (Date.now() - startedAt > ITEMS_POLL_MAX_MS) {
+        window.clearInterval(timer)
+        return
+      }
+      getTelegramHubMedia(undefined, { summary: true })
+        .then((media) => setFiles(media.items))
+        .catch(() => undefined)
+    }, ITEMS_POLL_MS)
+    return () => window.clearInterval(timer)
+  }, [open, anyPending, step.kind])
+
+  const togglePicked = (key: string, item: TelegramFileItem): void => {
+    const next = picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key]
+    setPicked(next)
+    // The text to fill is the ticked values in order; the user can still edit it.
+    const valueOf = (k: string): string | undefined => {
+      const [fileId, index] = [k.slice(0, k.lastIndexOf(':')), Number(k.slice(k.lastIndexOf(':') + 1))]
+      return (k === key ? item : files?.find((f) => f.id === fileId)?.items?.[index])?.value
+    }
+    setPickedText(next.map(valueOf).filter(Boolean).join(' '))
+  }
 
   const read = async (name: string, source: () => Promise<FieldFillSource>): Promise<void> => {
     setStep({ kind: 'reading', name })
@@ -105,6 +147,28 @@ export function FieldFileFillDialog({
   let body
   let footer
   if (step.kind === 'choose') {
+    footer =
+      mode === 'field' && picked.length > 0 ? (
+        <div className="field-fill__selected" data-testid="field-fill-selected">
+          <Input
+            id={`field-fill-picked-${fieldId}`}
+            label={t('fieldFill.selectedLabel', { field: fieldLabel })}
+            value={pickedText}
+            onChange={(event) => setPickedText(event.target.value)}
+          />
+          <Button
+            variant="primary"
+            disabled={!pickedText.trim()}
+            onClick={() => {
+              onUse(pickedText.trim())
+              onClose()
+            }}
+            data-testid="field-fill-use-items"
+          >
+            {t('fieldFill.useSelected')}
+          </Button>
+        </div>
+      ) : undefined
     body = (
       <>
         <p className="field-fill__lead">
@@ -119,21 +183,93 @@ export function FieldFileFillDialog({
           <p className="field-fill__muted">{t('fieldFill.noTelegramFiles')}</p>
         ) : (
           <ul className="field-fill__files" data-testid="field-fill-files">
-            {files.map((file) => (
-              <li key={file.id}>
-                <button
-                  type="button"
-                  className="field-fill__file"
-                  onClick={() => void read(file.filename, async () => ({ kind: 'telegram', itemId: file.id }))}
-                >
-                  {file.imageDataUrl ? <img src={file.imageDataUrl} alt="" className="field-fill__thumb" /> : null}
-                  <span className="field-fill__file-text">
-                    <span className="field-fill__file-name">{file.filename}</span>
-                    <span className="field-fill__file-preview">{file.text.slice(0, 90) || file.accountLabel}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
+            {files.map((file) => {
+              const ranked = rankItems(file.items ?? [], fieldLabel)
+              const best = mode === 'field' ? bestItem(file.items ?? [], fieldLabel) : null
+              const showAll = expanded.has(file.id)
+              const shown = showAll ? ranked : ranked.slice(0, VISIBLE_ITEMS)
+              return (
+                <li key={file.id} className="field-fill__card">
+                  <button
+                    type="button"
+                    className="field-fill__file"
+                    onClick={() => void read(file.filename, async () => ({ kind: 'telegram', itemId: file.id }))}
+                  >
+                    {file.imageDataUrl ? <img src={file.imageDataUrl} alt="" className="field-fill__thumb" /> : null}
+                    <span className="field-fill__file-text">
+                      <span className="field-fill__file-name">{file.filename}</span>
+                      <span className="field-fill__file-preview">{file.text.slice(0, 90) || file.accountLabel}</span>
+                    </span>
+                    {mode === 'field' ? <span className="field-fill__file-action">{t('fieldFill.searchFile')}</span> : null}
+                  </button>
+                  {mode === 'field' ? (
+                    <>
+                      {best ? (
+                        <div className="field-fill__suggested" data-testid={`field-fill-suggested-${file.id}`}>
+                          <span className="field-fill__suggested-text">
+                            <span className="field-fill__muted-inline">{t('fieldFill.suggested', { field: fieldLabel })}</span>{' '}
+                            <strong>{best.item.value}</strong>
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => {
+                              onUse(best.item.value)
+                              onClose()
+                            }}
+                          >
+                            {t('fieldFill.useItem')}
+                          </Button>
+                        </div>
+                      ) : null}
+                      {file.itemsStatus === 'pending' ? (
+                        <p className="field-fill__muted" role="status">
+                          <Spinner size={12} /> {t('fieldFill.itemsReading')}
+                        </p>
+                      ) : null}
+                      {shown.length > 0 ? (
+                        <div className="field-fill__items" data-testid={`field-fill-items-${file.id}`}>
+                          <span className="field-fill__items-label">{t('fieldFill.inside')}</span>
+                          {shown.map(({ item, index, score }) => {
+                            const key = `${file.id}:${index}`
+                            const on = picked.includes(key)
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                className={`field-fill__chip${on ? ' field-fill__chip--on' : ''}${score > 0 ? ' field-fill__chip--fits' : ''}`}
+                                aria-pressed={on}
+                                title={item.label}
+                                onClick={() => togglePicked(key, item)}
+                              >
+                                <span className="field-fill__chip-label">{item.label}</span>
+                                <span className="field-fill__chip-value">{item.value}</span>
+                              </button>
+                            )
+                          })}
+                          {ranked.length > VISIBLE_ITEMS ? (
+                            <button
+                              type="button"
+                              className="field-fill__more"
+                              onClick={() =>
+                                setExpanded((current) => {
+                                  const next = new Set(current)
+                                  if (next.has(file.id)) next.delete(file.id)
+                                  else next.add(file.id)
+                                  return next
+                                })
+                              }
+                            >
+                              {showAll ? t('fieldFill.fewerItems') : t('fieldFill.moreItems', { count: String(ranked.length - VISIBLE_ITEMS) })}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
         )}
         <h3 className="field-fill__heading">{t('fieldFill.fromDevice')}</h3>
