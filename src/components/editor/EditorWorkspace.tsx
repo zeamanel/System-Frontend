@@ -59,6 +59,7 @@ import { newId } from '../../lib/editor/ids'
 import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
 import { LANGUAGES } from '../../lib/languages'
 import { Button, Dialog, useToast } from '../ui'
+import { ApiError } from '../../lib/api'
 import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
@@ -823,11 +824,15 @@ export function EditorWorkspace({
         lastStreamRef.current = undefined
         setStreamAdopted(false)
         setGenRequestId(response.id)
-      } catch {
-        // Submission failures surface through the job status UI.
+      } catch (error) {
+        // A refusal before the job starts (a file kept 24 hours that is gone, too few AI
+        // credits left for a big file...) says why; other failures show in the job status.
+        if (error instanceof ApiError && [404, 410, 413, 422, 429].includes(error.status) && error.message) {
+          toast.push(error.message, { variant: 'error' })
+        }
       }
     },
-    [createJob, doc.id, doc.templateId, editor.language, editor.title, template?.id],
+    [createJob, doc.id, doc.templateId, editor.language, editor.title, template?.id, toast],
   )
 
   // Adopt regenerated content when the in-place job completes.

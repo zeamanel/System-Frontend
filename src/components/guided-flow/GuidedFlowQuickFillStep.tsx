@@ -9,6 +9,8 @@ import { SparkIcon } from '../icons'
 import { Badge, Button, Card, CardBody, CardTitle, Input, Textarea } from '../ui'
 import { QuestionSelect } from './QuestionSelect'
 import { isSelectQuestion } from './select-question'
+import { FileUploadField } from '../file-upload/FileUploadField'
+import { uploadNameKey } from '../file-upload/upload-name'
 
 export interface GuidedFlowQuickFillStepProps {
   questions: TemplateQuestion[]
@@ -72,7 +74,24 @@ export function GuidedFlowQuickFillStep({
             )
             return (
               <div key={question.id} className="guided-flow__quickfill-field">
-                {isSelectQuestion(question) ? (
+                {question.type === 'file_upload' ? (
+                  <FileUploadField
+                    id={`quickfill-${question.id}`}
+                    label={
+                      <>
+                        {question.label}
+                        {question.required ? <Badge variant="neutral">{t('flow.required')}</Badge> : null}
+                      </>
+                    }
+                    value={value}
+                    fileName={answers[uploadNameKey(question.id)] ?? ''}
+                    onChange={(inputId, name) => {
+                      onAnswerChange(question.id, inputId)
+                      onAnswerChange(uploadNameKey(question.id), name)
+                    }}
+                    error={invalid[question.id] ? t('flow.required') : undefined}
+                  />
+                ) : isSelectQuestion(question) ? (
                   <QuestionSelect
                     id={`quickfill-${question.id}`}
                     question={question}

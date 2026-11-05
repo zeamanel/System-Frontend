@@ -169,6 +169,22 @@ describe('GuidedFieldsPanel Independent Scroll Locking & Layout', () => {
     expect(props.onAnswerChange).toHaveBeenCalledWith('letter_mode', 'evaluation_feedback')
   })
 
+  it('shows a file_upload question as an upload control, not a text box', () => {
+    renderPanel({
+      template: {
+        ...mockTemplate,
+        questions: [
+          { id: 'source_file', label: 'File to read', type: 'file_upload', required: true },
+          { id: 'extraction_request', label: 'Which table do you need?', type: 'textarea', required: true },
+        ],
+      },
+    })
+    expect(screen.getByTestId('upload-field-source_file')).toBeInTheDocument()
+    expect(screen.getByTestId('file-upload-choose-field-source_file')).toBeInTheDocument()
+    expect(document.getElementById('field-source_file')).toBeNull()
+    expect(document.getElementById('field-extraction_request')?.tagName).toBe('TEXTAREA')
+  })
+
   it('renders children inside the scrollable body', () => {
     render(
       <QueryClientProvider client={new QueryClient()}>

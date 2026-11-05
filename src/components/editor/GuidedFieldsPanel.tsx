@@ -20,6 +20,8 @@ import { isSelectQuestion } from '../guided-flow/select-question'
 import { AlertIcon, PaperclipIcon, SparkIcon } from '../icons'
 import { AiNotice } from '../layout/AiNotice'
 import { FieldFileFillDialog } from './FieldFileFillDialog'
+import { FileUploadField } from '../file-upload/FileUploadField'
+import { uploadNameKey } from '../file-upload/upload-name'
 import { MAX_TRANSLATION_CHARS } from '../../lib/field-fill/client'
 
 export const ADDITIONAL_INSTRUCTIONS_FIELD_ID = 'additional_instructions'
@@ -654,6 +656,28 @@ export function GuidedFieldsPanel({
             onAppendInstructions={handleAppendInstructions}
           />
           {questions.map((question) => {
+            if (question.type === 'file_upload') {
+              return (
+                <div key={question.id} className="editor-panel__field" data-testid={`upload-field-${question.id}`}>
+                  <FileUploadField
+                    id={`field-${question.id}`}
+                    label={
+                      <>
+                        {question.label}
+                        {question.required ? <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge> : null}
+                      </>
+                    }
+                    value={answers[question.id] ?? ''}
+                    fileName={answers[uploadNameKey(question.id)] ?? ''}
+                    onChange={(inputId, name) => {
+                      onAnswerChange(question.id, inputId)
+                      onAnswerChange(uploadNameKey(question.id), name)
+                    }}
+                    error={invalid[question.id] ? t('editor.fieldRequired') : undefined}
+                  />
+                </div>
+              )
+            }
             if (question.type === 'file' && question.fills) {
               const fills = question.fills
               const attached = answers[question.id] ?? ''

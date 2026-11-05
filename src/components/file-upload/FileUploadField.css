@@ -1,0 +1,53 @@
+.file-upload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.file-upload__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.file-upload__hint,
+.file-upload__status,
+.file-upload__file,
+.file-upload__problem {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.file-upload__hint,
+.file-upload__status {
+  color: var(--color-text-secondary);
+}
+
+.file-upload__file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.file-upload__name {
+  font-weight: var(--weight-medium);
+}
+
+.file-upload__meta {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.file-upload__problem {
+  color: var(--color-error);
+}
+
+.file-upload__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
