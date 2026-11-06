@@ -1,11 +1,11 @@
 import './pages.css'
 
-import { useMutation } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { LOCALES } from '../i18n'
 import type { Locale } from '../i18n'
-import { env } from '../config/env'
 import { COUNTRIES, usePreferences } from '../preferences'
 import type { CountryCode } from '../preferences'
 import {
@@ -16,8 +16,15 @@ import {
 } from '../lib/languages'
 import { regionsForCountry, regionDisplayName } from '../lib/geo'
 import { OCCUPATIONS } from '../lib/onboarding/occupations'
-import { getHealth } from '../lib/api/endpoints/health'
-import { isFixtureDataSource } from '../lib/repositories'
+import { formatDate } from '../lib/datetime'
+import { getBillingOverview } from '../lib/billing/client'
+import { CUSTOMER_COUNT_LIMIT } from '../lib/customers/client'
+import { ApiError } from '../lib/api/client'
+import { resetTips } from '../lib/tips'
+import { useSession } from '../session'
+import { useAiCredits } from '../hooks/use-ai-credits'
+import { useAllCustomers, useDeleteAllCustomers } from '../hooks/use-customers'
+import { AiCreditsToday } from '../components/usage/AiCreditsToday'
 import {
   Badge,
   Button,
@@ -25,13 +32,12 @@ import {
   CardBody,
   CardRow,
   CardTitle,
+  Dialog,
   Input,
   PageHeader,
   Select,
   useToast,
 } from '../components/ui'
-
-type HealthState = 'idle' | 'ok' | 'fail'
 
 export default function SettingsPage() {
   const { locale, setLocale, t } = useI18n()
@@ -53,30 +59,60 @@ export default function SettingsPage() {
     retrySave,
   } = usePreferences()
   const toast = useToast()
-  const [health, setHealth] = useState<HealthState>('idle')
+  const { user, signOut } = useSession()
+  const credits = useAiCredits()
+  const billing = useQuery({ queryKey: ['billing'], queryFn: () => getBillingOverview() })
+  const customers = useAllCustomers()
+  const deleteAll = useDeleteAllCustomers()
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
 
   const availableRegions = country === 'ET' ? regionsForCountry('ET') : []
+  const customerCount = customers.data?.length ?? 0
 
-  const healthCheck = useMutation({
-    mutationFn: () => getHealth(),
-    onSuccess: () => {
-      setHealth('ok')
-      toast.push(t('settings.apiOk'), { variant: 'success' })
-    },
-    onError: () => {
-      setHealth('fail')
-      toast.push(t('settings.apiFail'), { variant: 'error' })
-    },
-  })
+  const planLabel = (): string | null => {
+    const data = billing.data
+    if (!data) return null
+    const current = data.current ? data.plans.find((plan) => plan.id === data.current?.planId) : undefined
+    const name = current?.name ?? data.free.name
+    return name[locale] || name.en
+  }
+
+  const forgetAllCustomers = () => {
+    deleteAll.mutate(undefined, {
+      onSuccess: () => {
+        setConfirmDeleteAll(false)
+        toast.push(t('settings.customersDeleted'), { variant: 'success' })
+      },
+      onError: (error) => {
+        setConfirmDeleteAll(false)
+        const memberOnly = error instanceof ApiError && error.status === 403
+        toast.push(t(memberOnly ? 'settings.customersMemberOnly' : 'settings.customersDeleteFailed'), { variant: 'error' })
+      },
+    })
+  }
 
   return (
     <div className="page">
       <PageHeader title={t('settings.title')} />
 
-      <div className="settings-grid">
-        <Card className="settings-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <CardTitle>{t('settings.language')}</CardTitle>
+      <div className="settings-layout">
+        {/* Who is signed in, and the way out. */}
+        <Card className="settings-card" data-testid="settings-account">
+          <CardTitle>{t('settings.account')}</CardTitle>
+          <CardBody>
+            <CardRow label={t('settings.accountName')}>{user?.name || '—'}</CardRow>
+            <CardRow label={t('settings.accountEmail')}>{user?.email || '—'}</CardRow>
+          </CardBody>
+          <div className="settings-card__footer">
+            <Button variant="secondary" onClick={() => void signOut()}>
+              {t('profile.signOut')}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="settings-card settings-card--main">
+          <div className="settings-card__head">
+            <CardTitle>{t('settings.preferencesTitle')}</CardTitle>
             {saveStatus === 'saving' ? (
               <Badge variant="neutral">{t('settings.saving')}</Badge>
             ) : saveStatus === 'saved' ? (
@@ -191,6 +227,9 @@ export default function SettingsPage() {
                 { value: 'ethiopian', label: t('settings.dateFormat.ethiopian') },
               ]}
             />
+            <p className="settings-preview" data-testid="settings-date-preview">
+              {t('settings.dateFormatPreview', { date: formatDate(new Date(), locale, formatting) })}
+            </p>
 
             <Select
               id="settings-number-format"
@@ -218,51 +257,94 @@ export default function SettingsPage() {
           </CardBody>
         </Card>
 
-        <Card className="settings-card">
-          <CardTitle>{t('settings.data')}</CardTitle>
+        {/* What the plan gives, and what is left today. */}
+        <Card className="settings-card" data-testid="settings-plan">
+          <CardTitle>{t('settings.plan')}</CardTitle>
           <CardBody>
-            <CardRow label={t('settings.data')}>
-              {isFixtureDataSource() ? (
-                <Badge variant="warning">
-                  {t('settings.dataFixtures')} · {t('dev.badge')}
-                </Badge>
-              ) : (
-                <Badge variant="neutral">{t('settings.dataHttp')}</Badge>
-              )}
-            </CardRow>
-            <p className="panel-note">
-              VITE_DATA_SOURCE={env.dataSource}
-            </p>
+            {planLabel() ? <CardRow label={t('billing.currentTitle')}>{planLabel()}</CardRow> : null}
+            {credits.data ? <AiCreditsToday credits={credits.data} /> : null}
           </CardBody>
+          <div className="settings-card__footer">
+            <Link className="btn btn--secondary btn--md" to="/billing">
+              {t('nav.billing')}
+            </Link>
+          </div>
         </Card>
 
-        <Card className="settings-card">
-          <CardTitle>{t('settings.api')}</CardTitle>
+        {/* What SenedDesk keeps about the user's customers and files, and how to remove it. */}
+        <Card className="settings-card" data-testid="settings-data">
+          <CardTitle>{t('settings.yourData')}</CardTitle>
           <CardBody>
-            <CardRow label={t('settings.apiUrlLabel')}>
-              <code>{env.apiBaseUrl}</code>
+            <CardRow label={t('settings.customersLabel')}>
+              {customers.isPending
+                ? '…'
+                : customerCount === 0
+                  ? t('settings.customersNone')
+                  : t('settings.customersCount', {
+                      count: customerCount >= CUSTOMER_COUNT_LIMIT ? `${CUSTOMER_COUNT_LIMIT}+` : String(customerCount),
+                    })}
             </CardRow>
+            <p className="panel-note">
+              {t('settings.retention')}{' '}
+              <Link className="settings-card__link" to="/telegram-files">
+                {t('nav.telegramFiles')}
+              </Link>
+            </p>
+          </CardBody>
+          <div className="settings-card__footer">
+            <Button
+              variant="danger"
+              disabled={customerCount === 0}
+              onClick={() => setConfirmDeleteAll(true)}
+              data-testid="settings-delete-customers"
+            >
+              {t('settings.customersDeleteAll')}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="settings-card" data-testid="settings-help">
+          <CardTitle>{t('settings.help')}</CardTitle>
+          <CardBody>
+            <nav className="settings-links" aria-label={t('settings.help')}>
+              <Link to="/faq">{t('info.nav.faq')}</Link>
+              <Link to="/about">{t('info.nav.about')}</Link>
+              <Link to="/terms">{t('info.nav.terms')}</Link>
+              <Link to="/privacy">{t('info.nav.privacy')}</Link>
+            </nav>
+            <p className="panel-note">{t('settings.version', { version: __APP_VERSION__ })}</p>
           </CardBody>
           <div className="settings-card__footer">
             <Button
               variant="secondary"
-              onClick={() => healthCheck.mutate()}
-              loading={healthCheck.isPending}
+              onClick={() => {
+                resetTips()
+                toast.push(t('settings.tipsReset'), { variant: 'success' })
+              }}
             >
-              {t('settings.apiCheck')}
+              {t('settings.showTips')}
             </Button>
-            {health === 'ok' ? (
-              <span className="settings-card__status settings-card__status--ok">
-                {t('settings.apiOk')}
-              </span>
-            ) : null}
-            {health === 'fail' ? (
-              <span className="settings-card__status settings-card__status--fail">
-                {t('settings.apiFail')}
-              </span>
-            ) : null}
           </div>
         </Card>
+
+      <Dialog
+        open={confirmDeleteAll}
+        onClose={() => setConfirmDeleteAll(false)}
+        title={t('settings.customersConfirmTitle')}
+        width="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmDeleteAll(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="danger" loading={deleteAll.isPending} onClick={forgetAllCustomers} data-testid="settings-delete-customers-confirm">
+              {t('settings.customersDeleteAll')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('settings.customersConfirmBody')}</p>
+      </Dialog>
       </div>
     </div>
   )

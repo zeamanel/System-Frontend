@@ -232,11 +232,41 @@
 
 /* ---------- Settings: section cards ---------- */
 
-.settings-grid {
+/* Preferences on the left; account, plan, data and help stacked on the right. */
+.settings-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-rows: repeat(4, auto) 1fr;
   gap: var(--space-5);
   align-items: start;
+}
+
+.settings-layout > .settings-card {
+  grid-column: 2;
+}
+
+.settings-layout > .settings-card--main {
+  grid-column: 1;
+  grid-row: 1 / span 5;
+}
+
+@media (max-width: 900px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+
+  .settings-layout > .settings-card,
+  .settings-layout > .settings-card--main {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+.settings-preview {
+  margin: calc(-1 * var(--space-3)) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
 }
 
 .settings-card {
@@ -245,24 +275,39 @@
   gap: var(--space-4);
 }
 
+.settings-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.settings-card__link {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.settings-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-md);
+}
+
+.settings-links a {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .settings-card__footer {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   margin-top: var(--space-2);
-}
-
-.settings-card__status {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
-.settings-card__status--ok {
-  color: var(--color-success);
-}
-
-.settings-card__status--fail {
-  color: var(--color-error);
 }
 
 /* ---------- Editor styles now live in components/editor/editor.css ---------- */

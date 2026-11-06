@@ -91,6 +91,7 @@ import { COMPACT_LAYOUT_QUERY, useMediaQuery } from '../../hooks/use-media-query
 import { ChatIcon, DocumentIcon, PanelLeftIcon, SlidersIcon, XIcon } from '../icons'
 import './editor.css'
 import './editor-responsive.css'
+import { TIP_KEYS } from '../../lib/tips'
 
 /** Printing goes ahead without the check if it takes longer than this. */
 const PRINT_CHECK_TIMEOUT_MS = 4000
@@ -126,7 +127,7 @@ export interface NewCustomerDocumentInput {
  */
 
 /** The one-time "click a paragraph / Ask AI" tip (per browser; sign-out keeps it). */
-const BLOCK_TIP_KEY = 'docuA4.tip.blockActions.v1'
+const BLOCK_TIP_KEY = TIP_KEYS.blockActions
 
 function readFlag(key: string): boolean {
   try {

@@ -107,3 +107,25 @@ export async function deleteCustomer(id: string): Promise<void> {
   }
   writeDemo(readDemo().filter((c) => c.id !== id))
 }
+
+/** Up to this many are counted on the Settings page ("100+" beyond). */
+export const CUSTOMER_COUNT_LIMIT = 100
+
+/** The saved customers, for counting them (newest first, at most CUSTOMER_COUNT_LIMIT). */
+export async function listAllCustomers(signal?: AbortSignal): Promise<Customer[]> {
+  if (isHttp()) {
+    return apiClient.get<Customer[]>(`/customers?limit=${CUSTOMER_COUNT_LIMIT}`, { signal, auth: 'required' })
+  }
+  return listCustomers('', signal)
+}
+
+/** Forgets every saved customer (the organization's shared ones for owners and admins). */
+export async function deleteAllCustomers(): Promise<number> {
+  if (isHttp()) {
+    const result = await apiClient.delete<{ deleted: number }>('/customers', { auth: 'required' })
+    return result?.deleted ?? 0
+  }
+  const count = readDemo().length
+  writeDemo([])
+  return count
+}
