@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { detectInitialLocale, loadLocale } from './i18n'
+import { preloadFirebaseAuth } from './lib/firebase/client'
 import './styles/tokens.css'
 import './styles/fonts.css'
 // Default Amharic faces (OFL): files download only when Ethiopic text needs them.
@@ -15,6 +16,9 @@ const rootElement = document.getElementById('root')
 if (!rootElement) {
   throw new Error('Root element #root was not found in index.html.')
 }
+
+// Sign-in (Firebase) downloads alongside the page instead of inside the first file.
+preloadFirebaseAuth()
 
 // The interface language is fetched before the first render (English is built in).
 void loadLocale(detectInitialLocale())

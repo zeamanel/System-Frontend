@@ -20,7 +20,7 @@ export type DataSource = 'fixtures' | 'http'
  * secrets; Firebase web API keys identify the project, access is governed by
  * ID-token verification on the backend). Required when VITE_DATA_SOURCE=http;
  * ignored in fixture mode. Returns null when any value is missing so
- * `parseEnv` stays permissive; `getFirebaseAuth()` enforces completeness with
+ * `parseEnv` stays permissive; `loadFirebaseAuth()` enforces completeness with
  * a clear error when the app actually runs in API mode.
  */
 export interface FirebaseEnvConfig {

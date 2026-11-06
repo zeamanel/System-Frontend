@@ -1,15 +1,6 @@
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  updateProfile,
-  type User as FirebaseUser,
-} from 'firebase/auth'
+import type { User as FirebaseUser } from 'firebase/auth'
 import { env } from '../../config/env'
-import { getFirebaseAuth } from '../firebase/client'
+import { loadedFirebaseAuth, loadFirebaseAuth } from '../firebase/client'
 import { clearSyncedUserCache } from './sync-user'
 import { clearAllCustomerLocalData } from '../saved-answers/party-memory'
 
@@ -21,8 +12,10 @@ import { clearAllCustomerLocalData } from '../saved-answers/party-memory'
  *   custom localStorage for ID tokens, ever.
  * - `getCurrentIdToken()` always fetches through Firebase so authenticated
  *   calls carry a fresh token; pass forceRefresh to force rotation.
+ * - The SDK is loaded on demand (see ../firebase/client): each helper waits
+ *   for it, so callers see the same behaviour as before.
  * - In fixture mode these helpers are inert (`null` / no-op) and Firebase is
- *   never initialized.
+ *   never loaded.
  */
 
 const isApiMode = (): boolean => env.dataSource === 'http'
@@ -30,15 +23,19 @@ const isApiMode = (): boolean => env.dataSource === 'http'
 /** Fresh ID token for the signed-in user, or null when anonymous. */
 export async function getCurrentIdToken(forceRefresh = false): Promise<string | null> {
   if (!isApiMode()) return null
-  const user = getFirebaseAuth().currentUser
+  const { auth } = await loadFirebaseAuth()
+  const user = auth.currentUser
   if (!user) return null
   return user.getIdToken(forceRefresh)
 }
 
-/** The signed-in Firebase user, or null. */
+/**
+ * The signed-in Firebase user, or null. Before the SDK has loaded no user is
+ * known yet (the same as before Firebase restores its session), so this is null.
+ */
 export function getCurrentFirebaseUser(): FirebaseUser | null {
   if (!isApiMode()) return null
-  return getFirebaseAuth().currentUser
+  return loadedFirebaseAuth()?.auth.currentUser ?? null
 }
 
 /**
@@ -46,10 +43,10 @@ export function getCurrentFirebaseUser(): FirebaseUser | null {
  * IndexedDB restoration is asynchronous, so `currentUser` alone is not
  * trustworthy during app startup. Times out to the current user.
  */
-export function waitForAuthState(timeoutMs = 10_000): Promise<FirebaseUser | null> {
-  if (!isApiMode()) return Promise.resolve(null)
+export async function waitForAuthState(timeoutMs = 10_000): Promise<FirebaseUser | null> {
+  if (!isApiMode()) return null
+  const { auth, sdk } = await loadFirebaseAuth()
   return new Promise((resolve) => {
-    const auth = getFirebaseAuth()
     let settled = false
     let unsubscribe: () => void = () => {}
     const finish = (user: FirebaseUser | null): void => {
@@ -60,22 +57,34 @@ export function waitForAuthState(timeoutMs = 10_000): Promise<FirebaseUser | nul
       resolve(user)
     }
     const timer = setTimeout(() => finish(auth.currentUser ?? null), timeoutMs)
-    unsubscribe = onAuthStateChanged(auth, finish)
+    unsubscribe = sdk.onAuthStateChanged(auth, finish)
   })
 }
 
-/** Subscribe to Firebase auth state changes; returns an unsubscribe fn. */
+/** Subscribe to Firebase auth state changes; returns an unsubscribe fn (safe to call before the SDK loads). */
 export function subscribeToAuthState(
   listener: (user: FirebaseUser | null) => void,
 ): () => void {
   if (!isApiMode()) return () => {}
-  return onAuthStateChanged(getFirebaseAuth(), listener)
+  let unsubscribe: (() => void) | null = null
+  let cancelled = false
+  loadFirebaseAuth()
+    .then(({ auth, sdk }) => {
+      if (!cancelled) unsubscribe = sdk.onAuthStateChanged(auth, listener)
+    })
+    // A failed download surfaces through getCurrent()/sign-in; nothing to listen to.
+    .catch(() => undefined)
+  return () => {
+    cancelled = true
+    unsubscribe?.()
+  }
 }
 
 export async function signInWithGoogle(): Promise<FirebaseUser> {
-  const provider = new GoogleAuthProvider()
+  const { auth, sdk } = await loadFirebaseAuth()
+  const provider = new sdk.GoogleAuthProvider()
   provider.setCustomParameters({ prompt: 'select_account' })
-  const credentials = await signInWithPopup(getFirebaseAuth(), provider)
+  const credentials = await sdk.signInWithPopup(auth, provider)
   return credentials.user
 }
 
@@ -83,7 +92,8 @@ export async function signInWithPassword(
   email: string,
   password: string,
 ): Promise<FirebaseUser> {
-  const credentials = await signInWithEmailAndPassword(getFirebaseAuth(), email, password)
+  const { auth, sdk } = await loadFirebaseAuth()
+  const credentials = await sdk.signInWithEmailAndPassword(auth, email, password)
   return credentials.user
 }
 
@@ -91,15 +101,23 @@ export async function signUpWithPassword(
   email: string,
   password: string,
 ): Promise<FirebaseUser> {
-  const credentials = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password)
+  const { auth, sdk } = await loadFirebaseAuth()
+  const credentials = await sdk.createUserWithEmailAndPassword(auth, email, password)
   if (!credentials.user.displayName) {
     try {
-      await updateProfile(credentials.user, { displayName: email.split('@')[0] })
+      await sdk.updateProfile(credentials.user, { displayName: email.split('@')[0] })
     } catch {
       // Cosmetic only — sync-user falls back to the email prefix.
     }
   }
   return credentials.user
+}
+
+/** Signs out of Firebase (no-op in fixture mode). */
+export async function signOutOfFirebase(): Promise<void> {
+  if (!isApiMode()) return
+  const { auth, sdk } = await loadFirebaseAuth()
+  await sdk.signOut(auth)
 }
 
 // ---- session-expiry signaling -------------------------------------------
@@ -130,7 +148,7 @@ export async function handleSessionExpired(): Promise<void> {
   clearAllCustomerLocalData()
   if (!isApiMode()) return
   try {
-    await firebaseSignOut(getFirebaseAuth())
+    await signOutOfFirebase()
   } catch {
     // Already signed out or Firebase unavailable — the local state resets anyway.
   }

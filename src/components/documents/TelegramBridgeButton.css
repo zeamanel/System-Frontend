@@ -188,3 +188,11 @@
     display: none;
   }
 }
+
+/* Holds the QR code's place while it loads, so the dialog does not jump. */
+.telegram-bridge-qr__placeholder {
+  width: 152px;
+  height: 152px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-muted);
+}
