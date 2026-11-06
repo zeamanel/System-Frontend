@@ -1,6 +1,6 @@
 import './TelegramFilesPage.css'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { useSession } from '../session'
@@ -17,8 +17,13 @@ import { TelegramBridgeButton } from '../components/documents/TelegramBridgeButt
 import { Button, Dialog, Spinner } from '../components/ui'
 import { CheckIcon, CopyIcon, ShieldIcon, SmartphoneIcon, TrashIcon } from '../components/icons'
 import { QrCode } from '../components/telegram/QrCode'
+import { TelegramHubImage } from '../components/telegram/TelegramHubImage'
 
 const DEFAULT_BOT_USERNAME = 'Qal_copy_bot'
+/** How often the page looks for newly arrived files while it is visible. */
+export const FILES_POLL_MS = 20_000
+/** With nothing new for this long, it stops looking until the user comes back to the tab. */
+export const FILES_POLL_QUIET_STOP_MS = 5 * 60_000
 
 export default function TelegramFilesPage() {
   const { t } = useI18n()
@@ -39,15 +44,10 @@ export default function TelegramFilesPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [mediaRes, healthRes] = await Promise.all([
-        getTelegramHubMedia(),
-        getTelegramBotHealth().catch(() => null),
-      ])
+      // Without images: each card reads its own image when it comes into view, once.
+      const mediaRes = await getTelegramHubMedia(undefined, { withoutImages: true })
       setItems(mediaRes.items)
       setAccounts(mediaRes.accounts)
-      if (healthRes) {
-        setBotHealth(healthRes)
-      }
     } catch (err) {
       console.warn('Failed to load telegram files hub:', err)
     } finally {
@@ -55,13 +55,48 @@ export default function TelegramFilesPage() {
     }
   }, [])
 
+  // The bot's status changes rarely: read it once (and after a webhook sync), not on every poll.
+  useEffect(() => {
+    let cancelled = false
+    getTelegramBotHealth()
+      .then((health) => {
+        if (!cancelled) setBotHealth(health)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Look for newly arrived files while the page is visible; stop after a quiet spell
+  // and look again when the user comes back to the tab.
+  const lastSignatureRef = useRef('')
+  const lastChangeAtRef = useRef(Date.now())
+  useEffect(() => {
+    const signature = items.map((item) => item.id).join(',')
+    if (signature !== lastSignatureRef.current) {
+      lastSignatureRef.current = signature
+      lastChangeAtRef.current = Date.now()
+    }
+  }, [items])
+
   useEffect(() => {
     void loadData()
-    // Poll every 6 seconds to pick up new incoming telegram files
     const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastChangeAtRef.current > FILES_POLL_QUIET_STOP_MS) return
       void loadData()
-    }, 6000)
-    return () => clearInterval(interval)
+    }, FILES_POLL_MS)
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      lastChangeAtRef.current = Date.now()
+      void loadData()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [loadData])
 
   const handleDismiss = async (id: string) => {
@@ -289,14 +324,8 @@ export default function TelegramFilesPage() {
                   <span className="telegram-file-card__sender-pill">{item.accountLabel}</span>
                 </div>
 
-                {item.imageDataUrl && (
-                  <div className="telegram-file-card__preview">
-                    <img
-                      src={item.imageDataUrl}
-                      alt={item.filename}
-                      onClick={() => setPreviewImageUrl(item.imageDataUrl ?? null)}
-                    />
-                  </div>
+                {(item.imageDataUrl || item.hasImage) && (
+                  <TelegramHubImage item={item} className="telegram-file-card__preview" onOpen={setPreviewImageUrl} />
                 )}
 
                 <div className="telegram-file-card__content">

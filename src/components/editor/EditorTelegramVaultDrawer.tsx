@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useI18n } from '../../i18n'
 import {
   getTelegramHubMedia,
-  listTelegramMediaVault,
+  loadTelegramHubImageDataUrl,
   type TelegramHubAccount,
   type TelegramHubItem,
+  type TelegramHubMediaResponse,
   type TelegramProfile,
-  type TelegramVaultProfile,
 } from '../../lib/api'
+import { TelegramHubImage } from '../telegram/TelegramHubImage'
 import { Badge, Button, Spinner } from '../ui'
 import { FolderIcon, ImagePlusIcon, PaperclipIcon, PlusIcon, XIcon } from '../icons'
 
@@ -80,39 +81,11 @@ export function EditorTelegramVaultDrawer({
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [hubRes, profilesRes] = await Promise.all([
-        getTelegramHubMedia().catch(() => ({ items: [], accounts: [] })),
-        listTelegramMediaVault().catch(() => [] as TelegramVaultProfile[]),
-      ])
-
-      let loadedItems = hubRes.items || []
-
-      // If hub items are empty but profiles were returned (e.g. In mocks targeting listTelegramMediaVault)
-      if (loadedItems.length === 0 && profilesRes && profilesRes.length > 0) {
-        loadedItems = profilesRes.map((p, idx) => ({
-          id: `profile_${p.qalId || idx}`,
-          sessionId: `session_${p.qalId || idx}`,
-          qalId: p.qalId,
-          accountLabel: p.accountLabel || `@user_${p.qalId}`,
-          fullName: p.fullName,
-          filename: `${p.fullName || 'telegram'}_profile.txt`,
-          mimeType: 'text/plain',
-          imageKind: null,
-          imageDataUrl: null,
-          text:
-            p.text ||
-            (p.fullName
-              ? `Name: ${p.fullName}${p.idNumber ? `\nID: ${p.idNumber}` : ''}${p.phone ? `\nPhone: ${p.phone}` : ''}`
-              : ''),
-          profile: {
-            fullName: p.fullName,
-            phone: p.phone,
-            address: p.address,
-            idNumber: p.idNumber,
-          },
-          createdAt: new Date().toISOString(),
-        }))
-      }
+      // One request, without images: each thumbnail reads its own image when shown.
+      const hubRes = await getTelegramHubMedia(undefined, { withoutImages: true }).catch(
+        () => ({ items: [], accounts: [] }) as TelegramHubMediaResponse,
+      )
+      const loadedItems = hubRes.items || []
 
       setItems(loadedItems)
       setAccounts(hubRes.accounts || [])
@@ -123,7 +96,7 @@ export function EditorTelegramVaultDrawer({
     }
   }, [])
 
-  // Initial load
+  // Initial load (light: no images), for the file count on the button
   useEffect(() => {
     void loadData()
   }, [loadData])
@@ -156,9 +129,9 @@ export function EditorTelegramVaultDrawer({
     }
   }
 
+  // Opening reloads the list (the effect above): no second request here.
   const handleOpen = () => {
     setInternalIsOpen(true)
-    void loadData()
   }
 
   const showFeedback = (msg: string) => {
@@ -210,10 +183,14 @@ export function EditorTelegramVaultDrawer({
     }
   }
 
-  const handleInsertImageClick = (item: TelegramHubItem) => {
-    if (item.imageDataUrl && onInsertImage) {
-      onInsertImage(item.imageDataUrl, item.filename)
+  const handleInsertImageClick = async (item: TelegramHubItem) => {
+    if (!onInsertImage || !(item.imageDataUrl || item.hasImage)) return
+    try {
+      // The document keeps its own copy of the image.
+      onInsertImage(await loadTelegramHubImageDataUrl(item), item.filename)
       showFeedback(t('editor.telegramVault.insertImage') + ' ✓')
+    } catch (err) {
+      console.warn('Failed to load the Telegram image:', err)
     }
   }
 
@@ -375,14 +352,12 @@ export function EditorTelegramVaultDrawer({
                         </div>
 
                         {/* Thumbnail if Image */}
-                        {item.imageDataUrl ? (
-                          <div className="editor-telegram-vault-drawer__card-thumbnail-wrap">
-                            <img
-                              src={item.imageDataUrl}
-                              alt={item.filename || 'Telegram file'}
-                              className="editor-telegram-vault-drawer__card-thumbnail"
-                            />
-                          </div>
+                        {item.imageDataUrl || item.hasImage ? (
+                          <TelegramHubImage
+                            item={item}
+                            className="editor-telegram-vault-drawer__card-thumbnail-wrap"
+                            imgClassName="editor-telegram-vault-drawer__card-thumbnail"
+                          />
                         ) : null}
 
                         {/* OCR Text / Extracted Snippet */}
@@ -423,12 +398,12 @@ export function EditorTelegramVaultDrawer({
                             {t('editor.telegramVault.appendToPrompt')}
                           </Button>
 
-                          {item.imageDataUrl ? (
+                          {item.imageDataUrl || item.hasImage ? (
                             <Button
                               variant="secondary"
                               size="sm"
                               data-testid={`vault-insert-image-${item.id}`}
-                              onClick={() => handleInsertImageClick(item)}
+                              onClick={() => void handleInsertImageClick(item)}
                               title={t('editor.telegramVault.insertImage')}
                               icon={<ImagePlusIcon size={14} />}
                             >

@@ -9,6 +9,8 @@ import {
   getTelegramBridgeSessionStatus,
   getTelegramHubMedia,
   listTelegramMediaVault,
+  loadTelegramHubImage,
+  loadTelegramHubImageDataUrl,
   pingTelegramQalId,
   syncTelegramWebhook,
 } from './telegram-bridge'
@@ -202,6 +204,47 @@ describe('telegram-bridge endpoint client', () => {
       expect(mockDelete).toHaveBeenCalledWith('/telegram-bridge/media/item_1', {
         auth: 'optional',
       })
+    })
+
+    it('asks for the list without images, or the short summary', async () => {
+      const mockGet = vi.fn().mockResolvedValue({ items: [], accounts: [] })
+      const client = { get: mockGet } as unknown as ApiClient
+      await getTelegramHubMedia(undefined, { client, dataSource: 'http', withoutImages: true })
+      expect(mockGet).toHaveBeenLastCalledWith('/telegram-bridge/media?view=list', { auth: 'optional' })
+      await getTelegramHubMedia(undefined, { client, dataSource: 'http', summary: true, withoutImages: true })
+      expect(mockGet).toHaveBeenLastCalledWith('/telegram-bridge/media?view=summary', { auth: 'optional' })
+    })
+
+    it('reads each image once, and uses an image the item already carries', async () => {
+      const blob = new Blob(['jpeg-bytes'], { type: 'image/jpeg' })
+      const mockGet = vi.fn().mockResolvedValue(blob)
+      const client = { get: mockGet } as unknown as ApiClient
+      const createObjectURL = vi.fn(() => 'blob:telegram-1')
+      vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }))
+
+      const first = await loadTelegramHubImage({ id: 'img-once-1', imageDataUrl: null }, { client })
+      const again = await loadTelegramHubImage({ id: 'img-once-1', imageDataUrl: null }, { client })
+      expect(first).toBe('blob:telegram-1')
+      expect(again).toBe('blob:telegram-1')
+      expect(mockGet).toHaveBeenCalledTimes(1)
+      expect(mockGet).toHaveBeenCalledWith('/telegram-bridge/media/img-once-1/image', { auth: 'optional', responseType: 'blob' })
+
+      // Into a document: a data URL from the same read.
+      const dataUrl = await loadTelegramHubImageDataUrl({ id: 'img-once-1', imageDataUrl: null }, { client })
+      expect(dataUrl).toMatch(/^data:image\/jpeg;base64,/)
+      expect(mockGet).toHaveBeenCalledTimes(1)
+
+      expect(await loadTelegramHubImage({ id: 'img-2', imageDataUrl: 'data:image/png;base64,abc' }, { client })).toBe('data:image/png;base64,abc')
+      expect(mockGet).toHaveBeenCalledTimes(1)
+      vi.unstubAllGlobals()
+    })
+
+    it('tries a failed image read again next time', async () => {
+      const mockGet = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(new Blob(['x'], { type: 'image/jpeg' }))
+      const client = { get: mockGet } as unknown as ApiClient
+      await expect(loadTelegramHubImageDataUrl({ id: 'img-retry', imageDataUrl: null }, { client })).rejects.toThrow('offline')
+      await expect(loadTelegramHubImageDataUrl({ id: 'img-retry', imageDataUrl: null }, { client })).resolves.toMatch(/^data:image\/jpeg/)
+      expect(mockGet).toHaveBeenCalledTimes(2)
     })
 
     it('dispatches getTelegramBotHealth and syncTelegramWebhook', async () => {

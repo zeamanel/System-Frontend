@@ -211,7 +211,8 @@ export function GuidedFieldsPanel({
 
   const loadTelegramProfiles = useCallback(async () => {
     try {
-      const list = await listTelegramMediaVault()
+      // Profiles only: the list without images.
+      const list = await listTelegramMediaVault({ withoutImages: true })
       // Deduplicate profiles by qalId
       const dedupedMap = new Map<string, TelegramVaultProfile>()
       for (const item of list) {
