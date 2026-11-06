@@ -21,7 +21,6 @@ import {
 import { useSession } from '../session/use-session'
 import { useMediaUrls, useSetOrganizationLogo } from '../hooks/use-media'
 import { ImagePicker } from '../components/media/ImagePicker'
-import { env } from '../config/env'
 import {
   Badge,
   Button,
@@ -359,9 +358,6 @@ export default function OrganizationPage() {
 
       {exists ? <MembersCard role={organization.data?.role} /> : null}
 
-      <p className="page__footnote">
-        {t('settings.apiUrlLabel')}: <code>{env.apiBaseUrl}</code>
-      </p>
     </div>
   )
 }

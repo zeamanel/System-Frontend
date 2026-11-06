@@ -1,6 +1,9 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
+
+const APP_VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -18,6 +21,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // Shown on the Settings page, so support can tell which version a user has.
+    define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
     build: {
       rollupOptions: {
         treeshake: {

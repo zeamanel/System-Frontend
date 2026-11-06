@@ -4,7 +4,7 @@ import { LEGAL_REVIEWED_ON, LEGAL_UPDATED } from '../../content/info/meta'
 import { renderInline } from '../../content/info/inline'
 import { useMediaQuery } from '../../hooks/use-media-query'
 import { useI18n } from '../../i18n'
-import { formatDate } from '../../lib/datetime'
+import { useFormatDate } from '../../hooks/use-format-date'
 import { Blocks } from './Blocks'
 import { InfoLayout } from './InfoLayout'
 import { useInlineContext } from './use-inline-context'
@@ -12,6 +12,7 @@ import { useInlineContext } from './use-inline-context'
 /** The Terms of Service and the Privacy Policy share one layout: title, notices, contents list, numbered sections. */
 export function LegalPage({ kind }: { kind: 'terms' | 'privacy' }) {
   const { t, locale } = useI18n()
+  const formatLongDate = useFormatDate()
   const context = useInlineContext()
   const wide = useMediaQuery('(min-width: 961px)')
   const doc = kind === 'terms' ? TERMS : PRIVACY
@@ -21,7 +22,7 @@ export function LegalPage({ kind }: { kind: 'terms' | 'privacy' }) {
     <InfoLayout title={title}>
       <article className="info-page info-page--legal">
         <h1 className="info-page__title">{title}</h1>
-        <p className="info-page__meta">{t('info.legal.updated', { date: formatDate(new Date(`${LEGAL_UPDATED}T12:00:00`), locale) })}</p>
+        <p className="info-page__meta">{t('info.legal.updated', { date: formatLongDate(new Date(`${LEGAL_UPDATED}T12:00:00`)) })}</p>
         {LEGAL_REVIEWED_ON === null ? (
           <p className="info-notice info-notice--draft" role="note" data-testid="legal-draft">
             {t('info.legal.draft')}

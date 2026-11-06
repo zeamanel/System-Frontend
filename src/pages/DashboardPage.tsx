@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
-import { formatDate } from '../lib/datetime'
+import { useFormatDate } from '../hooks/use-format-date'
 import type { OrganizationType } from '../lib/repositories'
 import { useSession } from '../session'
 import { useRecentDocuments } from '../hooks/use-documents'
@@ -49,7 +49,8 @@ function orgTypeKey(type: OrganizationType): MessageKey {
 }
 
 export default function DashboardPage() {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
+  const formatLongDate = useFormatDate()
   const navigate = useNavigate()
   const { user } = useSession()
   const [createOpen, setCreateOpen] = useState(false)
@@ -70,7 +71,7 @@ export default function DashboardPage() {
     <div className="page">
       <PageHeader
         title={`${t(greetingKey())}, ${user?.name ?? ''}`}
-        description={formatDate(new Date(), locale)}
+        description={formatLongDate(new Date())}
         actions={
           <>
             <Button variant="primary" onClick={() => setCreateOpen(true)}>
