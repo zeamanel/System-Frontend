@@ -1,10 +1,9 @@
 import './TelegramBridgeButton.css'
 
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useInRouterContext, useNavigate } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import { useCreateDocument } from '../../hooks/use-documents'
-import { parseImportedFileContent } from '../../lib/editor/import-file'
 import {
   createEmptyDocument,
   createImage,
@@ -22,7 +21,8 @@ import {
 import { ToastContext } from '../ui/toast/ToastContext'
 import { Button, Dialog, Spinner } from '../ui'
 import { ExternalLinkIcon, SmartphoneIcon } from '../icons'
-import { QrCode } from '../telegram/QrCode'
+/** The QR code (and its library) loads when the dialog first shows one, not with the button. */
+const QrCode = lazy(() => import('../telegram/QrCode').then((module) => ({ default: module.QrCode })))
 
 export interface TelegramBridgeTransferPayload {
   profile?: TelegramProfile | null
@@ -106,7 +106,7 @@ function TelegramBridgeButtonInner({
       try {
         let parsed: { title: string; content: string; detectedLanguage: string } | undefined
         if (completedStatus.text) {
-          parsed = await parseImportedFileContent(
+          parsed = await (await import('../../lib/editor/import-file')).parseImportedFileContent(
             completedStatus.filename || 'telegram-note.txt',
             completedStatus.text,
             locale as 'en' | 'am' | 'om',
@@ -348,7 +348,9 @@ function TelegramBridgeButtonInner({
                 {session.deepLink ? (
                   // On a computer: scan with the phone and Telegram opens the bot with this code.
                   <div className="telegram-bridge-qr" data-testid="telegram-bridge-qr">
-                    <QrCode value={session.deepLink} label={t('telegram.qr.label', { bot: `@${session.botUsername}` })} size={152} />
+                    <Suspense fallback={<div className="telegram-bridge-qr__placeholder" aria-hidden="true" />}>
+                      <QrCode value={session.deepLink} label={t('telegram.qr.label', { bot: `@${session.botUsername}` })} size={152} />
+                    </Suspense>
                     <p className="telegram-bridge-qr__caption">{t('telegram.qr.scanCode')}</p>
                   </div>
                 ) : null}

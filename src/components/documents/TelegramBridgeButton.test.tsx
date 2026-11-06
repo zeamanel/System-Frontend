@@ -60,7 +60,8 @@ describe('TelegramBridgeButton', () => {
     expect(botLink).toBeInTheDocument()
 
     // A QR code of the same link, for scanning with a phone: it carries this page's code.
-    const qr = screen.getByRole('img', { name: /QR code that opens @Qal_copy_bot in Telegram/i })
+    // It loads with the dialog (not with the button), so it is awaited.
+    const qr = await screen.findByRole('img', { name: /QR code that opens @Qal_copy_bot in Telegram/i })
     expect(qr).toHaveAttribute('data-value', botLink.getAttribute('href'))
     expect(qr.getAttribute('data-value')).toContain('start=code_4815')
     expect(botLink).toHaveAttribute('href', expect.stringContaining('start=code_4815'))

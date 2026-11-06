@@ -2,7 +2,6 @@ import { useContext, useRef, useState } from 'react'
 import { useInRouterContext, useNavigate } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import { useCreateDocument } from '../../hooks/use-documents'
-import { parseImportedFileContent } from '../../lib/editor/import-file'
 import { ToastContext } from '../ui/toast/ToastContext'
 import { Button } from '../ui/Button'
 import { UploadIcon } from '../icons'
@@ -77,7 +76,7 @@ function OpenLocalFileButtonInner({
         ? await readFileAsArrayBuffer(file)
         : await readFileAsText(file)
 
-      const parsed = await parseImportedFileContent(
+      const parsed = await (await import('../../lib/editor/import-file')).parseImportedFileContent(
         file.name,
         raw,
         locale as 'en' | 'am' | 'om',

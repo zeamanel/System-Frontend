@@ -1,4 +1,3 @@
-import { signOut as firebaseSignOut } from 'firebase/auth'
 import { LOCALES, type Locale } from '../../i18n/locales'
 import { apiClient, ApiError, UnauthenticatedError, VersionConflictError } from '../api'
 import { generateKey, generationDocumentKey } from '../api/idempotency'
@@ -26,10 +25,10 @@ import { clearSyncedUserCache, ensureSyncedUser } from '../api/sync-user'
 import {
   signInWithGoogle,
   signInWithPassword,
+  signOutOfFirebase,
   subscribeToAuthState,
   waitForAuthState,
 } from '../api/auth-store'
-import { getFirebaseAuth } from '../firebase/client'
 import { DocumentConflictError, ExportUnavailableError } from './errors'
 import { matchesCategory, toSummary, toDetail } from './fixtures/template-filtering'
 import { createSearchMatcher } from '../search/text'
@@ -864,7 +863,7 @@ class HttpSessionRepository implements SessionRepository {
     }
     clearSyncedUserCache()
     try {
-      await firebaseSignOut(getFirebaseAuth())
+      await signOutOfFirebase()
     } catch {
       // Already signed out or Firebase unavailable.
     }
