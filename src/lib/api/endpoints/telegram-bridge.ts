@@ -97,7 +97,7 @@ export interface TelegramHubItem {
   items?: TelegramFileItem[]
   /** 'pending': being read now; 'on_demand': read when the user selects the file; 'none': nothing to list. */
   itemsStatus?: 'ready' | 'pending' | 'on_demand' | 'none'
-  /** The summary view leaves the image out; this says there is one. */
+  /** The list and summary views leave the image out (loadTelegramHubImage reads it); this says there is one. */
   hasImage?: boolean
 }
 
@@ -134,6 +134,8 @@ export interface TelegramBridgeOptions {
   dataSource?: DataSource
   /** Without images and with shortened text: the fast list for the file picker. */
   summary?: boolean
+  /** Without images but with the full text: the Telegram lists (each image loads on its own). */
+  withoutImages?: boolean
 }
 
 // ---------- Deterministic in-memory simulation for fixture mode ----------
@@ -489,6 +491,7 @@ export async function getTelegramHubMedia(
   const params = new URLSearchParams()
   if (sessionIds && sessionIds.length > 0) params.set('sessionIds', sessionIds.join(','))
   if (options?.summary) params.set('view', 'summary')
+  else if (options?.withoutImages) params.set('view', 'list')
   const query = params.size > 0 ? `?${params.toString()}` : ''
   return client.get<TelegramHubMediaResponse>(`/telegram-bridge/media${query}`, {
     auth: 'optional',
@@ -610,4 +613,63 @@ export async function syncTelegramWebhook(
 
   const client = options?.client ?? apiClient
   return client.post<SyncTelegramWebhookResponse>('/telegram-bridge/sync-webhook', {}, { auth: 'optional' })
+}
+
+/** Images already read, by file id (a file's image never changes). Kept for the page's life, newest last. */
+const hubImageCache = new Map<string, Promise<Blob>>()
+const hubImageUrls = new Map<string, string>()
+const HUB_IMAGE_CACHE_SIZE = 60
+
+function hubImageBlob(itemId: string, options?: TelegramBridgeOptions): Promise<Blob> {
+  const hit = hubImageCache.get(itemId)
+  if (hit) return hit
+  const client = options?.client ?? apiClient
+  const load = client
+    .get<Blob>(`/telegram-bridge/media/${encodeURIComponent(itemId)}/image`, { auth: 'optional', responseType: 'blob' })
+    .catch((error: unknown) => {
+      // A failed read (offline, expired) is tried again next time.
+      hubImageCache.delete(itemId)
+      throw error
+    })
+  hubImageCache.set(itemId, load)
+  while (hubImageCache.size > HUB_IMAGE_CACHE_SIZE) {
+    const oldest = hubImageCache.keys().next().value as string
+    hubImageCache.delete(oldest)
+    const url = hubImageUrls.get(oldest)
+    if (url) URL.revokeObjectURL(url)
+    hubImageUrls.delete(oldest)
+  }
+  return load
+}
+
+/**
+ * A hub file's image as a URL to show (lists leave images out). Read once per
+ * file; an item that still carries its image (fixtures, the full view) uses it.
+ */
+export async function loadTelegramHubImage(
+  item: Pick<TelegramHubItem, 'id' | 'imageDataUrl'>,
+  options?: TelegramBridgeOptions,
+): Promise<string> {
+  if (item.imageDataUrl) return item.imageDataUrl
+  const known = hubImageUrls.get(item.id)
+  if (known) return known
+  const blob = await hubImageBlob(item.id, options)
+  const url = hubImageUrls.get(item.id) ?? URL.createObjectURL(blob)
+  hubImageUrls.set(item.id, url)
+  return url
+}
+
+/** A hub file's image as a data URL, to put into a document (a document keeps its images). */
+export async function loadTelegramHubImageDataUrl(
+  item: Pick<TelegramHubItem, 'id' | 'imageDataUrl'>,
+  options?: TelegramBridgeOptions,
+): Promise<string> {
+  if (item.imageDataUrl) return item.imageDataUrl
+  const blob = await hubImageBlob(item.id, options)
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error ?? new Error('The image could not be read'))
+    reader.readAsDataURL(blob)
+  })
 }

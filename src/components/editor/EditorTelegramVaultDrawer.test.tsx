@@ -207,6 +207,26 @@ describe('EditorTelegramVaultDrawer', () => {
     )
   })
 
+  it('loads the drawer once without images and reads an image only to show or insert it', async () => {
+    const photo = { ...mockHubItems[1], id: 'evt_photo_light', imageDataUrl: null, hasImage: true }
+    const hub = vi.spyOn(telegramApi, 'getTelegramHubMedia').mockResolvedValue({ items: [photo], accounts: [] })
+    vi.spyOn(telegramApi, 'loadTelegramHubImage').mockResolvedValue('blob:thumb')
+    const dataUrl = vi.spyOn(telegramApi, 'loadTelegramHubImageDataUrl').mockResolvedValue('data:image/jpeg;base64,AAAA')
+    const onInsertImage = vi.fn()
+    const { user } = renderDrawer({ onInsertImage })
+
+    await user.click(screen.getByTestId('open-editor-telegram-vault-btn'))
+    expect(await screen.findByAltText('almaz-id-card.png')).toHaveAttribute('src', 'blob:thumb')
+    // Once for the count on the button, once on opening; never with images.
+    expect(hub).toHaveBeenCalledTimes(2)
+    for (const call of hub.mock.calls) expect(call).toEqual([undefined, { withoutImages: true }])
+    expect(telegramApi.listTelegramMediaVault).not.toHaveBeenCalled()
+
+    await user.click(await screen.findByTestId('vault-insert-image-evt_photo_light'))
+    await waitFor(() => expect(onInsertImage).toHaveBeenCalledWith('data:image/jpeg;base64,AAAA', 'almaz-id-card.png'))
+    expect(dataUrl).toHaveBeenCalledTimes(1)
+  })
+
   it('closes drawer when clicking close button or backdrop', async () => {
     const { user } = renderDrawer()
 

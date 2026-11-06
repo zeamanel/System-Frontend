@@ -30,6 +30,8 @@ export {
   getTelegramBridgeSessionStatus,
   getTelegramHubMedia,
   listTelegramMediaVault,
+  loadTelegramHubImage,
+  loadTelegramHubImageDataUrl,
   type CreateTelegramSessionInput,
   type TelegramBridgeSessionRecord,
   type TelegramBridgeStatus,

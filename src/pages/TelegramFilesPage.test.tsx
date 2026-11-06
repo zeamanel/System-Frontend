@@ -1,7 +1,7 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n'
 import { ToastProvider } from '../components/ui'
 import TelegramFilesPage from './TelegramFilesPage'
@@ -143,5 +143,70 @@ describe('TelegramFilesPage', () => {
     expect(qr).toHaveAttribute('data-value', 'https://t.me/Qal_copy_bot')
     expect(screen.getByTestId('telegram-bot-card-link')).toHaveAttribute('href', 'https://t.me/Qal_copy_bot')
     expect(card).toHaveTextContent('Send files from your phone')
+  })
+
+  describe('keeping the list fresh without wasting data', () => {
+    const setVisibility = (state: 'visible' | 'hidden') => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+    afterEach(() => {
+      setVisibility('visible')
+      vi.useRealTimers()
+      vi.restoreAllMocks()
+    })
+
+    it('reads the list without images every 20 seconds, not while the tab is hidden, and the bot status once', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const hub = vi.spyOn(telegramBridge, 'getTelegramHubMedia').mockResolvedValue({ items: [], accounts: [] })
+      const health = vi.spyOn(telegramBridge, 'getTelegramBotHealth').mockResolvedValue({} as never)
+      renderPage()
+      await waitFor(() => expect(hub).toHaveBeenCalledTimes(1))
+      expect(hub).toHaveBeenCalledWith(undefined, { withoutImages: true })
+
+      await act(() => vi.advanceTimersByTimeAsync(6_000))
+      expect(hub).toHaveBeenCalledTimes(1)
+      await act(() => vi.advanceTimersByTimeAsync(14_500))
+      expect(hub).toHaveBeenCalledTimes(2)
+
+      act(() => setVisibility('hidden'))
+      await act(() => vi.advanceTimersByTimeAsync(60_000))
+      expect(hub).toHaveBeenCalledTimes(2)
+
+      // Back on the tab: looks at once.
+      act(() => setVisibility('visible'))
+      await waitFor(() => expect(hub).toHaveBeenCalledTimes(3))
+      expect(health).toHaveBeenCalledTimes(1)
+    })
+
+    it('stops looking after five quiet minutes, and looks again when the user comes back', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const hub = vi.spyOn(telegramBridge, 'getTelegramHubMedia').mockResolvedValue({ items: [], accounts: [] })
+      vi.spyOn(telegramBridge, 'getTelegramBotHealth').mockResolvedValue({} as never)
+      renderPage()
+      await waitFor(() => expect(hub).toHaveBeenCalled())
+      await act(() => vi.advanceTimersByTimeAsync(5 * 60_000 + 30_000))
+      const afterQuiet = hub.mock.calls.length
+      expect(afterQuiet).toBeLessThanOrEqual(17)
+      await act(() => vi.advanceTimersByTimeAsync(5 * 60_000))
+      expect(hub.mock.calls.length).toBe(afterQuiet)
+
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      await waitFor(() => expect(hub.mock.calls.length).toBe(afterQuiet + 1))
+      await act(() => vi.advanceTimersByTimeAsync(20_500))
+      expect(hub.mock.calls.length).toBe(afterQuiet + 2)
+    })
+
+    it('reads a photo on its own and shows it', async () => {
+      const photo = { id: 'evt_photo', sessionId: 's1', qalId: '7392', accountLabel: '@abebe_k', filename: 'id.jpg', mimeType: 'image/jpeg', imageKind: 'id_card' as const, imageDataUrl: null, text: '', profile: {}, createdAt: new Date().toISOString(), hasImage: true }
+      vi.spyOn(telegramBridge, 'getTelegramHubMedia').mockResolvedValue({ items: [photo], accounts: [] })
+      vi.spyOn(telegramBridge, 'getTelegramBotHealth').mockResolvedValue({} as never)
+      const load = vi.spyOn(telegramBridge, 'loadTelegramHubImage').mockResolvedValue('blob:photo')
+      renderPage()
+      const img = await screen.findByAltText('id.jpg')
+      expect(img).toHaveAttribute('src', 'blob:photo')
+      expect(load).toHaveBeenCalledWith({ id: 'evt_photo', imageDataUrl: null })
+    })
   })
 })

@@ -218,6 +218,12 @@
   transition: opacity 0.15s ease;
 }
 
+.telegram-file-card__preview .telegram-hub-image__placeholder {
+  width: 100%;
+  height: 180px;
+  background-color: #f1f5f9;
+}
+
 .telegram-file-card__preview img:hover {
   opacity: 0.9;
 }
