@@ -4,6 +4,11 @@ import { matchesDocumentKind } from './document-type'
 describe('matchesDocumentKind', () => {
   it('finds every specific type of a kind', () => {
     expect(matchesDocumentKind('employment_offer_letter', 'letter')).toBe(true)
+    // Memos and meeting notices are office letters too.
+    expect(matchesDocumentKind('internal_office_memo', 'letter')).toBe(true)
+    expect(matchesDocumentKind('official_meeting_notice', 'letter')).toBe(true)
+    expect(matchesDocumentKind('purchase_requisition_request', 'request')).toBe(true)
+    expect(matchesDocumentKind('salary_advance_application', 'application')).toBe(true)
     expect(matchesDocumentKind('general_letter', 'letter')).toBe(true)
     expect(matchesDocumentKind('lease_agreement', 'contract')).toBe(true)
     expect(matchesDocumentKind('vehicle_sale_contract', 'contract')).toBe(true)

@@ -5,7 +5,7 @@
  * one of the words of its type names the kind.
  */
 const KIND_WORDS: Record<string, readonly string[]> = {
-  letter: ['letter'],
+  letter: ['letter', 'memo', 'notice'],
   contract: ['contract', 'agreement', 'lease', 'deed'],
   application: ['application', 'renewal'],
   request: ['request', 'petition'],
