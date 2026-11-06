@@ -136,7 +136,6 @@ export default function TemplatesPage() {
 
   const [filtersOpen, setFiltersOpen] = useState(false)
   const activeFilterCount = [
-    category !== 'all',
     documentType !== 'all',
     language !== 'all',
     country !== 'all',
@@ -164,32 +163,8 @@ export default function TemplatesPage() {
 
       <WriteAnythingStrip />
 
-      {features.designs ? <DesignShelf /> : null}
-
-      <div className="category-pills" role="tablist" aria-label={t('templates.allCategories')}>
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.value}
-            type="button"
-            role="tab"
-            aria-selected={category === cat.value}
-            className={[
-              'category-pill',
-              category === cat.value ? 'category-pill--active' : null,
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            onClick={() => {
-              setCategory(cat.value)
-              setPage(1)
-            }}
-          >
-            {t(cat.key)}
-          </button>
-        ))}
-      </div>
-
-
+      {/* Search, filters and categories sit together, right above the templates. */}
+      <div className="templates-controls">
       <div className="toolbar templates-toolbar">
         <div className="toolbar__search templates-toolbar__search">
           <SearchInput
@@ -202,7 +177,7 @@ export default function TemplatesPage() {
           />
         </div>
 
-        {/* Phones: filters collapse behind one button. */}
+        {/* The less used filters wait behind one button (category is the pills below). */}
         <button
           type="button"
           className="templates-toolbar__filters-toggle"
@@ -222,19 +197,6 @@ export default function TemplatesPage() {
             .filter(Boolean)
             .join(' ')}
         >
-
-        <div className="toolbar__filter">
-          <Select
-            bare
-            id="templates-category"
-            aria-label={t('templates.allCategories')}
-            value={category}
-            onChange={(event) =>
-              setCategory(event.target.value as CategoryFilter)
-            }
-            options={CATEGORIES.map((cat) => ({ value: cat.value, label: t(cat.key) }))}
-          />
-        </div>
 
         <div className="toolbar__filter">
           <Select
@@ -364,6 +326,30 @@ export default function TemplatesPage() {
         </div>
       </div>
 
+      <div className="category-pills" role="tablist" aria-label={t('templates.allCategories')}>
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat.value}
+            type="button"
+            role="tab"
+            aria-selected={category === cat.value}
+            className={[
+              'category-pill',
+              category === cat.value ? 'category-pill--active' : null,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => {
+              setCategory(cat.value)
+              setPage(1)
+            }}
+          >
+            {t(cat.key)}
+          </button>
+        ))}
+      </div>
+      </div>
+
       {templates.isPending ? (
         <PanelLoading />
       ) : templates.isError ? (
@@ -392,7 +378,7 @@ export default function TemplatesPage() {
         />
       ) : (
         <>
-          <div className="template-grid">
+          <div className="template-grid" data-testid="templates-grid">
             {items.map((template) => (
               <TemplateCard
                 key={template.id}
@@ -439,6 +425,9 @@ export default function TemplatesPage() {
           ) : null}
         </>
       )}
+
+      {/* Designed pages come after the templates people search for. */}
+      {features.designs ? <DesignShelf /> : null}
 
       <TemplatePreviewDialog
         templateId={previewTemplateId}

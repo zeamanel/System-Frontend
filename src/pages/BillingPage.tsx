@@ -168,7 +168,7 @@ export default function BillingPage() {
           </section>
 
           {!data.paymentsEnabled ? (
-            <p className="billing-note" role="note">
+            <p className="billing-soon" role="note" data-testid="billing-not-available">
               {t('billing.notAvailable')}
             </p>
           ) : null}
@@ -179,6 +179,15 @@ export default function BillingPage() {
           ) : null}
 
           <div className="billing-plans">
+            {/* Free is a plan too: the row shows what each step adds. */}
+            <article className="billing-plan" data-testid="billing-plan-free">
+              <header className="billing-plan__header">
+                <h3>{planName(data.free.name)}</h3>
+                {!current ? <Badge variant="success">{t('billing.currentPlan')}</Badge> : null}
+              </header>
+              <p className="billing-plan__price">{t('billing.freePrice')}</p>
+              <p>{t('billing.dailyCredits', { count: String(data.free.dailyCredits) })}</p>
+            </article>
             {data.plans.map((plan) => {
               const active = current?.planId === plan.id
               return (
@@ -191,22 +200,30 @@ export default function BillingPage() {
                     {formatEtb(plan.priceCents)} <span>/ {t('billing.days', { count: String(plan.periodDays) })}</span>
                   </p>
                   <p>{t('billing.dailyCredits', { count: String(plan.dailyCredits) })}</p>
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    loading={paying === plan.id}
-                    disabled={!data.paymentsEnabled || paying !== null}
-                    onClick={() => void pay(plan)}
-                  >
-                    {paying === plan.id ? t('billing.opening') : active ? t('billing.extend') : t('billing.payWithChapa')}
-                  </Button>
+                  {/* No dead button while payments are off: say when instead. */}
+                  {data.paymentsEnabled ? (
+                    <Button
+                      variant="primary"
+                      fullWidth
+                      className="billing-plan__action"
+                      loading={paying === plan.id}
+                      disabled={paying !== null}
+                      onClick={() => void pay(plan)}
+                    >
+                      {paying === plan.id ? t('billing.opening') : active ? t('billing.extend') : t('billing.payWithChapa')}
+                    </Button>
+                  ) : (
+                    <p className="billing-plan__soon">{t('billing.comingSoon')}</p>
+                  )}
                 </article>
               )
             })}
           </div>
           <p className="billing-note">
             {t('billing.howItWorks')}{' '}
-            <Link to="/faq#payments">{t('info.link.paymentsFaq')}</Link>
+            <Link className="billing-note__link" to="/faq#payments">
+              {t('info.link.paymentsFaq')}
+            </Link>
           </p>
 
           {data.payments.length > 0 ? (

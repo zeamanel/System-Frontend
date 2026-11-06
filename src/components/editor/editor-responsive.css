@@ -66,6 +66,22 @@
     display: none;
   }
 
+  /* More buttons off the edge: that edge fades, so the row reads as scrollable. */
+  .editor-toolbar__group--end[data-more-after='true'] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+
+  .editor-toolbar__group--end[data-more-before='true'] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 40px);
+    mask-image: linear-gradient(to right, transparent, #000 40px);
+  }
+
+  .editor-toolbar__group--end[data-more-before='true'][data-more-after='true'] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  }
+
   .editor-toolbar__group--end > * {
     flex-shrink: 0;
   }
@@ -236,6 +252,11 @@
   .editor-toolbar__back,
   .editor-toolbar__group--end .btn {
     padding-inline: var(--space-2);
+  }
+
+  /* The title gets the room: the language is chosen (and shown) in the fields panel. */
+  .editor-toolbar__language {
+    display: none;
   }
 
   /* Global search is not needed inside the editor on phones. */

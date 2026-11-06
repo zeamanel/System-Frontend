@@ -131,7 +131,7 @@ describe('TemplatesPage Filtering & Multilingual Browser', () => {
     const user = userEvent.setup()
     renderTemplatesPage()
 
-    const previewButtons = await screen.findAllByRole('button', { name: 'Quick Preview' })
+    const previewButtons = await screen.findAllByRole('button', { name: 'Quick preview' })
     expect(previewButtons.length).toBeGreaterThan(0)
 
     await user.click(previewButtons[0])
@@ -181,5 +181,23 @@ describe('TemplatesPage Filtering & Multilingual Browser', () => {
     renderTemplatesPage()
     const strip = await screen.findByTestId('templates-write-anything')
     expect(within(strip).getByText('Write anything')).toBeInTheDocument()
+  })
+
+  it('puts the templates first: one category control, other filters behind a button, designs after the list', async () => {
+    const user = userEvent.setup()
+    renderTemplatesPage({ designs: true })
+    const grid = await screen.findByTestId('templates-grid')
+    const shelf = await screen.findByTestId('design-shelf')
+    // The designs come after the templates people search for.
+    expect(grid.compareDocumentPosition(shelf) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Category is chosen with the tabs only (no second category dropdown).
+    expect(screen.queryByRole('combobox', { name: 'All categories' })).not.toBeInTheDocument()
+
+    const toggle = screen.getByRole('button', { name: 'Filters' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await user.selectOptions(screen.getByLabelText('Language'), 'om')
+    expect(screen.getByRole('button', { name: 'Filters (1)' })).toBeInTheDocument()
   })
 })

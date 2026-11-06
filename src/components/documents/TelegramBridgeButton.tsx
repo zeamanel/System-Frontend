@@ -447,10 +447,10 @@ function TelegramBridgeButtonInner({
                         {statusRecord.imageKind ? (
                           <span className="telegram-bridge-image-kind-tag">
                             {statusRecord.imageKind === 'id_card'
-                              ? 'ID Card'
-                              : statusRecord.imageKind === 'document_text'
-                                ? 'Document'
-                                : 'Photo'}
+                    ? t('telegramFiles.idCardBadge')
+                    : statusRecord.imageKind === 'document_text'
+                      ? t('telegramFiles.documentBadge')
+                      : t('telegramFiles.mediaBadge')}
                           </span>
                         ) : null}
                       </div>

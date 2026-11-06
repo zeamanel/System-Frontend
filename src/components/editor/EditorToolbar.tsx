@@ -1,3 +1,4 @@
+import { useEffect, useRef, type RefObject } from 'react'
 import { useI18n } from '../../i18n'
 import type { SaveStatus } from './useDocumentEditor'
 import { Badge, Button, Popover } from '../ui'
@@ -55,6 +56,34 @@ export interface EditorToolbarProps {
   documentId?: string
 }
 
+/**
+ * Marks a sideways-scrolling row with whether more of it is hidden before or
+ * after the visible part (data-more-before / data-more-after), so the edge can
+ * fade there: on phones the toolbar's buttons scroll and the fade shows it.
+ */
+function useScrollEdges<E extends HTMLElement>() {
+  const ref = useRef<E>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const update = () => {
+      el.dataset.moreBefore = String(el.scrollLeft > 4)
+      el.dataset.moreAfter = String(el.scrollWidth - el.clientWidth - el.scrollLeft > 4)
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    observer?.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+      observer?.disconnect()
+    }
+  }, [])
+  return ref
+}
+
 const STATUS_LABEL_KEY: Record<SaveStatus, string> = {
   idle: 'editor.statusIdle',
   unsaved: 'editor.unsaved',
@@ -102,6 +131,7 @@ export function EditorToolbar({
   documentId,
 }: EditorToolbarProps) {
   const { t } = useI18n()
+  const endRef = useScrollEdges<HTMLDivElement>()
 
   return (
     <header className="editor-toolbar" data-testid="editor-toolbar">
@@ -151,7 +181,9 @@ export function EditorToolbar({
           data-testid="editor-title-input"
         />
 
-        <Badge variant="neutral">{languageLabel}</Badge>
+        <Badge variant="neutral" className="editor-toolbar__language">
+          {languageLabel}
+        </Badge>
         <span
           className={['editor-save-status', `editor-save-status--${status}`].join(' ')}
           data-testid="editor-save-status"
@@ -205,6 +237,7 @@ export function EditorToolbar({
         onAppendToPrompt,
         onInsertImage,
         documentId,
+        endRef,
         t,
       })}
     </header>
@@ -234,11 +267,12 @@ function renderToolbarEnd(props: {
   onAppendToPrompt?: (text: string) => void
   onInsertImage?: (imageDataUrl: string, caption?: string) => void
   documentId?: string
+  endRef: RefObject<HTMLDivElement>
   t: T
 }) {
   const { t } = props
   return (
-    <div className="editor-toolbar__group editor-toolbar__group--end">
+    <div ref={props.endRef} className="editor-toolbar__group editor-toolbar__group--end" data-testid="editor-toolbar-end">
       {props.onImportFile ? (
         <>
           <OpenLocalFileButton onImportIntoCurrent={props.onImportFile} compact />
@@ -285,7 +319,7 @@ function renderToolbarEnd(props: {
         aria-label={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
         title={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
       >
-        <span className="editor-toolbar__label">
+        <span className="editor-toolbar__label editor-toolbar__label--named">
           {props.previewMode ? t('editor.previewOff') : t('editor.preview')}
         </span>
       </Button>
@@ -300,7 +334,7 @@ function renderToolbarEnd(props: {
           className="editor-toolbar__style"
           data-testid="editor-style"
         >
-          <span className="editor-toolbar__label">{t('styles.button')}</span>
+          <span className="editor-toolbar__label editor-toolbar__label--named">{t('styles.button')}</span>
         </Button>
       ) : null}
 
@@ -314,7 +348,7 @@ function renderToolbarEnd(props: {
           className="editor-toolbar__history"
           data-testid="editor-history"
         >
-          <span className="editor-toolbar__label">{t('editor.history')}</span>
+          <span className="editor-toolbar__label editor-toolbar__label--named">{t('editor.history')}</span>
         </Button>
       ) : null}
 

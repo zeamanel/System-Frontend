@@ -45,8 +45,8 @@ describe('Sidebar', () => {
   it('shows core navigation for every user', () => {
     renderSidebar(regularUser)
     expect(screen.getByRole('link', { name: 'Home' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'My Documents' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Telegram Files' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'My documents' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Telegram files' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Favorites' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Organization' })).toBeInTheDocument()
   })

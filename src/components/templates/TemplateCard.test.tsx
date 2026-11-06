@@ -108,4 +108,42 @@ describe('TemplateCard', () => {
     expect(await screen.findByText(/could not open this template/i)).toBeInTheDocument()
     create.mockRestore()
   })
+
+  it('shows readable tags instead of internal codes', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <I18nProvider>
+          <MemoryRouter>
+            <TemplateCard
+              template={{ ...template, documentTypeId: 'house_condominium_sale', language: 'am', region: 'ET-AA' }}
+              categoryLabel="Legal & Property"
+              favoriteAddLabel="Add"
+              favoriteRemoveLabel="Remove"
+            />
+          </MemoryRouter>
+        </I18nProvider>
+      </QueryClientProvider>,
+    )
+    expect(screen.getByText('House condominium sale')).toBeInTheDocument()
+    expect(screen.getByText('አማርኛ')).toBeInTheDocument()
+    expect(screen.queryByText('HOUSE_CONDOMINIUM_SALE')).not.toBeInTheDocument()
+    expect(screen.queryByText('ET-AA')).not.toBeInTheDocument()
+  })
+
+  it('names a known document type in the interface language', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <I18nProvider>
+          <MemoryRouter>
+            <TemplateCard template={template} categoryLabel="Business" favoriteAddLabel="Add" favoriteRemoveLabel="Remove" />
+          </MemoryRouter>
+        </I18nProvider>
+      </QueryClientProvider>,
+    )
+    expect(screen.getAllByText('Letter').length).toBeGreaterThan(1)
+    expect(screen.getByText('English')).toBeInTheDocument()
+    expect(screen.queryByText('LETTER')).not.toBeInTheDocument()
+  })
 })
