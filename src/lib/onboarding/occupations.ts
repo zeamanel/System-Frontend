@@ -24,27 +24,27 @@ export const OCCUPATIONS: readonly Occupation[] = [
   {
     id: 'employee',
     labelKey: 'occupation.employee',
-    templateTypes: ['resignation_letter', 'salary_confirmation_letter', 'work_experience_certificate', 'official_application_letter', 'authorization_letter', 'cover_letter', 'complaint_petition_letter'],
+    templateTypes: ['resignation_letter', 'salary_confirmation_letter', 'work_experience_certificate', 'official_application_letter', 'authorization_letter', 'cover_letter', 'complaint_petition_letter', 'salary_advance_application', 'employee_explanation_letter', 'field_mission_per_diem_request'],
   },
   {
     id: 'civil_servant',
     labelKey: 'occupation.civil_servant',
-    templateTypes: ['official_application_letter', 'complaint_petition_letter', 'authorization_letter', 'meeting_minutes', 'salary_confirmation_letter', 'resignation_letter', 'sworn_affidavit_declaration'],
+    templateTypes: ['official_application_letter', 'internal_office_memo', 'official_meeting_notice', 'complaint_petition_letter', 'authorization_letter', 'meeting_minutes', 'salary_confirmation_letter', 'resignation_letter', 'sworn_affidavit_declaration', 'institutional_cooperation_letter', 'field_mission_per_diem_request', 'authority_delegation_letter', 'purchase_requisition_request', 'employee_explanation_letter', 'salary_advance_application'],
   },
   {
     id: 'business_owner',
     labelKey: 'occupation.business_owner',
-    templateTypes: ['proforma_invoice', 'commercial_invoice', 'goods_supply_agreement', 'service_agreement', 'payment_demand_letter', 'vat_monthly_report', 'commercial_lease_agreement', 'company_board_resolution'],
+    templateTypes: ['proforma_invoice', 'commercial_invoice', 'goods_supply_agreement', 'service_agreement', 'payment_demand_letter', 'vat_monthly_report', 'commercial_lease_agreement', 'company_board_resolution', 'institutional_cooperation_letter', 'internal_office_memo', 'purchase_requisition_request'],
   },
   {
     id: 'hr_admin',
     labelKey: 'occupation.hr_admin',
-    templateTypes: ['employment_offer_letter', 'employment_contract', 'employment_termination_letter', 'employee_warning_letter', 'work_experience_certificate', 'salary_confirmation_letter', 'resignation_letter'],
+    templateTypes: ['employment_offer_letter', 'employment_contract', 'employment_termination_letter', 'employee_warning_letter', 'work_experience_certificate', 'salary_confirmation_letter', 'resignation_letter', 'internal_office_memo', 'authority_delegation_letter', 'official_meeting_notice', 'salary_advance_application', 'employee_explanation_letter'],
   },
   {
     id: 'accountant',
     labelKey: 'occupation.accountant',
-    templateTypes: ['vat_return_worksheet', 'vat_monthly_report', 'proforma_invoice', 'commercial_invoice', 'payment_receipt_acknowledgement', 'debt_acknowledgement', 'payment_demand_letter'],
+    templateTypes: ['vat_return_worksheet', 'vat_monthly_report', 'proforma_invoice', 'commercial_invoice', 'payment_receipt_acknowledgement', 'debt_acknowledgement', 'payment_demand_letter', 'purchase_requisition_request', 'field_mission_per_diem_request', 'salary_advance_application'],
   },
   {
     id: 'lawyer',
