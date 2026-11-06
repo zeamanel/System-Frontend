@@ -1,3 +1,4 @@
+import './pages.css'
 import './TelegramFilesPage.css'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -14,7 +15,7 @@ import {
   type TelegramHubItem,
 } from '../lib/api/endpoints/telegram-bridge'
 import { TelegramBridgeButton } from '../components/documents/TelegramBridgeButton'
-import { Button, Dialog, Spinner } from '../components/ui'
+import { Badge, Button, Dialog, PageHeader, SearchInput, Spinner } from '../components/ui'
 import { CheckIcon, CopyIcon, ShieldIcon, SmartphoneIcon, TrashIcon } from '../components/icons'
 import { QrCode } from '../components/telegram/QrCode'
 import { TelegramHubImage } from '../components/telegram/TelegramHubImage'
@@ -149,255 +150,205 @@ export default function TelegramFilesPage() {
   // The bot's real username comes from Telegram (via the backend); the default is the production bot.
   const botName = botHealth?.bot?.username || DEFAULT_BOT_USERNAME
 
+  const botCard = (
+    // Open the bot on the phone: scan the code instead of searching Telegram for it.
+    <section className="telegram-files-page__bot-card" data-testid="telegram-bot-card">
+      <QrCode value={`https://t.me/${botName}`} label={t('telegram.qr.label', { bot: `@${botName}` })} size={96} />
+      <div className="telegram-files-page__bot-card-text">
+        <p className="telegram-files-page__bot-card-title">{t('telegramFiles.botCardTitle')}</p>
+        <p className="telegram-files-page__bot-card-body">{t('telegramFiles.botCardBody', { bot: `@${botName}` })}</p>
+        <a
+          className="telegram-files-page__help-link"
+          href={`https://t.me/${botName}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="telegram-bot-card-link"
+        >
+          t.me/{botName}
+        </a>
+        <p className="telegram-files-page__privacy" data-testid="telegram-privacy-note">
+          <ShieldIcon size={14} />
+          <span>{t('telegramFiles.safetyNote')}</span>
+        </p>
+      </div>
+    </section>
+  )
+
   return (
-    <div className="telegram-files-page" data-testid="telegram-files-page">
-      {/* Header */}
-      <div className="telegram-files-page__header">
-        <div className="telegram-files-page__title-area">
-          <h1 className="telegram-files-page__title">{t('telegramFiles.title')}</h1>
-          <p className="telegram-files-page__subtitle">
+    <div className="page telegram-files-page" data-testid="telegram-files-page">
+      <PageHeader
+        title={t('telegramFiles.title')}
+        description={
+          <>
             {t('telegramFiles.subtitle')}{' '}
             <Link className="telegram-files-page__help-link" to="/faq#telegram-keep">
               {t('info.link.telegramFaq')}
             </Link>
-          </p>
-        </div>
+          </>
+        }
+        actions={
+          <>
+            {/* The bot's status matters to admins, and to everyone only when it is down. */}
+            {botHealth && (isUserAdmin || !botHealth.ok) ? (
+              <Badge variant={botHealth.ok ? 'success' : 'warning'} data-testid="telegram-bot-status">
+                {botHealth.ok ? t('telegramFiles.botReady') : t('telegramFiles.botMissingToken')}
+              </Badge>
+            ) : null}
+            {/* Re-pointing the bot webhook is an admin operation (backend enforces it). */}
+            {isUserAdmin ? (
+              <Button variant="ghost" size="sm" onClick={handleSyncWebhook} disabled={syncingWebhook} loading={syncingWebhook}>
+                {t('telegramFiles.syncWebhook')}
+              </Button>
+            ) : null}
+            <TelegramBridgeButton
+              onApplyTelegramData={() => {
+                void loadData()
+              }}
+            />
+          </>
+        }
+      />
 
-        <div className="telegram-files-page__header-actions">
-          {botHealth && (
-            <div
-              className={`telegram-files-page__health-badge ${
-                botHealth.ok
-                  ? 'telegram-files-page__health-badge--ready'
-                  : 'telegram-files-page__health-badge--warn'
-              }`}
-            >
-              <span>●</span>
-              <span>{botHealth.ok ? t('telegramFiles.botReady') : t('telegramFiles.botMissingToken')}</span>
-            </div>
-          )}
-
-          {/* Re-pointing the bot webhook is an admin operation (backend enforces it). */}
-          {isUserAdmin ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleSyncWebhook}
-              disabled={syncingWebhook}
-              loading={syncingWebhook}
-            >
-              {t('telegramFiles.syncWebhook')}
-            </Button>
-          ) : null}
-
-          <TelegramBridgeButton
-            compact
-            onApplyTelegramData={() => {
-              void loadData()
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Open the bot on the phone: scan the code instead of searching Telegram for it. */}
-      <div className="telegram-files-page__bot-card" data-testid="telegram-bot-card">
-        <QrCode value={`https://t.me/${botName}`} label={t('telegram.qr.label', { bot: `@${botName}` })} size={112} />
-        <div className="telegram-files-page__bot-card-text">
-          <p className="telegram-files-page__bot-card-title">{t('telegramFiles.botCardTitle')}</p>
-          <p className="telegram-files-page__bot-card-body">{t('telegramFiles.botCardBody', { bot: `@${botName}` })}</p>
-          <a
-            className="telegram-files-page__help-link"
-            href={`https://t.me/${botName}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="telegram-bot-card-link"
-          >
-            t.me/{botName}
-          </a>
-        </div>
-      </div>
-
-      {/* Safety Notice */}
-      <div className="telegram-files-page__safety-banner">
-        <div className="telegram-files-page__safety-banner-icon">
-          <ShieldIcon size={20} />
-        </div>
-        <div>{t('telegramFiles.safetyNote')}</div>
-      </div>
-
-      {actionNotice && (
-        <div
-          style={{
-            padding: '10px 14px',
-            backgroundColor: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            color: '#166534',
-            borderRadius: 6,
-            fontSize: 13,
-          }}
-        >
+      {actionNotice ? (
+        <div className="telegram-files-page__notice" role="status">
           {actionNotice}
         </div>
-      )}
+      ) : null}
 
-      {/* Filter and Search Bar */}
-      <div className="telegram-files-page__filter-bar">
-        {accounts.length > 0 && (
-          <div className="telegram-files-page__accounts">
-            <button
-              type="button"
-              className={`telegram-files-page__account-chip ${
-                selectedAccount === 'all' ? 'telegram-files-page__account-chip--active' : ''
-              }`}
-              onClick={() => setSelectedAccount('all')}
-            >
-              {t('telegramFiles.allAccounts')} ({items.length})
-            </button>
-            {accounts.map((acc) => (
+      {/* The files come first; how to send more follows them. */}
+      {items.length > 0 ? (
+        <div className="telegram-files-page__filters">
+          <div className="toolbar">
+            <div className="toolbar__search">
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder={t('telegramFiles.searchPlaceholder')}
+                ariaLabel={t('common.search')}
+                clearLabel={t('search.clear')}
+              />
+            </div>
+          </div>
+          {accounts.length > 1 ? (
+            <div className="category-pills" aria-label={t('telegramFiles.sender')}>
               <button
                 type="button"
-                key={acc.qalId}
-                className={`telegram-files-page__account-chip ${
-                  selectedAccount === acc.qalId ? 'telegram-files-page__account-chip--active' : ''
-                }`}
-                onClick={() => setSelectedAccount(acc.qalId)}
+                className={['category-pill', selectedAccount === 'all' ? 'category-pill--active' : null].filter(Boolean).join(' ')}
+                aria-pressed={selectedAccount === 'all'}
+                onClick={() => setSelectedAccount('all')}
               >
-                <span>{acc.accountLabel}</span>
-                <span style={{ opacity: 0.75, fontSize: 11 }}>({acc.itemCount})</span>
+                {t('telegramFiles.allAccounts')} · {items.length}
               </button>
-            ))}
-          </div>
-        )}
+              {accounts.map((acc) => (
+                <button
+                  type="button"
+                  key={acc.qalId}
+                  className={['category-pill', selectedAccount === acc.qalId ? 'category-pill--active' : null].filter(Boolean).join(' ')}
+                  aria-pressed={selectedAccount === acc.qalId}
+                  onClick={() => setSelectedAccount(acc.qalId)}
+                >
+                  {acc.accountLabel} · {acc.itemCount}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
-        <input
-          type="text"
-          className="telegram-files-page__search-input"
-          placeholder={t('telegramFiles.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-
-      {/* Content Grid */}
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+        <div className="telegram-files-page__loading">
           <Spinner />
         </div>
-      ) : filteredItems.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="telegram-files-page__empty">
-          <div className="telegram-files-page__empty-icon">
-            <SmartphoneIcon size={44} />
-          </div>
+          <SmartphoneIcon size={32} className="telegram-files-page__empty-icon" />
           <h2 className="telegram-files-page__empty-title">{t('telegramFiles.emptyTitle')}</h2>
-          <p className="telegram-files-page__empty-description">
-            {t('telegramFiles.emptyDescription')}
-          </p>
-          <TelegramBridgeButton
-            onApplyTelegramData={() => {
-              void loadData()
-            }}
-          />
+          <p className="telegram-files-page__empty-description">{t('telegramFiles.emptyDescription')}</p>
         </div>
+      ) : filteredItems.length === 0 ? (
+        <p className="telegram-files-page__no-match">{t('telegramFiles.noMatch')}</p>
       ) : (
         <div className="telegram-files-page__grid">
           {filteredItems.map((item) => {
-            const isIdCard = item.imageKind === 'id_card'
-            const isPhoto = item.imageKind === 'media_photo'
-            const badgeKindClass = isIdCard
-              ? 'telegram-file-card__kind-badge--id_card'
-              : isPhoto
-                ? 'telegram-file-card__kind-badge--media_photo'
-                : 'telegram-file-card__kind-badge--document_text'
-
-            const badgeText = isIdCard
-              ? t('telegramFiles.idCardBadge')
-              : isPhoto
-                ? t('telegramFiles.mediaBadge')
-                : t('telegramFiles.documentBadge')
+            const badgeText =
+              item.imageKind === 'id_card'
+                ? t('telegramFiles.idCardBadge')
+                : item.imageKind === 'media_photo'
+                  ? t('telegramFiles.mediaBadge')
+                  : t('telegramFiles.documentBadge')
+            const details = [
+              { key: 'phone', label: t('telegramFiles.phone'), value: item.profile.phone },
+              { key: 'id', label: t('telegramFiles.idNumber'), value: item.profile.idNumber },
+              { key: 'address', label: t('telegramFiles.address'), value: item.profile.address },
+            ].filter((d) => Boolean(d.value))
 
             return (
-              <div key={item.id} className="telegram-file-card" data-testid="telegram-file-card">
-                <div className="telegram-file-card__top">
-                  <span className={`telegram-file-card__kind-badge ${badgeKindClass}`}>
-                    {badgeText}
-                  </span>
-                  <span className="telegram-file-card__sender-pill">{item.accountLabel}</span>
-                </div>
-
+              <article key={item.id} className="telegram-file-card" data-testid="telegram-file-card">
                 {(item.imageDataUrl || item.hasImage) && (
                   <TelegramHubImage item={item} className="telegram-file-card__preview" onOpen={setPreviewImageUrl} />
                 )}
 
                 <div className="telegram-file-card__content">
+                  <div className="telegram-file-card__meta">
+                    <Badge variant="neutral">{badgeText}</Badge>
+                    <span className="telegram-file-card__sender">{item.accountLabel}</span>
+                  </div>
                   <h3 className="telegram-file-card__filename">{item.filename}</h3>
 
-                  {item.profile.fullName && (
-                    <div className="telegram-file-card__profile-box">
-                      <div>
-                        <strong>{item.profile.fullName}</strong>
-                      </div>
-                      {item.profile.phone && <div>📞 {item.profile.phone}</div>}
-                      {item.profile.idNumber && <div>🆔 {item.profile.idNumber}</div>}
-                      {item.profile.address && <div>📍 {item.profile.address}</div>}
-                    </div>
-                  )}
+                  {item.profile.fullName ? (
+                    <dl className="telegram-file-card__profile">
+                      <dt className="telegram-file-card__profile-name">{item.profile.fullName}</dt>
+                      {details.map((d) => (
+                        <dd key={d.key}>
+                          <span className="telegram-file-card__profile-label">{d.label}</span> {d.value}
+                        </dd>
+                      ))}
+                    </dl>
+                  ) : null}
 
-                  {item.text && (
-                    <div className="telegram-file-card__text-box">
+                  {item.text ? (
+                    <p className="telegram-file-card__text">
                       {item.text.slice(0, 240)}
                       {item.text.length > 240 ? '…' : ''}
-                    </div>
-                  )}
+                    </p>
+                  ) : null}
 
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                    {t('telegramFiles.receivedAt')}: {new Date(item.createdAt).toLocaleString()}
-                  </div>
+                  <p className="telegram-file-card__date">
+                    {t('telegramFiles.receivedAt')} {new Date(item.createdAt).toLocaleString()}
+                  </p>
                 </div>
 
-                <div className="telegram-file-card__footer">
-                  <div className="telegram-file-card__btn-group">
-                    <button
-                      type="button"
-                      className="telegram-file-card__btn telegram-file-card__btn--primary"
-                      onClick={() => navigate('/documents')}
+                <footer className="telegram-file-card__footer">
+                  <Button variant="primary" size="sm" onClick={() => navigate('/documents')}>
+                    {t('telegramFiles.useInDocument')}
+                  </Button>
+                  {item.text ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={copiedId === item.id ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+                      onClick={() => handleCopyText(item.id, item.text)}
                     >
-                      {t('telegramFiles.useInDocument')}
-                    </button>
-
-                    {item.text && (
-                      <button
-                        type="button"
-                        className="telegram-file-card__btn telegram-file-card__btn--secondary"
-                        onClick={() => handleCopyText(item.id, item.text)}
-                      >
-                        {copiedId === item.id ? (
-                          <>
-                            <CheckIcon size={14} /> {t('telegramFiles.copied')}
-                          </>
-                        ) : (
-                          <>
-                            <CopyIcon size={14} /> {t('telegramFiles.copyText')}
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-
+                      {copiedId === item.id ? t('telegramFiles.copied') : t('telegramFiles.copyText')}
+                    </Button>
+                  ) : null}
                   <button
                     type="button"
-                    className="telegram-file-card__btn--danger"
+                    className="telegram-file-card__remove"
                     title={t('telegramFiles.dismissTooltip')}
                     onClick={() => handleDismiss(item.id)}
                     aria-label={t('telegramFiles.dismiss')}
                   >
                     <TrashIcon size={16} />
                   </button>
-                </div>
-              </div>
+                </footer>
+              </article>
             )
           })}
         </div>
       )}
+
+      {botCard}
 
       {/* Image Modal Preview */}
       <Dialog
@@ -406,12 +357,8 @@ export default function TelegramFilesPage() {
         title={t('telegramFiles.mediaBadge')}
       >
         {previewImageUrl && (
-          <div style={{ textAlign: 'center', padding: 8 }}>
-            <img
-              src={previewImageUrl}
-              alt="Telegram Media Preview"
-              style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8 }}
-            />
+          <div className="telegram-files-page__preview-full">
+            <img src={previewImageUrl} alt={t('telegramFiles.mediaBadge')} />
           </div>
         )}
       </Dialog>

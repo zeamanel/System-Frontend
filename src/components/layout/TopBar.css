@@ -41,6 +41,25 @@
   min-width: 0;
 }
 
+.topbar__search-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.topbar__search-btn:hover {
+  background-color: var(--color-action-ghost-hover);
+  color: var(--color-text);
+}
+
 .topbar__actions {
   display: flex;
   align-items: center;
@@ -272,17 +291,30 @@
     display: none;
   }
 
+  /* One row: the search box becomes a button to the search page. */
+  .topbar__inner {
+    flex-wrap: nowrap;
+  }
+
   .topbar__search {
-    order: 10;
-    flex-basis: 100%;
-    max-width: none;
+    display: none;
+  }
+
+  .topbar__search-btn {
+    display: inline-flex;
   }
 }
 
 
-/* Very narrow phones (≈320px): keep everything on one row. */
+/* Very narrow phones (≈320px): no brand word, and the buttons may wrap. */
 @media (max-width: 360px) {
   .topbar .logo__word {
     display: none;
+  }
+}
+
+@media (max-width: 340px) {
+  .topbar__inner {
+    flex-wrap: wrap;
   }
 }

@@ -3,7 +3,7 @@ import './TopBar.css'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../../i18n'
-import { MenuIcon, PlusIcon } from '../icons'
+import { MenuIcon, PlusIcon, SearchIcon } from '../icons'
 import { Button, SearchInput } from '../ui'
 import { CreateDocumentDialog } from '../create-document/CreateDocumentDialog'
 import { Logo } from './Logo'
@@ -57,6 +57,15 @@ export function TopBar({ onOpenMenu, menuOpen = false }: TopBarProps) {
           />
         </div>
         <div className="topbar__actions">
+          {/* Phones: one header row; search opens the search page (its box takes focus). */}
+          <button
+            type="button"
+            className="topbar__search-btn"
+            aria-label={t('topbar.search')}
+            onClick={() => navigate('/search')}
+          >
+            <SearchIcon size={18} />
+          </button>
           <Button
             variant="primary"
             size="sm"

@@ -50,9 +50,9 @@ describe('TelegramFilesPage', () => {
   it('renders page header, safety banner, and media items from fixtures', async () => {
     renderPage()
 
-    expect(screen.getByText('Telegram Media & Files')).toBeInTheDocument()
+    expect(screen.getByText('Telegram files')).toBeInTheDocument()
     expect(
-      screen.getByText(/Phone-Owner Privacy: The Telegram user can remotely revoke access/i),
+      screen.getByText(/can take back any file at any time from their phone/i),
     ).toBeInTheDocument()
 
     // Wait for items to load
@@ -62,7 +62,7 @@ describe('TelegramFilesPage', () => {
     })
 
     // Check account chips
-    expect(screen.getByRole('button', { name: /All Connected Accounts/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /All senders/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /@abebe_k/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /@almaz_k/ })).toBeInTheDocument()
   })
@@ -104,7 +104,7 @@ describe('TelegramFilesPage', () => {
       expect(screen.getByText('Vehicle_Sale_Agreement.txt')).toBeInTheDocument()
     })
 
-    const dismissButtons = screen.getAllByLabelText('Remove from List')
+    const dismissButtons = screen.getAllByLabelText('Remove from list')
     fireEvent.click(dismissButtons[0])
 
     await waitFor(() => {
@@ -118,21 +118,42 @@ describe('TelegramFilesPage', () => {
     expect(screen.getByText('almaz-id-card.png')).toBeInTheDocument()
     const remove = vi.spyOn(telegramBridge, 'dismissTelegramHubItem')
 
-    fireEvent.click(screen.getAllByLabelText('Remove from List')[0])
+    fireEvent.click(screen.getAllByLabelText('Remove from list')[0])
     await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
     // The file's own id, never its session's id (that would hide every file of the session).
     expect(remove.mock.calls[0][0]).toMatch(/^evt_fixture_/)
-    await waitFor(() => expect(screen.queryAllByLabelText('Remove from List')).toHaveLength(1))
+    await waitFor(() => expect(screen.queryAllByLabelText('Remove from list')).toHaveLength(1))
   })
 
   it('shows the webhook sync control only to administrators', async () => {
     const { unmount } = renderPage('user')
-    await screen.findByText('Telegram Media & Files')
-    expect(screen.queryByRole('button', { name: /sync webhook/i })).not.toBeInTheDocument()
+    await screen.findByText('Telegram files')
+    expect(screen.queryByRole('button', { name: /reconnect bot/i })).not.toBeInTheDocument()
     unmount()
 
     renderPage('admin')
-    expect(await screen.findByRole('button', { name: /sync webhook/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /reconnect bot/i })).toBeInTheDocument()
+  })
+
+  it('shows the files before the QR card, with plain labels instead of emoji', async () => {
+    renderPage('user')
+    const firstCard = (await screen.findAllByTestId('telegram-file-card'))[0]
+    const botCard = screen.getByTestId('telegram-bot-card')
+    expect(firstCard.compareDocumentPosition(botCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(botCard).toContainElement(screen.getByTestId('telegram-privacy-note'))
+    expect(screen.getByTestId('telegram-files-page').textContent).not.toMatch(/[📞🆔📍]/u)
+    expect(screen.getAllByText('Phone').length).toBeGreaterThan(0)
+    // The bot's status is for admins (or everyone when it is down).
+    expect(screen.queryByTestId('telegram-bot-status')).not.toBeInTheDocument()
+  })
+
+  it('shows the QR card and a friendly empty state when there are no files', async () => {
+    vi.spyOn(telegramBridge, 'getTelegramHubMedia').mockResolvedValue({ items: [], accounts: [] })
+    renderPage('user')
+    expect(await screen.findByText('No Telegram files yet')).toBeInTheDocument()
+    expect(screen.getByTestId('telegram-bot-card')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/Search files by name/i)).not.toBeInTheDocument()
+    vi.restoreAllMocks()
   })
 
   it('shows a QR code that opens the bot on a phone, with the link beside it', async () => {
