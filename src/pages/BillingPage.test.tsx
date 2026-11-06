@@ -95,8 +95,13 @@ describe('BillingPage', () => {
 
   it('says when payments are not available, and in demo mode', async () => {
     renderPage()
-    expect(await screen.findByText('Payments are not available yet.')).toBeInTheDocument()
-    expect(within(screen.getByTestId('billing-plan-pro')).getByRole('button', { name: /pay with chapa/i })).toBeDisabled()
+    expect(await screen.findByTestId('billing-not-available')).toHaveTextContent('Paid plans open soon')
+    // No dead button: each paid plan says it is coming instead.
+    const pro = screen.getByTestId('billing-plan-pro')
+    expect(within(pro).queryByRole('button')).not.toBeInTheDocument()
+    expect(pro).toHaveTextContent('Coming soon')
+    // Free is shown as a plan, and as the current one.
+    expect(screen.getByTestId('billing-plan-free')).toHaveTextContent('Current plan')
   })
 
   it('warms up the Chapa connection while the page is open', async () => {

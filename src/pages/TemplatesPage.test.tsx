@@ -131,7 +131,7 @@ describe('TemplatesPage Filtering & Multilingual Browser', () => {
     const user = userEvent.setup()
     renderTemplatesPage()
 
-    const previewButtons = await screen.findAllByRole('button', { name: 'Quick Preview' })
+    const previewButtons = await screen.findAllByRole('button', { name: 'Quick preview' })
     expect(previewButtons.length).toBeGreaterThan(0)
 
     await user.click(previewButtons[0])

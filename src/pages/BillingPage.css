@@ -18,7 +18,7 @@
 
 .billing-plans {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
   gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
@@ -111,4 +111,37 @@
 .billing-history__amount {
   text-align: right;
   white-space: nowrap;
+}
+
+/* The price line and the action sit at the same height in every card. */
+.billing-plan__action,
+.billing-plan__soon {
+  margin-top: auto;
+}
+
+.billing-plan__soon {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.billing-soon {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-md);
+  color: var(--color-text);
+  background-color: var(--color-info-bg);
+  border-radius: var(--radius-md);
+}
+
+.billing-note__link {
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

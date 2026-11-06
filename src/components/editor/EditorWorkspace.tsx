@@ -1289,10 +1289,10 @@ export function EditorWorkspace({
               {telegramMedia.kind ? (
                 <span className="telegram-media-tray__badge">
                   {telegramMedia.kind === 'id_card'
-                    ? 'ID Card'
+                    ? t('telegramFiles.idCardBadge')
                     : telegramMedia.kind === 'document_text'
-                      ? 'Document'
-                      : 'Photo'}
+                      ? t('telegramFiles.documentBadge')
+                      : t('telegramFiles.mediaBadge')}
                 </span>
               ) : null}
             </div>
