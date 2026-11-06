@@ -137,7 +137,8 @@
 }
 
 /* Laptop widths: secondary actions become icons (their aria-label and
-   title keep them named); Save, Export and Print keep their words. */
+   title keep them named); Save, Export and Print keep their words. From
+   1440px (room for the title too) Preview, Style and History keep theirs. */
 @media (min-width: 961px) and (max-width: 1799px) {
   .editor-toolbar .editor-toolbar__label,
   .editor-toolbar .editor-toolbar__vault-btn-label {
@@ -148,9 +149,19 @@
     display: inline;
   }
 
+  .editor-toolbar .editor-toolbar__label--named {
+    display: none;
+  }
+
   .editor-toolbar__back,
   .editor-toolbar__group--end .btn--ghost {
     padding-inline: var(--space-2);
+  }
+}
+
+@media (min-width: 1440px) and (max-width: 1799px) {
+  .editor-toolbar .editor-toolbar__label.editor-toolbar__label--named {
+    display: inline;
   }
 }
 
@@ -708,6 +719,20 @@
 .doc-canvas-toolbar__pages {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
+}
+
+/* Desktop: a small pill in the corner, over the page margin instead of across the text. */
+@media (min-width: 961px) {
+  .doc-canvas-toolbar {
+    z-index: 5;
+    align-self: flex-end;
+    width: max-content;
+    max-width: 100%;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+    border-radius: var(--radius-round);
+    box-shadow: var(--shadow-md);
+  }
 }
 
 .doc-canvas-toolbar__zoom {

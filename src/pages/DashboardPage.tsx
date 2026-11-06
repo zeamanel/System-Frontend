@@ -76,16 +76,13 @@ export default function DashboardPage() {
             <Button variant="primary" onClick={() => setCreateOpen(true)}>
               {t('dashboard.createDocument')}
             </Button>
-            <Button variant="secondary" onClick={() => navigate('/templates')}>
-              {t('dashboard.browseTemplates')}
-            </Button>
             <OpenLocalFileButton />
             <TelegramBridgeButton />
           </>
         }
       />
 
-      <div className="dashboard-grid">
+      <div className="dashboard-grid dashboard-grid--top">
         <Panel
           title={t('dashboard.recentDocuments')}
           action={
@@ -144,6 +141,7 @@ export default function DashboardPage() {
               description={t('empty.favorites.body')}
             />
           ) : (
+            <>
             <ul className="favorite-list">
               {favoriteList.slice(0, 4).map((template) => {
                 const Icon = templateIcon(template.iconKey)
@@ -160,11 +158,21 @@ export default function DashboardPage() {
                 )
               })}
             </ul>
+            {/* A short list: say how to add more instead of leaving the card empty. */}
+            {favoriteList.length < 4 ? <p className="panel-note">{t('empty.favorites.body')}</p> : null}
+            </>
           )}
         </Panel>
       </div>
 
-      <Panel title={t('dashboard.recommended')}>
+      <Panel
+        title={t('dashboard.recommended')}
+        action={
+          <Link className="panel__link" to="/templates">
+            {t('dashboard.browseTemplates')}
+          </Link>
+        }
+      >
         {recommended.isPending ? (
           <PanelLoading />
         ) : recommended.isError ? (

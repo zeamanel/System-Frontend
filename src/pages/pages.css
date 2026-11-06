@@ -46,6 +46,11 @@
   align-items: stretch;
 }
 
+/* Recent documents and saved templates: each card as tall as its list. */
+.dashboard-grid--top {
+  align-items: start;
+}
+
 .panel__link {
   display: inline-flex;
   align-items: center;

@@ -1,7 +1,7 @@
 import './TopBar.css'
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import { MenuIcon, PlusIcon, SearchIcon } from '../icons'
 import { Button, SearchInput } from '../ui'
@@ -22,6 +22,8 @@ export interface TopBarProps {
 export function TopBar({ onOpenMenu, menuOpen = false }: TopBarProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
+  // Home has its own "Create new document" button: one is enough there.
+  const onHome = useLocation().pathname === '/'
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -66,6 +68,7 @@ export function TopBar({ onOpenMenu, menuOpen = false }: TopBarProps) {
           >
             <SearchIcon size={18} />
           </button>
+          {onHome ? null : (
           <Button
             variant="primary"
             size="sm"
@@ -76,6 +79,7 @@ export function TopBar({ onOpenMenu, menuOpen = false }: TopBarProps) {
           >
             <span className="topbar__create-label">{t('topbar.newDocument')}</span>
           </Button>
+          )}
           <RegionMenu />
           <NotificationsMenu />
           <ProfileMenu />

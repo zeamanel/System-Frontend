@@ -319,7 +319,7 @@ function renderToolbarEnd(props: {
         aria-label={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
         title={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
       >
-        <span className="editor-toolbar__label">
+        <span className="editor-toolbar__label editor-toolbar__label--named">
           {props.previewMode ? t('editor.previewOff') : t('editor.preview')}
         </span>
       </Button>
@@ -334,7 +334,7 @@ function renderToolbarEnd(props: {
           className="editor-toolbar__style"
           data-testid="editor-style"
         >
-          <span className="editor-toolbar__label">{t('styles.button')}</span>
+          <span className="editor-toolbar__label editor-toolbar__label--named">{t('styles.button')}</span>
         </Button>
       ) : null}
 
@@ -348,7 +348,7 @@ function renderToolbarEnd(props: {
           className="editor-toolbar__history"
           data-testid="editor-history"
         >
-          <span className="editor-toolbar__label">{t('editor.history')}</span>
+          <span className="editor-toolbar__label editor-toolbar__label--named">{t('editor.history')}</span>
         </Button>
       ) : null}
 

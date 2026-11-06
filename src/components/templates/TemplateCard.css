@@ -74,15 +74,6 @@
   margin-top: var(--space-1);
 }
 
-.template-card__arrow {
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-}
-
-.template-card:hover .template-card__arrow {
-  color: var(--color-text);
-}
-
 .template-card__favorite {
   position: absolute;
   top: var(--space-2);
