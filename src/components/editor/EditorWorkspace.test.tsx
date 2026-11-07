@@ -281,9 +281,39 @@ describe('EditorWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /download pdf/i }))
 
     const error = await screen.findByTestId('export-error')
-    expect(error.textContent).toMatch(/needs the SenedDesk server/i)
+    expect(error.textContent).toMatch(/need the SenedDesk server/i)
     // The honest browser path remains available.
     expect(screen.getByRole('button', { name: /print \/ save as pdf/i })).toBeInTheDocument()
+  })
+
+  it('downloads the saved document as a Word file named after the title', async () => {
+    const createRequest = vi
+      .spyOn(repos.exports, 'createRequest')
+      .mockResolvedValue({ id: 'e1', status: 'completed', path: '/exports/e1/download?token=t' })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(new Blob(['PK'])))
+    const createObjectURL = vi.fn(() => 'blob:docx')
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() })
+    const names: string[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download)
+    })
+    try {
+      const { doc, template } = await loadDocument('doc-fixture-1')
+      renderWorkspace(doc, template)
+      await screen.findByTestId('editor-title-input')
+
+      fireEvent.click(screen.getByRole('button', { name: /^export$/i }))
+      fireEvent.click(screen.getByRole('button', { name: /download word/i }))
+
+      expect(await screen.findByText('Word file downloaded.')).toBeInTheDocument()
+      expect(createRequest).toHaveBeenCalledWith({ documentId: doc.id, format: 'docx' })
+      expect(fetchSpy.mock.calls[0]?.[0]).toMatch(/\/exports\/e1\/download\?token=t$/)
+      expect(names).toEqual([`${doc.title}.docx`])
+    } finally {
+      createRequest.mockRestore()
+      fetchSpy.mockRestore()
+      click.mockRestore()
+    }
   })
 
   it('recovers unsaved changes from the local buffer on reload', async () => {

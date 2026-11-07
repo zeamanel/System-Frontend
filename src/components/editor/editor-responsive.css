@@ -86,6 +86,29 @@
     flex-shrink: 0;
   }
 
+  /*
+   * The Export menu would be clipped by the scrolling row, so it opens as a
+   * panel above the bottom bar instead; the row's edge fade (a mask, which
+   * would clip it too) is off while it is open.
+   */
+  .editor-toolbar__group--end:has(.editor-export-panel) {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .editor-toolbar__group--end .editor-export-panel {
+    position: fixed;
+    top: auto;
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: calc(var(--editor-mobile-bar-height) + env(safe-area-inset-bottom, 0px) + var(--space-2));
+    width: auto;
+    max-width: 420px;
+    margin-inline: auto;
+    max-height: calc(100dvh - var(--editor-mobile-bar-height) - 96px);
+    overflow-y: auto;
+  }
+
   /* Print, Save, Style and History first: the most-used actions never scroll out of view. */
   .editor-toolbar__group--end > .editor-toolbar__print {
     order: -3;

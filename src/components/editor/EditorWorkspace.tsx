@@ -8,6 +8,7 @@ import type { TelegramBridgeTransferPayload } from '../documents/TelegramBridgeB
 import type { TelegramImageKind } from '../../lib/api/endpoints/telegram-bridge'
 import type { DocumentDetailRecord, TemplateDetail } from '../../lib/repositories'
 import { ExportUnavailableError } from '../../lib/repositories'
+import type { ExportFormat } from '../../types/api'
 import {
   addSignatureParty,
   addTableColumn,
@@ -53,7 +54,7 @@ import { compressImageDataUrl } from '../../lib/editor/image'
 import { isSafeUrl } from '../../lib/editor/sanitize'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
 import { triggerPrint } from '../../lib/editor/a4'
-import { downloadPdf, ExportDownloadError, exportDownloadUrl, pdfFileName } from '../../lib/export/download'
+import { downloadExport, ExportDownloadError, exportDownloadUrl, exportFileName } from '../../lib/export/download'
 import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { newId } from '../../lib/editor/ids'
 import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
@@ -1034,19 +1035,19 @@ export function EditorWorkspace({
     window.setTimeout(triggerPrint, 50)
   }, [])
 
-  const handleExportServerPdf = useCallback(async (): Promise<void> => {
+  const handleExportServer = useCallback(async (format: ExportFormat): Promise<void> => {
     setExportError(null)
-    // The PDF is rendered from the saved document: never export stale content.
+    // The file is rendered from the saved document: never export stale content.
     if (!(await editor.flush())) {
       setExportError(t('editor.exportNeedsSave'))
       return
     }
     try {
-      const result = await exportMutation.mutateAsync({ documentId: doc.id, format: 'pdf' })
+      const result = await exportMutation.mutateAsync({ documentId: doc.id, format })
       const url = exportDownloadUrl(result)
       if (!url) throw new Error('missing download link')
-      await downloadPdf(url, pdfFileName(editor.title))
-      toast.push(t('editor.exportDownloaded'), { variant: 'success' })
+      await downloadExport(url, exportFileName(editor.title, format))
+      toast.push(t(format === 'docx' ? 'editor.exportDownloadedDocx' : 'editor.exportDownloaded'), { variant: 'success' })
     } catch (error) {
       setExportError(
         error instanceof ExportUnavailableError
@@ -1237,7 +1238,8 @@ export function EditorWorkspace({
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
-        onExportServerPdf={() => void handleExportServerPdf()}
+        onExportServerPdf={() => void handleExportServer('pdf')}
+        onExportServerDocx={() => void handleExportServer('docx')}
         exportPending={exportMutation.isPending}
         exportError={exportError}
         leftPanelOpen={leftOpen}

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { env } from '../../config/env'
-import { downloadPdf, ExportDownloadError, exportDownloadUrl, pdfFileName } from './download'
+import { downloadExport, ExportDownloadError, exportDownloadUrl, exportFileName } from './download'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -13,8 +13,9 @@ describe('export download', () => {
     )
     expect(exportDownloadUrl({ id: 'e', status: 'completed', url: 'https://api/x' })).toBe('https://api/x')
     expect(exportDownloadUrl({ id: 'e', status: 'completed' })).toBeNull()
-    expect(pdfFileName('የቤት ኪራይ ውል: Bole/4B')).toBe('የቤት ኪራይ ውል Bole 4B.pdf')
-    expect(pdfFileName('  ')).toBe('document.pdf')
+    expect(exportFileName('የቤት ኪራይ ውል: Bole/4B')).toBe('የቤት ኪራይ ውል Bole 4B.pdf')
+    expect(exportFileName('  ')).toBe('document.pdf')
+    expect(exportFileName('Lease', 'docx')).toBe('Lease.docx')
   })
 
   it('saves the fetched PDF under the given name without opening a tab', async () => {
@@ -27,7 +28,7 @@ describe('export download', () => {
     const open = vi.spyOn(window, 'open')
     const fetchImpl = vi.fn(async () => new Response(new Blob(['%PDF-']), { status: 200 }))
 
-    await downloadPdf('https://api/exports/e/download?token=t', 'Lease.pdf', fetchImpl as unknown as typeof fetch)
+    await downloadExport('https://api/exports/e/download?token=t', 'Lease.pdf', fetchImpl as unknown as typeof fetch)
 
     expect(fetchImpl).toHaveBeenCalledWith('https://api/exports/e/download?token=t', { credentials: 'omit' })
     expect(clicked).toEqual([{ href: 'blob:pdf', download: 'Lease.pdf' }])
@@ -36,7 +37,7 @@ describe('export download', () => {
 
   it('reports an expired link by status', async () => {
     const fetchImpl = vi.fn(async () => new Response('{}', { status: 410 }))
-    await expect(downloadPdf('https://api/x', 'a.pdf', fetchImpl as unknown as typeof fetch)).rejects.toEqual(
+    await expect(downloadExport('https://api/x', 'a.pdf', fetchImpl as unknown as typeof fetch)).rejects.toEqual(
       new ExportDownloadError(410),
     )
   })

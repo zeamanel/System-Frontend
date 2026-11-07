@@ -41,6 +41,7 @@ export interface EditorToolbarProps {
   onOverwrite: () => void
   onPrint: () => void
   onExportServerPdf: () => void
+  onExportServerDocx: () => void
   exportPending: boolean
   exportError: string | null
   leftPanelOpen: boolean
@@ -116,6 +117,7 @@ export function EditorToolbar({
   onOverwrite,
   onPrint,
   onExportServerPdf,
+  onExportServerDocx,
   exportPending,
   exportError,
   leftPanelOpen,
@@ -228,6 +230,7 @@ export function EditorToolbar({
         onChooseStyle,
         onPrint,
         onExportServerPdf,
+        onExportServerDocx,
         exportPending,
         exportError,
         status,
@@ -258,6 +261,7 @@ function renderToolbarEnd(props: {
   onChooseStyle?: () => void
   onPrint: () => void
   onExportServerPdf: () => void
+  onExportServerDocx: () => void
   exportPending: boolean
   exportError: string | null
   status: SaveStatus
@@ -392,13 +396,19 @@ function renderToolbarEnd(props: {
                 <small>{t('editor.exportPdfServerHint')}</small>
               </span>
             </button>
-            <div className="editor-export-menu__item editor-export-menu__item--disabled">
+            <button
+              type="button"
+              className="editor-export-menu__item"
+              onClick={props.onExportServerDocx}
+              disabled={props.exportPending}
+              data-testid="editor-export-docx"
+            >
               <DownloadIcon size={16} />
               <span>
                 <strong>{t('editor.exportDocx')}</strong>
                 <small>{t('editor.exportDocxHint')}</small>
               </span>
-            </div>
+            </button>
             {props.exportPending ? (
               <p className="editor-export-menu__status" data-testid="export-pending">
                 {t('editor.exportStarted')}
