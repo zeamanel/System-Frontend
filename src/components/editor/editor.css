@@ -585,6 +585,11 @@
   cursor: pointer;
 }
 
+.editor-export-menu__item > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .editor-export-menu__item span {
   display: flex;
   flex-direction: column;
@@ -602,11 +607,6 @@
 
 .editor-export-menu__item:disabled {
   opacity: 0.6;
-  cursor: default;
-}
-
-.editor-export-menu__item--disabled {
-  opacity: 0.55;
   cursor: default;
 }
 

@@ -1,8 +1,8 @@
 import { env } from '../../config/env'
-import type { ExportRequest } from '../../types/api'
+import type { ExportFormat, ExportRequest } from '../../types/api'
 
 /**
- * Downloading a server-rendered PDF.
+ * Downloading a server-rendered PDF or Word file.
  *
  * The backend returns a short-lived link that needs no Authorization header.
  * The file is fetched and saved under the document's title (a download, not
@@ -13,7 +13,7 @@ import type { ExportRequest } from '../../types/api'
 
 export class ExportDownloadError extends Error {
   constructor(readonly status: number) {
-    super(`PDF download failed (${status})`)
+    super(`Export download failed (${status})`)
     this.name = 'ExportDownloadError'
   }
 }
@@ -23,14 +23,14 @@ export function exportDownloadUrl(record: ExportRequest): string | null {
   return record.url ?? null
 }
 
-/** A safe file name from the document title. */
-export function pdfFileName(title: string): string {
+/** A safe file name from the document title, with the format's extension. */
+export function exportFileName(title: string, format: ExportFormat = 'pdf'): string {
   const printable = Array.from(title, (char) => (char.charCodeAt(0) < 32 ? ' ' : char)).join('')
   const base = printable.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120)
-  return `${base || 'document'}.pdf`
+  return `${base || 'document'}.${format}`
 }
 
-export async function downloadPdf(url: string, fileName: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+export async function downloadExport(url: string, fileName: string, fetchImpl: typeof fetch = fetch): Promise<void> {
   let response: Response
   try {
     response = await fetchImpl(url, { credentials: 'omit' })

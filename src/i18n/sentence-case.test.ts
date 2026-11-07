@@ -7,7 +7,7 @@ import en from './en.json'
  * first word of each sentence or part after "/", ":", "(" or a dash).
  */
 const NAMES = new Set([
-  'SenedDesk', 'Telegram', 'Qal', 'Chapa', 'Google', 'Amharic', 'English', 'Oromoo', 'WebP', 'FAQs',
+  'SenedDesk', 'Telegram', 'Qal', 'Chapa', 'Google', 'Word', 'Amharic', 'English', 'Oromoo', 'WebP', 'FAQs',
   // Names of pages and buttons quoted inside a sentence.
   'Organization', 'Download', 'Save', 'Allow', 'Service', 'Policy', 'The',
 ])

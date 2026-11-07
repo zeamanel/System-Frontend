@@ -125,9 +125,8 @@ export interface GenerationUsage {
 
 // ---------- Exports ----------
 //
-// Server-side PDF/DOCX rendering is a backend dependency that has not landed
-// yet. The frontend implements the boundary (endpoint + repository + UI
-// states); until the backend ships, `exports.createRequest` fails with
+// Server-side PDF and Word (DOCX) rendering. Without the backend (fixture
+// mode, or a server without /exports), `exports.createRequest` fails with
 // ExportUnavailableError and the UI offers browser print-to-PDF instead.
 
 export type ExportFormat = 'pdf' | 'docx'

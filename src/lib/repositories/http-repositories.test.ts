@@ -345,6 +345,11 @@ describe('HttpExportsRepository', () => {
       jsonResponse({ id: 'e1', status: 'completed', path: '/exports/e1/download?token=t' }, { status: 201 }),
     )
     expect(await repos.exports.createRequest({ documentId: 'd1', format: 'pdf' })).toMatchObject({ path: '/exports/e1/download?token=t' })
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ id: 'e2', status: 'completed', format: 'docx', path: '/exports/e2/download?token=t' }, { status: 201 }),
+    )
+    expect(await repos.exports.createRequest({ documentId: 'd1', format: 'docx' })).toMatchObject({ format: 'docx' })
+    expect(JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body))).toMatchObject({ format: 'docx' })
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: { code: 'UNPROCESSABLE_ENTITY', message: 'Only PDF' } }, { status: 422 }))
     await expect(repos.exports.createRequest({ documentId: 'd1', format: 'docx' })).rejects.toBeInstanceOf(ExportUnavailableError)
