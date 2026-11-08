@@ -84,6 +84,18 @@ export function SessionProvider({
         setState({ status: 'authenticated', user })
         return user
       },
+      async signUp(email: string, password: string) {
+        const repo = repository ?? getRepositories().session
+        if (!repo.signUp) throw new Error('Account creation is not supported by the active session repository.')
+        const user = await repo.signUp(email, password)
+        setState({ status: 'authenticated', user })
+        return user
+      },
+      async resetPassword(email: string) {
+        const repo = repository ?? getRepositories().session
+        if (!repo.sendPasswordReset) throw new Error('Password reset is not supported by the active session repository.')
+        await repo.sendPasswordReset(email)
+      },
       async signOut() {
         try {
           await (repository ?? getRepositories().session).signOut()

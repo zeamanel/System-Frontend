@@ -23,9 +23,11 @@ import {
 } from '../api/endpoints/generation'
 import { clearSyncedUserCache, ensureSyncedUser } from '../api/sync-user'
 import {
+  sendPasswordReset,
   signInWithGoogle,
   signInWithPassword,
   signOutOfFirebase,
+  signUpWithPassword,
   subscribeToAuthState,
   waitForAuthState,
 } from '../api/auth-store'
@@ -844,6 +846,19 @@ class HttpSessionRepository implements SessionRepository {
       throw new UnauthenticatedError('Google sign-in could not be completed. Please try again.')
     }
     return user
+  }
+
+  async signUp(email: string, password: string): Promise<SessionUser> {
+    await signUpWithPassword(email, password)
+    const user = await ensureSyncedUser()
+    if (!user) {
+      throw new UnauthenticatedError('The account was created but sign-in could not be completed. Please sign in.')
+    }
+    return user
+  }
+
+  async sendPasswordReset(email: string): Promise<void> {
+    await sendPasswordReset(email)
   }
 
   async signIn(email: string, password: string): Promise<SessionUser> {

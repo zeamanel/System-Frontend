@@ -699,6 +699,15 @@ class FixtureSessionRepository implements SessionRepository {
     return DEV_SESSION_USER
   }
 
+  async signUp(): Promise<SessionUser> {
+    writeFlag('docuA4.fixture.devSession', '1')
+    return DEV_SESSION_USER
+  }
+
+  async sendPasswordReset(): Promise<void> {
+    // Nothing to send in the sample-data mode.
+  }
+
   async signOut(): Promise<void> {
     writeFlag('docuA4.fixture.devSession', '0')
   }
