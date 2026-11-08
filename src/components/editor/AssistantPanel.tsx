@@ -30,6 +30,8 @@ export interface AssistantPanelProps {
   questionLabels: Record<string, string>
   /** Scroll to and briefly highlight a block on the A4 page. */
   onShowBlock: (blockId: string) => void
+  /** Bilingual side-by-side is on: the side column can be translated by the assistant. */
+  bilingual?: boolean
 }
 
 /**
@@ -48,6 +50,7 @@ export function AssistantPanel({
   lastSavedAt,
   questionLabels,
   onShowBlock,
+  bilingual = false,
 }: AssistantPanelProps) {
   const { t } = useI18n()
   const [draft, setDraft] = useState('')
@@ -105,6 +108,7 @@ export function AssistantPanel({
               lastSavedAt={lastSavedAt}
               questionLabels={questionLabels}
               onShowBlock={onShowBlock}
+              bilingual={bilingual}
             />
           </li>
         ))}
@@ -156,6 +160,8 @@ export function AssistantPanel({
           {t('assistant.quick.improve')}
         </button>
       </div>
+
+      {bilingual ? <SideColumnSection assistant={assistant} /> : null}
 
       <form className="assistant-composer" onSubmit={handleSubmit}>
         <div className="assistant-scope" role="radiogroup" aria-label={t('assistant.scope.label')} data-testid="assistant-scope">
@@ -273,6 +279,35 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
+/**
+ * Bilingual mode only: the assistant writes the side column. One button translates every
+ * paragraph in the chosen scope that has no side translation yet; each translation comes
+ * back as a proposal to accept or reject.
+ */
+function SideColumnSection({ assistant }: { assistant: AssistantController }) {
+  const { t } = useI18n()
+  const count = assistant.sideTranslationCount()
+  return (
+    <section className="assistant-side" aria-label={t('assistant.side.title')} data-testid="assistant-side">
+      <p className="assistant-notes__label">{t('assistant.side.title')}</p>
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={assistant.sending || count === 0}
+        onClick={() => void assistant.translateSideColumn()}
+        data-testid="assistant-side-translate"
+      >
+        {t('assistant.side.translate')}
+      </Button>
+      <p className="assistant-side__hint" data-testid="assistant-side-hint">
+        {count === 0
+          ? t('assistant.side.none')
+          : `${t(count === 1 ? 'assistant.side.countOne' : 'assistant.side.count', { count: String(count) })} ${t('assistant.side.hint')}`}
+      </p>
+    </section>
+  )
+}
+
 interface MessageViewProps {
   message: AssistantMessage
   assistant: AssistantController
@@ -280,9 +315,10 @@ interface MessageViewProps {
   lastSavedAt: number | null
   questionLabels: Record<string, string>
   onShowBlock: (blockId: string) => void
+  bilingual: boolean
 }
 
-function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabels, onShowBlock }: MessageViewProps) {
+function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabels, onShowBlock, bilingual }: MessageViewProps) {
   const { t } = useI18n()
 
   switch (message.kind) {
@@ -294,6 +330,41 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
         <p className={`assistant-msg__notice assistant-msg__notice--${message.tone}`} role={message.tone === 'error' ? 'alert' : undefined}>
           {message.text}
         </p>
+      )
+
+    case 'side-stale':
+      return (
+        <div className="assistant-msg__sync" data-testid="assistant-side-stale">
+          <p className="assistant-msg__text">
+            {message.status === 'dismissed'
+              ? t('assistant.side.staleDismissed')
+              : message.status === 'done'
+                ? t('assistant.side.staleDone')
+                : message.status === 'working'
+                  ? t('assistant.side.working')
+                  : t(message.blockIds.length === 1 ? 'assistant.side.staleOne' : 'assistant.side.stale', {
+                      count: String(message.blockIds.length),
+                    })}
+          </p>
+          {message.status === 'pending' && bilingual ? (
+            <div className="assistant-actions">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={assistant.sending}
+                onClick={() => void assistant.updateStaleTranslations(message.id)}
+                data-testid="assistant-side-update"
+              >
+                {t(message.blockIds.length === 1 ? 'assistant.side.updateOne' : 'assistant.side.update', {
+                  count: String(message.blockIds.length),
+                })}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => assistant.dismissStaleTranslations(message.id)} data-testid="assistant-side-keep">
+                {t('assistant.side.keep')}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       )
 
     case 'field-sync':
@@ -423,8 +494,11 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
                   ? proposal.afterBlockId
                     ? assistant.currentBlockText(proposal.afterBlockId)
                     : ''
-                  : assistant.currentTargetText(proposal.blockId, proposal.partId)
+                  : proposal.kind === 'side'
+                    ? assistant.currentSideText(proposal.blockId)
+                    : assistant.currentTargetText(proposal.blockId, proposal.partId)
               }
+              sourceText={proposal.kind === 'side' ? assistant.currentBlockText(proposal.blockId) : null}
               partKind={proposal.partId ? assistant.blockType(proposal.blockId) : null}
               waiting={Boolean(message.streaming)}
               saveStatus={saveStatus}
@@ -612,6 +686,7 @@ function ProposalBulkActions({
 function ProposalCard({
   proposal,
   currentText,
+  sourceText = null,
   partKind,
   waiting = false,
   saveStatus,
@@ -623,6 +698,8 @@ function ProposalCard({
 }: {
   proposal: AssistantProposal
   currentText: string | null
+  /** A side translation: the paragraph it translates. */
+  sourceText?: string | null
   /** Set when the change rewrites one list item or table cell. */
   partKind: string | null
   /** The answer is still arriving: the change can be read but not applied yet. */
@@ -635,12 +712,20 @@ function ProposalCard({
   onShow: () => void
 }) {
   const { t } = useI18n()
+  const isSide = proposal.kind === 'side'
   const isInsert = proposal.kind === 'insert'
+  // Written onto nothing: the text is shown as new (a first translation, or a new clause).
+  const isNew = isInsert || (isSide && !proposal.baseText)
   // An insert has nothing to go stale: the anchor only says where it goes.
   const stale = !isInsert && proposal.status === 'pending' && currentText !== null && currentText !== proposal.baseText
-  const segments = isInsert
+  const segments = isNew
     ? [{ type: 'added' as const, text: proposal.newText }]
     : diffWords(proposal.baseText, proposal.newText)
+  const titleKey = isInsert
+    ? 'assistant.proposal.insertTitle'
+    : isSide
+      ? 'assistant.side.proposalTitle'
+      : 'assistant.proposal.title'
 
   let appliedState: string | null = null
   if (proposal.status === 'accepted') {
@@ -658,8 +743,13 @@ function ProposalCard({
 
   return (
     <div className={`assistant-proposal assistant-proposal--${proposal.status}`} data-testid="assistant-proposal">
-      <p className="assistant-notes__label">{t(isInsert ? 'assistant.proposal.insertTitle' : 'assistant.proposal.title')}</p>
+      <p className="assistant-notes__label">{t(titleKey)}</p>
       {proposal.reason ? <p className="assistant-msg__text">{proposal.reason}</p> : null}
+      {isSide && sourceText ? (
+        <p className="assistant-proposal__where" data-testid="assistant-proposal-source">
+          {t('assistant.side.for', { text: truncate(sourceText, 60) })}
+        </p>
+      ) : null}
       {partKind === 'list' || partKind === 'table' ? (
         <p className="assistant-proposal__where" data-testid="assistant-proposal-part">
           {t(partKind === 'list' ? 'assistant.proposal.inListItem' : 'assistant.proposal.inTableCell')}
@@ -673,8 +763,8 @@ function ProposalCard({
         </p>
       ) : null}
       <p
-        className={`assistant-diff${isInsert ? ' assistant-diff--insert' : ''}`}
-        aria-label={t(isInsert ? 'assistant.proposal.insertTitle' : 'assistant.proposal.title')}
+        className={`assistant-diff${isNew ? ' assistant-diff--insert' : ''}`}
+        aria-label={t(titleKey)}
       >
         {segments.map((segment, index) =>
           segment.type === 'same' ? (

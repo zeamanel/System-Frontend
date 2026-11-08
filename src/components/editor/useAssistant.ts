@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { askAssistant, type AssistantPartial } from '../../lib/assistant/client'
+import { askAssistant, translateSide, type AssistantPartial } from '../../lib/assistant/client'
 import { runDocumentCheck, type DocumentCheckResult } from '../../lib/document-check/check'
 import {
+  applySideProposal,
   applyTextProposal,
   blockPlainText,
   insertTextProposal,
   findPlaceholders,
   proposalTargetText,
   restrictToPage,
+  sideTargetLanguage,
+  sideTargetText,
+  sideTranslationBlocks,
   toAssistantBlocks,
 } from '../../lib/assistant/context'
 import type {
   AssistantMessage,
   AssistantNotes,
+  AssistantOfflineInfo,
   AssistantProposal,
   AssistantQuestion,
   AssistantReply,
@@ -36,6 +41,8 @@ import type { FieldSyncEvent } from './useDocumentEditor'
 const THREAD_PREFIX = 'docuA4.assistant.thread.'
 const MAX_MESSAGES = 40
 const HISTORY_TURNS = 8
+/** Paragraphs sent to be translated per request (the API takes up to 60). */
+const SIDE_BATCH = 40
 
 let messageCounter = 0
 function newMessageId(): string {
@@ -89,11 +96,20 @@ export interface UseAssistantParams {
   getPage?: () => readonly PageSlice[] | null
   /** Called for outcomes the user should notice even with the panel closed. */
   onNotice?: (text: string) => void
+  /** The document's language: the side column of a bilingual document is written in the other one. */
+  documentLanguage: string
   labels: {
     blockGone: string
     keptEditedBlocks: (count: number) => string
     requestFailed: string
     answerMessage: (question: string, answer: string) => string
+    side: {
+      nothing: string
+      /** The reply that carries the translation proposals. */
+      reply: (count: number, language: 'am' | 'en') => string
+      replyMissing: (count: number) => string
+      unavailable: (reason: AssistantOfflineInfo['reason']) => string
+    }
   }
 }
 
@@ -105,6 +121,7 @@ export function useAssistant({
   scope,
   getPage,
   onNotice,
+  documentLanguage,
   labels,
 }: UseAssistantParams) {
   const [messages, setMessages] = useState<AssistantMessage[]>(() => readThread(documentId))
@@ -289,9 +306,176 @@ export function useAssistant({
     [append, documentId, getPage, labels.requestFailed, messages, notice, questions, scope, selectedBlockId, sending, update],
   )
 
+  // ---- Bilingual mode: the side column ----
+
+  /** The blocks a side translation covers: the page with the cursor or the selected block (null = the document). */
+  const sideScopeIds = useCallback((): Set<string> | null => {
+    if (scope === 'block' && selectedBlockId) return new Set([selectedBlockId])
+    if (scope === 'page') {
+      const page = getPage?.()
+      if (page?.length) return new Set(page.map((slice) => slice.id))
+    }
+    return null
+  }, [getPage, scope, selectedBlockId])
+
+  /**
+   * Translates paragraphs into the side column and offers the results as proposals the user
+   * accepts (nothing is written until then). Returns whether any proposal was made.
+   */
+  const runSideTranslation = useCallback(
+    async (blocks: Array<{ id: string; text: string }>): Promise<boolean> => {
+      if (blocks.length === 0) return false
+      const target = sideTargetLanguage(documentLanguage)
+      const { model } = editorRef.current
+      const baseById = new Map(blocks.map((block) => [block.id, sideTargetText(model, block.id) ?? '']))
+      setSending(true)
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      const replyId = newMessageId()
+      let placed = false
+      const proposals: AssistantProposal[] = []
+      const show = (text: string, streaming: boolean): void => {
+        const message: AssistantMessage = {
+          id: replyId,
+          createdAt: Date.now(),
+          role: 'assistant',
+          kind: 'reply',
+          text,
+          questions: [],
+          proposals: [...proposals],
+          fieldUpdates: [],
+          ...(streaming ? { streaming: true } : {}),
+        }
+        if (placed) {
+          update(replyId, () => message)
+        } else {
+          placed = true
+          append(message)
+        }
+      }
+      let missing = 0
+      try {
+        for (let start = 0; start < blocks.length; start += SIDE_BATCH) {
+          const batch = blocks.slice(start, start + SIDE_BATCH)
+          const result = await translateSide({ documentId, target, blocks: batch }, { signal: controller.signal })
+          if (!result.ok) {
+            if (proposals.length > 0) show(labels.side.reply(proposals.length, target), false)
+            notice(labels.side.unavailable(result.reason), 'error')
+            return proposals.length > 0
+          }
+          const done = new Set(result.translations.map((item) => item.id))
+          missing += batch.filter((block) => !done.has(block.id)).length
+          for (const item of result.translations) {
+            proposals.push({
+              kind: 'side',
+              blockId: item.id,
+              newText: item.text,
+              reason: '',
+              baseText: baseById.get(item.id) ?? '',
+              status: 'pending',
+            })
+          }
+          if (start + SIDE_BATCH < blocks.length) show('', true)
+        }
+        if (proposals.length === 0) {
+          notice(labels.side.unavailable('unavailable'), 'error')
+          return false
+        }
+        show(
+          missing > 0
+            ? `${labels.side.reply(proposals.length, target)} ${labels.side.replyMissing(missing)}`
+            : labels.side.reply(proposals.length, target),
+          false,
+        )
+        return true
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) notice(labels.requestFailed, 'error')
+        if (placed && proposals.length === 0) setMessages((current) => current.filter((m) => m.id !== replyId))
+        return false
+      } finally {
+        setSending(false)
+      }
+    },
+    [append, documentId, documentLanguage, labels, notice, update],
+  )
+
+  /** How many paragraphs "Translate the side column" would translate now (empty side cells only). */
+  const sideTranslationCount = (): number =>
+    sideTranslationBlocks(editorRef.current.model, sideScopeIds(), true).length
+
+  /** "Translate the side column": a translation proposal for every paragraph in scope that has none yet. */
+  const translateSideColumn = useCallback(async (): Promise<void> => {
+    if (sending || !editorRef.current.model.page.bilingual) return
+    const blocks = sideTranslationBlocks(editorRef.current.model, sideScopeIds(), true)
+    if (blocks.length === 0) {
+      notice(labels.side.nothing)
+      return
+    }
+    await runSideTranslation(blocks)
+  }, [labels.side.nothing, notice, runSideTranslation, sending, sideScopeIds])
+
+  /**
+   * After the assistant's rewrite of a paragraph is accepted: if it has a side translation, that
+   * translation may be out of date, so the thread offers to update it. Rewrites accepted one after
+   * another gather in one offer.
+   */
+  const queueStaleSide = useCallback((blockIds: string[]): void => {
+    const model = editorRef.current.model
+    if (!model.page.bilingual) return
+    const ids = blockIds.filter((id) => sideTargetText(model, id)?.trim())
+    if (ids.length === 0) return
+    setMessages((current) => {
+      const last = current[current.length - 1]
+      if (last && last.kind === 'side-stale' && last.status === 'pending') {
+        return [...current.slice(0, -1), { ...last, blockIds: [...new Set([...last.blockIds, ...ids])] }]
+      }
+      return [
+        ...current,
+        { id: newMessageId(), createdAt: Date.now(), role: 'system' as const, kind: 'side-stale' as const, blockIds: ids, status: 'pending' as const },
+      ].slice(-MAX_MESSAGES)
+    })
+    setUnread((n) => n + 1)
+  }, [])
+
+  /** "Update the translations": proposals for the side text of the paragraphs the assistant rewrote. */
+  const updateStaleTranslations = useCallback(
+    async (messageId: string): Promise<void> => {
+      const message = messages.find((m) => m.id === messageId)
+      if (!message || message.kind !== 'side-stale' || message.status !== 'pending' || sending) return
+      const model = editorRef.current.model
+      const blocks = sideTranslationBlocks(model, new Set(message.blockIds), false).filter((block) =>
+        sideTargetText(model, block.id)?.trim(),
+      )
+      if (blocks.length === 0) {
+        update(messageId, (m) => (m.kind === 'side-stale' ? { ...m, status: 'dismissed' } : m))
+        return
+      }
+      update(messageId, (m) => (m.kind === 'side-stale' ? { ...m, status: 'working' } : m))
+      const made = await runSideTranslation(blocks)
+      update(messageId, (m) => (m.kind === 'side-stale' ? { ...m, status: made ? 'done' : 'pending' } : m))
+    },
+    [messages, runSideTranslation, sending, update],
+  )
+
+  const dismissStaleTranslations = useCallback(
+    (messageId: string): void => {
+      update(messageId, (m) => (m.kind === 'side-stale' && m.status === 'pending' ? { ...m, status: 'dismissed' } : m))
+    },
+    [update],
+  )
+
   /** Applies one proposal as its own tracked change; null when its paragraph (or anchor) is gone. */
   const applyProposal = useCallback((proposal: AssistantProposal) => {
     const blocks = editorRef.current.model.blocks
+    if (proposal.kind === 'side') {
+      if (sideTargetText(editorRef.current.model, proposal.blockId) === null) return null
+      const change = editorRef.current.applyTrackedChange((current) =>
+        applySideProposal(current, proposal.blockId, proposal.newText),
+      )
+      return { change: change ?? undefined, appliedAt: Date.now() }
+    }
     if (proposal.kind === 'insert') {
       const after = proposal.afterBlockId ?? ''
       if (after && !blocks.some((b) => b.id === after)) return null
@@ -322,8 +506,10 @@ export function useAssistant({
           ? m
           : { ...m, proposals: m.proposals.map((p, i) => (i === index ? { ...p, status: 'accepted', ...applied } : p)) },
       )
+      // A rewritten paragraph may have a side translation that no longer matches.
+      if (proposal.kind === 'replace' && !proposal.partId) queueStaleSide([proposal.blockId])
     },
-    [applyProposal, labels.blockGone, messages, notice, update],
+    [applyProposal, labels.blockGone, messages, notice, queueStaleSide, update],
   )
 
   /**
@@ -341,6 +527,7 @@ export function useAssistant({
         .filter(({ proposal }) => {
           if (proposal.status !== 'pending') return false
           if (proposal.kind === 'insert') return true
+          if (proposal.kind === 'side') return sideTargetText(model, proposal.blockId) === proposal.baseText
           return proposalTargetText(model, proposal.blockId, proposal.partId) === proposal.baseText
         })
       // Replacements first, then new clauses back to front, so several after one block keep their order.
@@ -354,6 +541,11 @@ export function useAssistant({
         if (applied) results.set(index, applied)
       }
       if (results.size === 0) return 0
+      queueStaleSide(
+        message.proposals.flatMap((proposal, index) =>
+          results.has(index) && proposal.kind === 'replace' && !proposal.partId ? [proposal.blockId] : [],
+        ),
+      )
       update(messageId, (m) =>
         m.kind !== 'reply'
           ? m
@@ -367,7 +559,7 @@ export function useAssistant({
       )
       return results.size
     },
-    [applyProposal, messages, update],
+    [applyProposal, messages, queueStaleSide, update],
   )
 
   const rejectProposal = useCallback(
@@ -519,6 +711,12 @@ export function useAssistant({
     runCheck,
     postCheck,
     clearThread,
+    translateSideColumn,
+    sideTranslationCount,
+    updateStaleTranslations,
+    dismissStaleTranslations,
+    /** Current text of a paragraph's side cell (null when gone or it holds a picture). */
+    currentSideText: (blockId: string): string | null => sideTargetText(editorRef.current.model, blockId),
     /** Current plain text of a block (for diffs / stale checks). */
     currentBlockText: (blockId: string): string | null => {
       const block = editorRef.current.model.blocks.find((b) => b.id === blockId)

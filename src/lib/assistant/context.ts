@@ -80,6 +80,63 @@ export function isDescriptionCell(table: Pick<TableBlock, 'columnAlign'>, column
   return letters >= 2 && digits < 0.4 * (letters + digits)
 }
 
+/** Plain text of a paragraph's or heading's side cell (its translation); empty when there is none. */
+export function sideCellText(block: Block): string {
+  return block.type === 'paragraph' || block.type === 'heading' ? inlineHtmlToText(block.secondaryHtml ?? '') : ''
+}
+
+/**
+ * The side text a "side" proposal writes over: the translation as it is now ('' when empty).
+ * Null when the paragraph is gone or its side cell holds a picture (there is no text to write).
+ */
+export function sideTargetText(model: DocumentModel, blockId: string): string | null {
+  const block = model.blocks.find((candidate) => candidate.id === blockId)
+  if (!block || (block.type !== 'paragraph' && block.type !== 'heading') || block.secondaryImage) return null
+  return sideCellText(block)
+}
+
+/** The language of the side column: Amharic beside an English or Afaan Oromoo text, English beside Amharic. */
+export function sideTargetLanguage(documentLanguage: string): 'am' | 'en' {
+  return documentLanguage === 'am' ? 'en' : 'am'
+}
+
+/**
+ * The paragraphs and headings that can be translated into the side column: they have text and
+ * their side cell holds no picture. `onlyEmpty` keeps those without a translation yet.
+ * `scopeIds` limits them to a page or a block (null = the whole document).
+ */
+export function sideTranslationBlocks(
+  model: DocumentModel,
+  scopeIds: ReadonlySet<string> | null,
+  onlyEmpty: boolean,
+): Array<{ id: string; text: string }> {
+  const found: Array<{ id: string; text: string }> = []
+  for (const block of model.blocks) {
+    if (block.type !== 'paragraph' && block.type !== 'heading') continue
+    if (block.secondaryImage || (scopeIds && !scopeIds.has(block.id))) continue
+    const text = inlineHtmlToText(block.html).trim()
+    if (!text) continue
+    if (onlyEmpty && sideCellText(block).trim()) continue
+    found.push({ id: block.id, text })
+  }
+  return found
+}
+
+/**
+ * Apply an accepted "side" proposal: the translation goes into the side cell, keeping the
+ * look of any words of an earlier translation it leaves alone.
+ */
+export function applySideProposal(model: DocumentModel, blockId: string, newText: string): DocumentModel {
+  return {
+    ...model,
+    blocks: model.blocks.map((block): Block =>
+      block.id === blockId && (block.type === 'paragraph' || block.type === 'heading') && !block.secondaryImage
+        ? { ...block, secondaryHtml: rewriteInlineText(block.secondaryHtml ?? '', newText) }
+        : block,
+    ),
+  }
+}
+
 /** Current text of a proposal's target: a paragraph, or one list item or table cell. Null when it is gone. */
 export function proposalTargetText(model: DocumentModel, blockId: string, partId?: string): string | null {
   const block = model.blocks.find((candidate) => candidate.id === blockId)

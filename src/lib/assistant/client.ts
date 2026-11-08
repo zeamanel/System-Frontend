@@ -187,3 +187,51 @@ async function readStreamedAnswer(
   }
   throw new ApiError(0, 'The answer was cut off. Check your connection and try again.')
 }
+
+/** The paragraphs sent to be translated into the side column (the API takes up to 60 at a time). */
+export interface TranslateSideInput {
+  documentId: string
+  /** The side column's language. */
+  target: 'am' | 'en'
+  blocks: Array<{ id: string; text: string }>
+}
+
+export type TranslateSideResult =
+  | { ok: true; translations: Array<{ id: string; text: string }>; missingIds: string[] }
+  | { ok: false; reason: AssistantOfflineInfo['reason'] }
+
+/**
+ * Translate paragraphs for the side column (POST /api/v1/ai/translate-side). Nothing is
+ * written anywhere: the editor shows each translation as a proposal. When the AI cannot be
+ * reached nothing is made up, the reason comes back instead.
+ */
+export async function translateSide(
+  input: TranslateSideInput,
+  options: Pick<AskAssistantOptions, 'signal' | 'client' | 'dataSource'> = {},
+): Promise<TranslateSideResult> {
+  const dataSource = options.dataSource ?? env.dataSource
+  if (dataSource !== 'http' && !options.client) return { ok: false, reason: 'demo' }
+  const client = options.client ?? apiClient
+  try {
+    const response = await client.post<{
+      translations?: Array<{ id?: unknown; text?: unknown }>
+      missingIds?: unknown
+    }>('/ai/translate-side', input, { signal: options.signal, auth: 'required' })
+    const translations = (Array.isArray(response.translations) ? response.translations : []).flatMap((item) =>
+      typeof item.id === 'string' && typeof item.text === 'string' && item.text.trim()
+        ? [{ id: item.id, text: item.text }]
+        : [],
+    )
+    const missingIds = Array.isArray(response.missingIds)
+      ? response.missingIds.filter((id): id is string => typeof id === 'string')
+      : []
+    return { ok: true, translations, missingIds }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    return {
+      ok: false,
+      reason:
+        error instanceof RateLimitError ? (error.code === 'QUOTA_EXCEEDED' ? 'quota' : 'rate-limit') : 'unavailable',
+    }
+  }
+}

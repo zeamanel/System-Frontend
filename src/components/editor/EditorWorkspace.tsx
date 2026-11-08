@@ -373,11 +373,31 @@ export function EditorWorkspace({
     scope: assistantScope,
     getPage: getCursorPage,
     onNotice: (text) => toast.push(text),
+    documentLanguage: editor.language,
     labels: {
       blockGone: t('assistant.blockGone'),
       keptEditedBlocks: (count) => t('assistant.keptEdited', { count: String(count) }),
       requestFailed: t('assistant.requestFailed'),
       answerMessage: (question, answer) => t('assistant.answerMessage', { question, answer }),
+      side: {
+        nothing: t('assistant.side.nothing'),
+        reply: (count, language) =>
+          t(count === 1 ? 'assistant.side.replyOne' : 'assistant.side.reply', {
+            count: String(count),
+            language: t(language === 'am' ? 'assistant.side.lang.am' : 'assistant.side.lang.en'),
+          }),
+        replyMissing: (count) => t('assistant.side.replyMissing', { count: String(count) }),
+        unavailable: (reason) =>
+          t(
+            reason === 'demo'
+              ? 'assistant.side.unavailable.demo'
+              : reason === 'quota'
+                ? 'assistant.side.unavailable.quota'
+                : reason === 'rate-limit'
+                  ? 'assistant.side.unavailable.rateLimit'
+                  : 'assistant.side.unavailable.failed',
+          ),
+      },
     },
   })
   fieldSyncHandlerRef.current = assistant.postFieldSync
@@ -1515,6 +1535,7 @@ export function EditorWorkspace({
               lastSavedAt={editor.lastSavedAt}
               questionLabels={questionLabels}
               onShowBlock={handleShowBlock}
+              bilingual={Boolean(model.page.bilingual)}
             />
           </div>
         ) : (
