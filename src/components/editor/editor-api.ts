@@ -14,6 +14,10 @@ export interface EditorApi {
   setSideImage(blockId: string, file: File | null): void
   /** How much of the width the side picture takes. */
   setSideColumnPct(blockId: string, pct: SideColumnPct): void
+  /** The side box shows the text cell (a picture is taken out), or is removed so the paragraph uses the full width. */
+  setSideMode(blockId: string, mode: 'text' | 'hidden'): void
+  /** Brings back a removed side box. */
+  showSideBox(blockId: string): void
   updateListItem(blockId: string, itemId: string, html: InlineHtml): void
   updateTableCell(blockId: string, cellId: string, html: InlineHtml): void
   updateSignatureField(

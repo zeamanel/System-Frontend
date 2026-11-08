@@ -676,6 +676,35 @@ describe('Assistant panel', () => {
       expect(sideText('b1')).toBe('የመጀመሪያ።')
     })
 
+    it('skips paragraphs whose side box was removed: not counted, not translated, and no update offer', async () => {
+      const removed = { ...paragraph('b2', 'The landlord will keep the house in repair.', 'አከራዩ ቤቱን ይጠግናል።'), sideHidden: true }
+      const { doc, template } = await createBilingual([paragraph('b1', 'The tenant will pay rent.'), removed])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      // Only b1 counts.
+      expect(screen.getByTestId('assistant-side-hint')).toHaveTextContent('1 paragraph has no side translation yet.')
+      translateSideMock.mockResolvedValueOnce(translations(['b1', 'ተከራዩ ኪራይ ይከፍላል።']))
+      fireEvent.click(screen.getByTestId('assistant-side-translate'))
+      await waitFor(() => expect(screen.getAllByTestId('assistant-proposal')).toHaveLength(1))
+      expect(translateSideMock.mock.calls[0][0].blocks).toEqual([{ id: 'b1', text: 'The tenant will pay rent.' }])
+
+      // Rewriting the paragraph whose box was removed leaves its hidden translation alone, with no offer.
+      askAssistantMock.mockResolvedValueOnce({
+        reply: 'ok',
+        questions: [],
+        proposals: [{ blockId: 'b2', newText: 'The Landlord shall keep the house in repair.', reason: 'x' }],
+        fieldUpdates: [],
+      } satisfies AssistantReply)
+      fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Make it formal' } })
+      fireEvent.click(screen.getByTestId('assistant-send'))
+      await waitFor(() => expect(screen.getAllByTestId('assistant-proposal')).toHaveLength(2))
+      fireEvent.click(within(screen.getAllByTestId('assistant-proposal')[1]).getByTestId('assistant-proposal-accept'))
+      await waitFor(() =>
+        expect(document.querySelector('[data-block-id="b2"]')).toHaveTextContent('The Landlord shall keep the house in repair.'),
+      )
+      expect(screen.queryByTestId('assistant-side-stale')).toBeNull()
+    })
+
     it('makes no offer when bilingual is off, or the paragraph has no translation', async () => {
       const { doc, template } = await createBilingual([paragraph('b1', 'The tenant will pay rent.', 'ተከራዩ ኪራይ ይከፍላል።')], false)
       renderWorkspace(doc, template)

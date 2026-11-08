@@ -658,10 +658,34 @@ export function updateSecondaryText(
 export function setSideImage(model: DocumentModel, blockId: string, image: SideImage | null): DocumentModel {
   return updateBlock(model, blockId, (block) => {
     if (block.type !== 'paragraph' && block.type !== 'heading') return block
-    const { secondaryImage: _image, sideColumnPct: _pct, ...rest } = block
+    // Choosing a picture, or taking it out, shows the side box again.
+    const { secondaryImage: _image, sideColumnPct: _pct, sideHidden: _hidden, ...rest } = block
     if (!image) return rest as typeof block
     // Keep a split the person already chose when replacing the picture.
     return { ...rest, secondaryImage: image, ...(block.sideColumnPct ? { sideColumnPct: block.sideColumnPct } : {}) } as typeof block
+  })
+}
+
+/**
+ * What a paragraph's side box is: "text" shows the text cell (any picture is taken out);
+ * "hidden" removes the box, so the paragraph uses the full width. A removed box keeps its
+ * text and picture, hidden, so Add side box brings them back.
+ */
+export function setSideMode(model: DocumentModel, blockId: string, mode: 'text' | 'hidden'): DocumentModel {
+  return updateBlock(model, blockId, (block) => {
+    if (block.type !== 'paragraph' && block.type !== 'heading') return block
+    if (mode === 'hidden') return { ...block, sideHidden: true } as typeof block
+    const { secondaryImage: _image, sideColumnPct: _pct, sideHidden: _hidden, ...rest } = block
+    return rest as typeof block
+  })
+}
+
+/** Brings back a removed side box, with whatever it held. */
+export function showSideBox(model: DocumentModel, blockId: string): DocumentModel {
+  return updateBlock(model, blockId, (block) => {
+    if ((block.type !== 'paragraph' && block.type !== 'heading') || !block.sideHidden) return block
+    const { sideHidden: _hidden, ...rest } = block
+    return rest as typeof block
   })
 }
 
@@ -1123,14 +1147,17 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
 function sanitizeSideCell(raw: Record<string, unknown>): {
   secondaryImage?: SideImage
   sideColumnPct?: SideColumnPct
+  sideHidden?: true
 } {
+  const hidden = raw.sideHidden === true ? { sideHidden: true as const } : {}
   const image = raw.secondaryImage
   const src = isRecord(image) && typeof image.src === 'string' ? image.src : ''
-  if (!src.startsWith('data:image/') || !isSafeUrl(src)) return {}
+  if (!src.startsWith('data:image/') || !isSafeUrl(src)) return hidden
   const pct = raw.sideColumnPct === 30 || raw.sideColumnPct === 40 ? raw.sideColumnPct : undefined
   return {
     secondaryImage: { src, alt: String((image as Record<string, unknown>).alt ?? '').slice(0, 500) },
     ...(pct ? { sideColumnPct: pct } : {}),
+    ...hidden,
   }
 }
 

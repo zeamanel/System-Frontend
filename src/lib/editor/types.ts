@@ -42,6 +42,8 @@ export interface HeadingBlock extends BlockBase {
   /** When set, the side cell shows this image; `secondaryHtml` is kept so removing the image brings the text back. */
   secondaryImage?: SideImage
   sideColumnPct?: SideColumnPct
+  /** The side box was removed from this block (side-by-side mode): it uses the full width; its side content is kept, hidden. */
+  sideHidden?: boolean
 }
 
 export interface ParagraphBlock extends BlockBase {
@@ -53,6 +55,7 @@ export interface ParagraphBlock extends BlockBase {
   secondaryHtml?: InlineHtml
   secondaryImage?: SideImage
   sideColumnPct?: SideColumnPct
+  sideHidden?: boolean
 }
 
 export interface ListItem {
