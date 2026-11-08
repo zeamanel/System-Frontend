@@ -91,7 +91,7 @@ export function sideCellText(block: Block): string {
  */
 export function sideTargetText(model: DocumentModel, blockId: string): string | null {
   const block = model.blocks.find((candidate) => candidate.id === blockId)
-  if (!block || (block.type !== 'paragraph' && block.type !== 'heading') || block.secondaryImage) return null
+  if (!block || (block.type !== 'paragraph' && block.type !== 'heading') || block.secondaryImage || block.sideHidden) return null
   return sideCellText(block)
 }
 
@@ -113,7 +113,7 @@ export function sideTranslationBlocks(
   const found: Array<{ id: string; text: string }> = []
   for (const block of model.blocks) {
     if (block.type !== 'paragraph' && block.type !== 'heading') continue
-    if (block.secondaryImage || (scopeIds && !scopeIds.has(block.id))) continue
+    if (block.secondaryImage || block.sideHidden || (scopeIds && !scopeIds.has(block.id))) continue
     const text = inlineHtmlToText(block.html).trim()
     if (!text) continue
     if (onlyEmpty && sideCellText(block).trim()) continue
@@ -130,7 +130,7 @@ export function applySideProposal(model: DocumentModel, blockId: string, newText
   return {
     ...model,
     blocks: model.blocks.map((block): Block =>
-      block.id === blockId && (block.type === 'paragraph' || block.type === 'heading') && !block.secondaryImage
+      block.id === blockId && (block.type === 'paragraph' || block.type === 'heading') && !block.secondaryImage && !block.sideHidden
         ? { ...block, secondaryHtml: rewriteInlineText(block.secondaryHtml ?? '', newText) }
         : block,
     ),

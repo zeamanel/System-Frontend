@@ -348,9 +348,9 @@ describe('EditorWorkspace', () => {
     await screen.findByTestId('editor-title-input')
 
     // Off: nothing about side cells shows (the existing bilingual feature is unchanged).
-    expect(screen.queryByTestId('side-image-add')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('side-menu')).not.toBeInTheDocument()
     fireEvent.click(screen.getByLabelText(/bilingual side-by-side/i))
-    expect((await screen.findAllByTestId('side-image-add')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByTestId('side-menu')).length).toBeGreaterThan(0)
     expect(document.querySelector('[data-bilingual-secondary="true"]')).not.toBeNull()
 
     // A PNG goes into the first side cell: the picture shows and that cell's text box is replaced.
@@ -375,6 +375,38 @@ describe('EditorWorkspace', () => {
     fireEvent.click(screen.getByTestId('side-image-remove'))
     await waitFor(() => expect(screen.queryByTestId('side-image')).not.toBeInTheDocument())
     expect(document.querySelectorAll('[data-bilingual-secondary="true"]').length).toBe(textCellsBefore)
+  })
+
+  it('removes the side box of one paragraph from its menu, and brings it back', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+    fireEvent.click(screen.getByLabelText(/bilingual side-by-side/i))
+    await screen.findAllByTestId('side-menu')
+    const rows = () => document.querySelectorAll('.doc-bilingual-row').length
+    const before = rows()
+    expect(before).toBeGreaterThan(1)
+
+    // Remove the first paragraph's box: that paragraph loses its columns, the others keep theirs.
+    fireEvent.click(screen.getAllByTestId('side-menu')[0])
+    fireEvent.click(screen.getByTestId('side-menu-remove'))
+    await waitFor(() => expect(rows()).toBe(before - 1))
+    const handle = screen.getByTestId('side-box-add')
+    expect(handle).toHaveAccessibleName('Add side box')
+
+    // The undo button of the editor puts it back, as does the handle.
+    fireEvent.click(handle)
+    await waitFor(() => expect(rows()).toBe(before))
+    expect(screen.queryByTestId('side-box-add')).not.toBeInTheDocument()
+
+    // Switching Bilingual off and on again keeps what each paragraph had.
+    fireEvent.click(screen.getAllByTestId('side-menu')[0])
+    fireEvent.click(screen.getByTestId('side-menu-remove'))
+    await waitFor(() => expect(rows()).toBe(before - 1))
+    fireEvent.click(screen.getByLabelText(/bilingual side-by-side/i))
+    await waitFor(() => expect(document.querySelectorAll('.doc-bilingual-row').length).toBe(0))
+    fireEvent.click(screen.getByLabelText(/bilingual side-by-side/i))
+    await waitFor(() => expect(rows()).toBe(before - 1))
   })
 
   it('numbers a one-page document only when asked, and starts the numbers where the user says', async () => {

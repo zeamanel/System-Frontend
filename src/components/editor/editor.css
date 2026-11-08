@@ -907,12 +907,20 @@
   height: auto;
 }
 
-/* A small image button on the rule between the columns, where no text sits (never printed). */
-.doc-side__add-image {
+/* The side box menu: a small button on the rule between the columns, where no text sits (never printed). */
+.doc-side-menu {
   position: absolute;
   top: 0;
   left: -12px;
-  z-index: 1;
+  z-index: 3;
+}
+
+/* An open menu sits above the other rows' buttons. */
+.doc-side-menu--open {
+  z-index: 20;
+}
+
+.doc-side-menu__trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -927,9 +935,90 @@
   transition: opacity var(--transition-fast);
 }
 
-.doc-bilingual-col--secondary:hover .doc-side__add-image,
-.doc-side__add-image:hover,
-.doc-side__add-image:focus-visible {
+.doc-bilingual-col--secondary:hover .doc-side-menu__trigger,
+.doc-side-menu__trigger:hover,
+.doc-side-menu__trigger:focus-visible,
+.doc-side-menu__trigger[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.doc-side-menu__list {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  min-width: 15rem;
+  padding: var(--space-1);
+  background-color: var(--color-surface-raised, var(--color-surface));
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+}
+
+.doc-side-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.doc-side-menu__item:hover,
+.doc-side-menu__item:focus-visible {
+  background-color: var(--color-action-ghost-hover);
+}
+
+.doc-side-menu__item--remove {
+  color: var(--color-error, var(--color-text));
+}
+
+.doc-side-menu__tick {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+}
+
+.doc-side-menu__rule {
+  margin: var(--space-1) 0;
+  border: none;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* A paragraph whose side box was removed: full width, with a small handle to bring the box back (never printed). */
+.doc-block--side-removed {
+  position: relative;
+}
+
+.doc-side__restore {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.doc-block--side-removed:hover .doc-side__restore,
+.doc-side__restore:hover,
+.doc-side__restore:focus-visible {
   opacity: 1;
 }
 
@@ -1532,9 +1621,27 @@ figure.doc-block--image-right {
     grid-template-columns: 70fr 30fr !important;
   }
 
-  .doc-side__add-image,
+  .doc-side-menu,
+  .doc-side__restore,
   .doc-side-image__tools {
     display: none !important;
+  }
+
+  /* A paragraph whose side text box is empty prints at full width, as it does in the PDF and Word files. */
+  .doc-bilingual-row:has(.doc-bilingual-col--secondary [data-bilingual-secondary]:empty) {
+    grid-template-columns: 1fr !important;
+  }
+
+  .doc-bilingual-row:has(.doc-bilingual-col--secondary [data-bilingual-secondary]:empty) .doc-bilingual-col--secondary {
+    display: none !important;
+  }
+
+  /* An empty box or line prints empty: its hint ("Translation / secondary text…") is for the editor only. */
+  .doc-paragraph:empty::before,
+  .doc-heading:empty::before,
+  .doc-list__text:empty::before,
+  .doc-table__text:empty::before {
+    content: none !important;
   }
 }
 

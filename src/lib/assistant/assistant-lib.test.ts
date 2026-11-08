@@ -219,12 +219,13 @@ describe('pending notes', () => {
 
 describe('side column translation helpers', () => {
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-  const withSide = (...cells: Array<{ text: string; side?: string; image?: boolean }>) => ({
+  const withSide = (...cells: Array<{ text: string; side?: string; image?: boolean; hidden?: boolean }>) => ({
     ...createEmptyDocument('en'),
-    blocks: cells.map(({ text, side, image }) => ({
+    blocks: cells.map(({ text, side, image, hidden }) => ({
       ...createParagraph(text),
       ...(side !== undefined ? { secondaryHtml: side } : {}),
       ...(image ? { secondaryImage: { src: PNG, alt: 'x' } } : {}),
+      ...(hidden ? { sideHidden: true } : {}),
     })),
   })
 
@@ -248,6 +249,16 @@ describe('side column translation helpers', () => {
     expect(sideTargetText(model, model.blocks[1].id)).toBe('')
     expect(sideTargetText(model, model.blocks[2].id)).toBeNull()
     expect(sideTargetText(model, 'gone')).toBeNull()
+  })
+
+  it('leaves out paragraphs whose side box was removed: not listed, no text to write over, never written', () => {
+    const model = withSide({ text: 'One.' }, { text: 'Two.', side: 'ሁለት', hidden: true }, { text: 'Three.', hidden: true })
+    expect(sideTranslationBlocks(model, null, true).map((b) => b.text)).toEqual(['One.'])
+    expect(sideTranslationBlocks(model, null, false).map((b) => b.text)).toEqual(['One.'])
+    expect(sideTargetText(model, model.blocks[1].id)).toBeNull()
+    const [, two, three] = model.blocks
+    expect(applySideProposal(model, two.id, 'x').blocks[1]).toBe(two)
+    expect(applySideProposal(model, three.id, 'x').blocks[2]).toBe(three)
   })
 
   it('writes a translation into the side cell only, as escaped text, and never over a picture', () => {

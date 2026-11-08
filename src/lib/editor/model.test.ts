@@ -31,6 +31,8 @@ import {
   setBilingualMode,
   setSideColumnPct,
   setSideImage,
+  setSideMode,
+  showSideBox,
   setPageOrientation,
   setMargins,
   splitTextBlock,
@@ -742,6 +744,69 @@ describe('side cell image (bilingual mode)', () => {
       expect(bad.blocks[0]).not.toHaveProperty('secondaryImage')
       expect(bad.blocks[0]).not.toHaveProperty('sideColumnPct')
     }
+  })
+})
+
+describe('side box mode (bilingual mode)', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+  const only = (doc: DocumentModel) => {
+    const block = doc.blocks[0]
+    if (block.type !== 'paragraph') throw new Error('paragraph expected')
+    return block
+  }
+
+  it('removes the side box without losing what it held, and brings it back as it was', () => {
+    const p = createParagraph('Left')
+    let doc = updateSecondaryText(modelWith(p), p.id, 'Right')
+    doc = setSideImage(doc, p.id, { src: PNG, alt: 'Photo' })
+    doc = setSideColumnPct(doc, p.id, 30)
+
+    const removed = setSideMode(doc, p.id, 'hidden')
+    expect(only(removed)).toMatchObject({ sideHidden: true, secondaryHtml: 'Right', secondaryImage: { alt: 'Photo' }, sideColumnPct: 30 })
+
+    const back = showSideBox(removed, p.id)
+    expect(only(back).sideHidden).toBeUndefined()
+    expect(only(back)).toMatchObject({ secondaryHtml: 'Right', secondaryImage: { alt: 'Photo' }, sideColumnPct: 30 })
+    // The first model was not changed.
+    expect(only(doc).sideHidden).toBeUndefined()
+  })
+
+  it('choosing Text shows the text cell again and takes any picture out', () => {
+    const p = createParagraph('Left')
+    let doc = updateSecondaryText(modelWith(p), p.id, 'Right')
+    doc = setSideMode(setSideColumnPct(setSideImage(doc, p.id, { src: PNG, alt: 'Photo' }), p.id, 40), p.id, 'hidden')
+    const text = setSideMode(doc, p.id, 'text')
+    expect(only(text).sideHidden).toBeUndefined()
+    expect(only(text).secondaryImage).toBeUndefined()
+    expect(only(text).sideColumnPct).toBeUndefined()
+    expect(only(text).secondaryHtml).toBe('Right')
+  })
+
+  it('choosing a picture on a removed box shows the box again', () => {
+    const p = createParagraph('Left')
+    const hidden = setSideMode(modelWith(p), p.id, 'hidden')
+    expect(only(setSideImage(hidden, p.id, { src: PNG, alt: 'Photo' })).sideHidden).toBeUndefined()
+    expect(only(setSideImage(hidden, p.id, null)).sideHidden).toBeUndefined()
+  })
+
+  it('works on headings, leaves other blocks alone, and showSideBox does nothing to a visible box', () => {
+    const h = createHeading('Title', 1)
+    const list = createList(['a'])
+    const doc = modelWith(h, list)
+    expect(setSideMode(doc, h.id, 'hidden').blocks[0]).toMatchObject({ type: 'heading', sideHidden: true })
+    expect(setSideMode(doc, list.id, 'hidden').blocks[1]).toBe(doc.blocks[1])
+    expect(showSideBox(doc, h.id).blocks[0]).toBe(doc.blocks[0])
+  })
+
+  it('keeps a removed box through cleaning, and drops anything that is not exactly true', () => {
+    const base = createEmptyDocument('en')
+    const clean = (sideHidden: unknown) =>
+      sanitizeModel({
+        ...base,
+        blocks: [{ id: 'p', type: 'paragraph', html: 'x', align: 'left', indent: 0, spacing: 'normal', secondaryHtml: 'y', sideHidden } as never],
+      }).blocks[0]
+    expect(clean(true)).toMatchObject({ sideHidden: true, secondaryHtml: 'y' })
+    for (const bad of [false, 'yes', 1, null, undefined]) expect(clean(bad)).not.toHaveProperty('sideHidden')
   })
 })
 

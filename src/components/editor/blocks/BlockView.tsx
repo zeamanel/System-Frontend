@@ -10,7 +10,8 @@ import {
   type EditableRef,
 } from '../caret'
 import { EditableHtml } from '../EditableHtml'
-import { ImagePlusIcon } from '../../icons'
+import { PanelRightIcon } from '../../icons'
+import { SideBoxMenu } from './SideBoxMenu'
 import { blockViewPropsEqual } from './props-equal'
 import type { EditorApi } from '../editor-api'
 import type { KeyboardEvent, PasteEvent } from '../events'
@@ -38,8 +39,12 @@ export interface BlockLabels {
   emptyText: string
   tableHint: string
   bilingualPlaceholder: string
-  /** Side cell picture controls (side-by-side mode). */
-  sideAddImage: string
+  /** Side box controls (side-by-side mode). */
+  sideMenu: string
+  sideChooseText: string
+  sideChooseImage: string
+  sideRemoveBox: string
+  sideAddBox: string
   sideReplaceImage: string
   sideRemoveImage: string
   sideWidthGroup: string
@@ -122,7 +127,16 @@ function BlockViewInner({
       'indent' in block && block.indent > 0 ? `doc-block--indent-${block.indent}` : null
     const spacingClass = block.type === 'paragraph' ? `doc-block--spacing-${block.spacing}` : null
 
-    if (bilingual) {
+    if (bilingual && !block.sideHidden) {
+      const sideMenu = editable ? (
+        <SideBoxMenu
+          mode={block.secondaryImage ? 'image' : 'text'}
+          labels={{ menu: labels.sideMenu, text: labels.sideChooseText, image: labels.sideChooseImage, remove: labels.sideRemoveBox }}
+          onChooseText={() => api.setSideMode(block.id, 'text')}
+          onChooseImage={() => sideFileRef.current?.click()}
+          onRemove={() => api.setSideMode(block.id, 'hidden')}
+        />
+      ) : null
       return (
         <div
           data-block-id={block.id}
@@ -176,6 +190,7 @@ function BlockViewInner({
                   }}
                 />
               ) : null}
+              {sideMenu}
               {block.secondaryImage ? (
                 <figure className="doc-side-image" data-testid="side-image">
                   <img
@@ -222,20 +237,6 @@ function BlockViewInner({
                 </figure>
               ) : (
                 <>
-                  {editable ? (
-                    <button
-                      type="button"
-                      className="doc-side__add-image"
-                      title={labels.sideAddImage}
-                      aria-label={labels.sideAddImage}
-                      data-testid="side-image-add"
-                      // Keep the caret where it is while the file window opens.
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => sideFileRef.current?.click()}
-                    >
-                      <ImagePlusIcon size={14} />
-                    </button>
-                  ) : null}
               <EditableHtml
                 html={block.secondaryHtml ?? ''}
                 editable={editable}
@@ -259,13 +260,29 @@ function BlockViewInner({
       )
     }
 
+    // Side-by-side is on but this paragraph's side box was removed: full width, with a way to bring the box back.
+    const boxRemoved = bilingual && block.sideHidden === true
     return (
       <div
         data-block-id={block.id}
-        className={[blockClass, `doc-block--align-${block.align}`, indentClass, spacingClass]
+        className={[blockClass, `doc-block--align-${block.align}`, indentClass, spacingClass, boxRemoved ? 'doc-block--side-removed' : null]
           .filter(Boolean)
           .join(' ')}
       >
+        {boxRemoved && editable ? (
+          <button
+            type="button"
+            className="doc-side__restore"
+            title={labels.sideAddBox}
+            aria-label={labels.sideAddBox}
+            data-testid="side-box-add"
+            // Keep the caret where it is.
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => api.showSideBox(block.id)}
+          >
+            <PanelRightIcon size={14} />
+          </button>
+        ) : null}
         <EditableHtml
           html={block.html}
           editable={editable}
