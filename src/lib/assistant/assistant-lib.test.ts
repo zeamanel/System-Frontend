@@ -2,8 +2,18 @@ import { describe, expect, it, vi } from 'vitest'
 import { RateLimitError } from '../api'
 import { createEmptyDocument, createParagraph } from '../editor/model'
 import { diffBlocks } from '../editor/tracked-change'
-import { askAssistant, localDocumentCheck } from './client'
-import { applyTextProposal, findPlaceholders, insertTextProposal, rewriteInlineText, toAssistantBlocks } from './context'
+import { askAssistant, localDocumentCheck, translateSide } from './client'
+import {
+  applySideProposal,
+  applyTextProposal,
+  findPlaceholders,
+  insertTextProposal,
+  rewriteInlineText,
+  sideTargetLanguage,
+  sideTargetText,
+  sideTranslationBlocks,
+  toAssistantBlocks,
+} from './context'
 import { diffWords } from './diff'
 import { consumePendingNotes, stashPendingNotes } from './pending-notes'
 
@@ -204,5 +214,82 @@ describe('pending notes', () => {
     stashPendingNotes('doc-x', 'job', { summary: 'Hi', questions: [], assumptions: [], warnings: [] })
     expect(consumePendingNotes('doc-x')?.notes.summary).toBe('Hi')
     expect(consumePendingNotes('doc-x')).toBeNull()
+  })
+})
+
+describe('side column translation helpers', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+  const withSide = (...cells: Array<{ text: string; side?: string; image?: boolean }>) => ({
+    ...createEmptyDocument('en'),
+    blocks: cells.map(({ text, side, image }) => ({
+      ...createParagraph(text),
+      ...(side !== undefined ? { secondaryHtml: side } : {}),
+      ...(image ? { secondaryImage: { src: PNG, alt: 'x' } } : {}),
+    })),
+  })
+
+  it('writes the side column in the other language: Amharic beside English or Afaan Oromoo, English beside Amharic', () => {
+    expect(sideTargetLanguage('en')).toBe('am')
+    expect(sideTargetLanguage('om')).toBe('am')
+    expect(sideTargetLanguage('am')).toBe('en')
+  })
+
+  it('lists the paragraphs to translate: text, no picture, optionally only those without a translation', () => {
+    const model = withSide({ text: 'One.' }, { text: 'Two.', side: 'ሁለት' }, { text: 'Three.', image: true }, { text: '   ' }, { text: 'Five.', side: '  ' })
+    expect(sideTranslationBlocks(model, null, true).map((b) => b.text)).toEqual(['One.', 'Five.'])
+    expect(sideTranslationBlocks(model, null, false).map((b) => b.text)).toEqual(['One.', 'Two.', 'Five.'])
+    // Limited to a page or a block.
+    expect(sideTranslationBlocks(model, new Set([model.blocks[1].id]), false).map((b) => b.text)).toEqual(['Two.'])
+  })
+
+  it('reads the side text a proposal writes over; null when there is none to write (gone, or a picture)', () => {
+    const model = withSide({ text: 'One.', side: 'አንድ' }, { text: 'Two.' }, { text: 'Three.', image: true })
+    expect(sideTargetText(model, model.blocks[0].id)).toBe('አንድ')
+    expect(sideTargetText(model, model.blocks[1].id)).toBe('')
+    expect(sideTargetText(model, model.blocks[2].id)).toBeNull()
+    expect(sideTargetText(model, 'gone')).toBeNull()
+  })
+
+  it('writes a translation into the side cell only, as escaped text, and never over a picture', () => {
+    const model = withSide({ text: 'One.' }, { text: 'Two.', side: 'ድሮ' }, { text: 'Three.', image: true })
+    const [a, b, c] = model.blocks
+    const next = applySideProposal(model, a.id, 'አንድ <script>x</script>')
+    expect(next.blocks[0]).toMatchObject({ html: 'One.' })
+    const side = (next.blocks[0] as { secondaryHtml: string }).secondaryHtml
+    expect(side).toContain('አንድ')
+    expect(side).not.toContain('<script>')
+    // Another paragraph and the picture cell are untouched.
+    expect(applySideProposal(model, a.id, 'x').blocks[1]).toBe(b)
+    expect(applySideProposal(model, c.id, 'x').blocks[2]).toBe(c)
+    // The change is one block, so Undo can revert just it.
+    expect(diffBlocks(model, next)?.after).toHaveProperty(a.id)
+    expect(Object.keys(diffBlocks(model, next)?.after ?? {})).toEqual([a.id])
+    // A rewrite keeps the look of words it leaves alone.
+    const bold = { ...model, blocks: [{ ...createParagraph('Rent.'), secondaryHtml: '<b>ኪራይ</b> ይከፍላል' }] }
+    expect((applySideProposal(bold, bold.blocks[0].id, 'ኪራይ ይከፍላሉ').blocks[0] as { secondaryHtml: string }).secondaryHtml).toContain('<strong>ኪራይ</strong>')
+  })
+})
+
+describe('translateSide client', () => {
+  const input = { documentId: 'd1', target: 'am' as const, blocks: [{ id: 'b1', text: 'Rent.' }] }
+
+  it('sends the paragraphs and returns the translations and what was skipped', async () => {
+    const post = vi.fn().mockResolvedValue({ translations: [{ id: 'b1', text: 'ኪራይ' }, { id: 5, text: 'bad' }, { id: 'b2', text: '  ' }], missingIds: ['b3', 7] })
+    const result = await translateSide(input, { client: { post } })
+    expect(post).toHaveBeenCalledWith('/ai/translate-side', input, { signal: undefined, auth: 'required' })
+    expect(result).toEqual({ ok: true, translations: [{ id: 'b1', text: 'ኪራይ' }], missingIds: ['b3'] })
+  })
+
+  it('never makes a translation up: no server, quota and rate limit come back as reasons', async () => {
+    expect(await translateSide(input, { dataSource: 'fixtures' })).toEqual({ ok: false, reason: 'demo' })
+    const failing = (error: unknown) => ({ post: vi.fn().mockRejectedValue(error) })
+    expect(await translateSide(input, { client: failing(new RateLimitError('x', 'QUOTA_EXCEEDED')) })).toEqual({ ok: false, reason: 'quota' })
+    expect(await translateSide(input, { client: failing(new RateLimitError('x', 'RATE_LIMITED')) })).toEqual({ ok: false, reason: 'rate-limit' })
+    expect(await translateSide(input, { client: failing(new Error('network')) })).toEqual({ ok: false, reason: 'unavailable' })
+  })
+
+  it('passes a cancelled request on instead of reporting it as a failure', async () => {
+    const post = vi.fn().mockRejectedValue(new DOMException('aborted', 'AbortError'))
+    await expect(translateSide(input, { client: { post } })).rejects.toMatchObject({ name: 'AbortError' })
   })
 })

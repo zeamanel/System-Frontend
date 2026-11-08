@@ -11,10 +11,12 @@ import { EditorWorkspace } from './EditorWorkspace'
 
 // The real client answers offline in fixture mode; tests swap in AI replies.
 const askAssistantMock = vi.hoisted(() => vi.fn())
+const translateSideMock = vi.hoisted(() => vi.fn())
 vi.mock('../../lib/assistant/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/assistant/client')>()
   askAssistantMock.mockImplementation(actual.askAssistant)
-  return { ...actual, askAssistant: askAssistantMock }
+  translateSideMock.mockImplementation(actual.translateSide)
+  return { ...actual, askAssistant: askAssistantMock, translateSide: translateSideMock }
 })
 
 const repos = getRepositories()
@@ -455,5 +457,242 @@ describe('Assistant panel', () => {
     expect(await screen.findByText('Half an answer')).toBeInTheDocument()
     expect(screen.queryByTestId('assistant-streaming')).toBeNull()
     expect(screen.getAllByTestId('assistant-reply')).toHaveLength(1)
+  })
+
+  describe('bilingual side column', () => {
+    const paragraph = (id: string, html: string, secondaryHtml?: string) => ({
+      id,
+      type: 'paragraph',
+      html,
+      align: 'left',
+      indent: 0,
+      spacing: 'normal',
+      ...(secondaryHtml !== undefined ? { secondaryHtml } : {}),
+    })
+    async function createBilingual(
+      blocks: unknown[],
+      bilingual = true,
+    ): Promise<{ doc: DocumentDetailRecord; template: TemplateDetail | null }> {
+      const content = JSON.stringify({
+        schema: 'docuA4.document',
+        version: 1,
+        language: 'en',
+        font: 'sans',
+        fontSize: 11,
+        page: {
+          margins: { top: 20, right: 20, bottom: 20, left: 20 },
+          headerEnabled: false,
+          headerHtml: '',
+          footerEnabled: false,
+          footerHtml: '',
+          ...(bilingual ? { bilingual: true } : {}),
+        },
+        blocks,
+      })
+      const created = await repos.documents.create({ title: 'Side column', templateId: 'rental-agreement', language: 'en', answers: {}, content })
+      const doc = await repos.documents.get(created.id)
+      if (!doc) throw new Error('missing document')
+      const template = doc.templateId ? await repos.templates.get(doc.templateId, 'en') : null
+      return { doc, template }
+    }
+    const sideText = (blockId: string) =>
+      document.querySelector(`[data-block-id="${blockId}"] [data-bilingual-secondary="true"]`)?.textContent ?? null
+    const translations = (...items: Array<[string, string]>) => ({
+      ok: true as const,
+      translations: items.map(([id, text]) => ({ id, text })),
+      missingIds: [] as string[],
+    })
+
+    beforeEach(() => {
+      translateSideMock.mockClear()
+    })
+
+    it('offers to translate the side column only while bilingual is on', async () => {
+      const off = await createBilingual([paragraph('b1', 'The tenant will pay rent.')], false)
+      const { unmount } = renderWorkspace(off.doc, off.template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      expect(screen.queryByTestId('assistant-side')).toBeNull()
+      unmount()
+
+      const on = await createBilingual([paragraph('b1', 'The tenant will pay rent.')])
+      renderWorkspace(on.doc, on.template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      expect(await screen.findByTestId('assistant-side')).toBeInTheDocument()
+      expect(screen.getByTestId('assistant-side-hint')).toHaveTextContent('1 paragraph has no side translation yet.')
+    })
+
+    it('Translate the side column proposes a translation per paragraph, applies nothing until accepted, and can be undone', async () => {
+      const { doc, template } = await createBilingual([
+        paragraph('b1', 'The tenant will pay rent.'),
+        paragraph('b2', 'The landlord will keep the house in repair.'),
+        paragraph('b3', 'Already translated.', 'ቀድሞ ተተርጉሟል።'),
+      ])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      // Only the two paragraphs without a translation count.
+      expect(screen.getByTestId('assistant-side-hint')).toHaveTextContent('2 paragraphs have no side translation yet.')
+      translateSideMock.mockResolvedValueOnce(translations(['b1', 'ተከራዩ ኪራይ ይከፍላል።'], ['b2', 'አከራዩ ቤቱን ይጠግናል።']))
+
+      fireEvent.click(screen.getByTestId('assistant-side-translate'))
+
+      await waitFor(() => expect(screen.getAllByTestId('assistant-proposal')).toHaveLength(2))
+      // An English document gets an Amharic side column; only the empty cells were sent.
+      expect(translateSideMock).toHaveBeenCalledTimes(1)
+      expect(translateSideMock.mock.calls[0][0]).toMatchObject({
+        documentId: doc.id,
+        target: 'am',
+        blocks: [
+          { id: 'b1', text: 'The tenant will pay rent.' },
+          { id: 'b2', text: 'The landlord will keep the house in repair.' },
+        ],
+      })
+      expect(screen.getAllByTestId('assistant-reply')[0]).toHaveTextContent('I translated 2 paragraphs into Amharic');
+      // Proposed, not applied.
+      expect(sideText('b1')).toBe('')
+      expect(sideText('b3')).toBe('ቀድሞ ተተርጉሟል።')
+
+      fireEvent.click(screen.getByTestId('assistant-accept-all'))
+      await waitFor(() => expect(sideText('b1')).toBe('ተከራዩ ኪራይ ይከፍላል።'))
+      expect(sideText('b2')).toBe('አከራዩ ቤቱን ይጠግናል።')
+      // The translation that was already there is untouched.
+      expect(sideText('b3')).toBe('ቀድሞ ተተርጉሟል።')
+
+      // Each is its own change: undoing one leaves the other.
+      fireEvent.click(screen.getAllByTestId('assistant-proposal-undo')[0])
+      await waitFor(() => expect(sideText('b1')).toBe(''))
+      expect(sideText('b2')).toBe('አከራዩ ቤቱን ይጠግናል።')
+    })
+
+    it('translates only the selected block when the work is limited to it', async () => {
+      const { doc, template } = await createBilingual([paragraph('b1', 'First clause.'), paragraph('b2', 'Second clause.')])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      // Put the cursor in the second paragraph, then work on the block.
+      const editable = document.querySelector('[data-block-id="b2"] [contenteditable="true"]') as HTMLElement
+      fireEvent.focus(editable)
+      await waitFor(() => expect(screen.getByTestId('assistant-scope-block')).not.toBeDisabled())
+      fireEvent.click(screen.getByTestId('assistant-scope-block'))
+      expect(screen.getByTestId('assistant-side-hint')).toHaveTextContent('1 paragraph has no side translation yet.')
+      translateSideMock.mockResolvedValueOnce(translations(['b2', 'ሁለተኛ አንቀጽ።']))
+
+      fireEvent.click(screen.getByTestId('assistant-side-translate'))
+      await waitFor(() => expect(screen.getAllByTestId('assistant-proposal')).toHaveLength(1))
+      expect(translateSideMock.mock.calls[0][0].blocks).toEqual([{ id: 'b2', text: 'Second clause.' }])
+    })
+
+    it('says so, and changes nothing, when the translation cannot be made', async () => {
+      const { doc, template } = await createBilingual([paragraph('b1', 'The tenant will pay rent.')])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      translateSideMock.mockResolvedValueOnce({ ok: false, reason: 'quota' })
+
+      fireEvent.click(screen.getByTestId('assistant-side-translate'))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent("Today's AI limit has been reached. Nothing was changed.")
+      expect(screen.queryByTestId('assistant-proposal')).toBeNull()
+      expect(sideText('b1')).toBe('')
+    })
+
+    it('has nothing to translate when every paragraph already has a side translation', async () => {
+      const { doc, template } = await createBilingual([paragraph('b1', 'Rent.', 'ኪራይ።')])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      expect(screen.getByTestId('assistant-side-hint')).toHaveTextContent('Every paragraph here already has a side translation.')
+      expect(screen.getByTestId('assistant-side-translate')).toBeDisabled()
+    })
+
+    it('after an accepted rewrite, offers to update that paragraph\'s translation', async () => {
+      const { doc, template } = await createBilingual([paragraph('b1', 'The tenant will pay rent.', 'ተከራዩ ኪራይ ይከፍላል።')])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      askAssistantMock.mockResolvedValueOnce({
+        reply: 'I propose a more formal rent clause.',
+        questions: [],
+        proposals: [{ blockId: 'b1', newText: 'The Tenant shall pay the monthly rent.', reason: 'More formal wording.' }],
+        fieldUpdates: [],
+      } satisfies AssistantReply)
+      fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Make it formal' } })
+      fireEvent.click(screen.getByTestId('assistant-send'))
+      const proposal = await screen.findByTestId('assistant-proposal')
+      // No offer before the rewrite is accepted.
+      expect(screen.queryByTestId('assistant-side-stale')).toBeNull()
+
+      fireEvent.click(within(proposal).getByTestId('assistant-proposal-accept'))
+      const offer = await screen.findByTestId('assistant-side-stale')
+      expect(offer).toHaveTextContent('You changed a paragraph that has a side translation')
+
+      translateSideMock.mockResolvedValueOnce(translations(['b1', 'ተከራዩ ወርሃዊ ኪራዩን ይከፍላል።']))
+      fireEvent.click(within(offer).getByTestId('assistant-side-update'))
+
+      await waitFor(() => expect(screen.getAllByTestId('assistant-proposal')).toHaveLength(2))
+      // The new text of the paragraph is what gets translated.
+      expect(translateSideMock.mock.calls[0][0].blocks).toEqual([{ id: 'b1', text: 'The Tenant shall pay the monthly rent.' }])
+      // Still the old translation until the new one is accepted.
+      expect(sideText('b1')).toBe('ተከራዩ ኪራይ ይከፍላል።')
+      const translation = screen.getAllByTestId('assistant-proposal')[1]
+      fireEvent.click(within(translation).getByTestId('assistant-proposal-accept'))
+      await waitFor(() => expect(sideText('b1')).toBe('ተከራዩ ወርሃዊ ኪራዩን ይከፍላል።'))
+      expect(offer).toHaveTextContent('The updated translations are in the thread')
+    })
+
+    it('gathers several accepted rewrites into one offer, and Keep as they are asks nothing of the AI', async () => {
+      const { doc, template } = await createBilingual([
+        paragraph('b1', 'First clause.', 'የመጀመሪያ።'),
+        paragraph('b2', 'Second clause.', 'ሁለተኛ።'),
+        paragraph('b3', 'Third clause, no translation.'),
+      ])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      askAssistantMock.mockResolvedValueOnce({
+        reply: 'I propose changes.',
+        questions: [],
+        proposals: [
+          { blockId: 'b1', newText: 'First clause, revised.', reason: 'a' },
+          { blockId: 'b2', newText: 'Second clause, revised.', reason: 'b' },
+          { blockId: 'b3', newText: 'Third clause, revised.', reason: 'c' },
+        ],
+        fieldUpdates: [],
+      } satisfies AssistantReply)
+      fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Revise them' } })
+      fireEvent.click(screen.getByTestId('assistant-send'))
+      await screen.findAllByTestId('assistant-proposal')
+
+      // One by one: the offer collects them instead of repeating.
+      fireEvent.click(within(screen.getAllByTestId('assistant-proposal')[0]).getByTestId('assistant-proposal-accept'))
+      await screen.findByTestId('assistant-side-stale')
+      fireEvent.click(within(screen.getAllByTestId('assistant-proposal')[1]).getByTestId('assistant-proposal-accept'))
+      await waitFor(() => expect(screen.getByTestId('assistant-side-stale')).toHaveTextContent('You changed 2 paragraphs'))
+      // A paragraph with no translation is not part of it.
+      fireEvent.click(within(screen.getAllByTestId('assistant-proposal')[2]).getByTestId('assistant-proposal-accept'))
+      await waitFor(() =>
+        expect(document.querySelector('[data-block-id="b3"]')).toHaveTextContent('Third clause, revised.'),
+      )
+      expect(screen.getAllByTestId('assistant-side-stale')).toHaveLength(1)
+      expect(screen.getByTestId('assistant-side-stale')).toHaveTextContent('You changed 2 paragraphs')
+
+      fireEvent.click(screen.getByTestId('assistant-side-keep'))
+      expect(screen.getByTestId('assistant-side-stale')).toHaveTextContent('kept as they are')
+      expect(translateSideMock).not.toHaveBeenCalled()
+      expect(sideText('b1')).toBe('የመጀመሪያ።')
+    })
+
+    it('makes no offer when bilingual is off, or the paragraph has no translation', async () => {
+      const { doc, template } = await createBilingual([paragraph('b1', 'The tenant will pay rent.', 'ተከራዩ ኪራይ ይከፍላል።')], false)
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      askAssistantMock.mockResolvedValueOnce({
+        reply: 'ok',
+        questions: [],
+        proposals: [{ blockId: 'b1', newText: 'The Tenant shall pay the monthly rent.', reason: 'x' }],
+        fieldUpdates: [],
+      } satisfies AssistantReply)
+      fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Make it formal' } })
+      fireEvent.click(screen.getByTestId('assistant-send'))
+      fireEvent.click(within(await screen.findByTestId('assistant-proposal')).getByTestId('assistant-proposal-accept'))
+      await waitFor(() =>
+        expect(document.querySelector('[data-block-id="b1"]')).toHaveTextContent('The Tenant shall pay the monthly rent.'),
+      )
+      expect(screen.queryByTestId('assistant-side-stale')).toBeNull()
+    })
   })
 })

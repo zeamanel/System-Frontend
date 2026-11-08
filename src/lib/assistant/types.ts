@@ -17,8 +17,11 @@ export interface AssistantQuestion {
 
 /** A block-scoped change the assistant proposes; applied only on Accept. */
 export interface AssistantProposal {
-  /** "replace" rewrites `blockId`; "insert" adds a new paragraph after `afterBlockId`. */
-  kind: 'replace' | 'insert'
+  /**
+   * "replace" rewrites `blockId`; "insert" adds a new paragraph after `afterBlockId`;
+   * "side" writes (or updates) the translation in the side cell of `blockId` (bilingual mode).
+   */
+  kind: 'replace' | 'insert' | 'side'
   blockId: string
   /** Replace only: the list item or table cell of `blockId` it rewrites (absent = the whole paragraph). */
   partId?: string
@@ -72,6 +75,13 @@ export type AssistantMessage =
       status: 'applied' | 'undone'
     })
   | (MessageBase & { role: 'system'; kind: 'notice'; text: string; tone: 'info' | 'error' })
+  | (MessageBase & {
+      role: 'system'
+      kind: 'side-stale'
+      /** Paragraphs whose text the assistant changed and that have a side translation. */
+      blockIds: string[]
+      status: 'pending' | 'working' | 'done' | 'dismissed'
+    })
   | (MessageBase & { role: 'assistant'; kind: 'check'; result: DocumentCheckResult })
 
 /** Plain-text projection of one block, as sent to the assistant. */
@@ -111,7 +121,7 @@ export interface AssistantReply {
   reply: string
   questions: AssistantQuestion[]
   proposals: Array<{
-    kind?: 'replace' | 'insert'
+    kind?: 'replace' | 'insert' | 'side'
     blockId: string
     partId?: string
     afterBlockId?: string
