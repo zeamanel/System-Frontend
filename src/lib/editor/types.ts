@@ -23,12 +23,25 @@ interface BlockBase {
 
 export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6
 
+/** An image in the side cell of a heading or paragraph (side-by-side mode), instead of text. */
+export interface SideImage {
+  /** A data URL that passed the sanitizer URL policy. */
+  src: string
+  alt: string
+}
+
+/** How much of the width beside the text a side image takes: 30, 40 or 50 percent (50 when absent). */
+export type SideColumnPct = 30 | 40 | 50
+
 export interface HeadingBlock extends BlockBase {
   type: 'heading'
   level: HeadingLevel
   html: InlineHtml
   align: TextAlign
   secondaryHtml?: InlineHtml
+  /** When set, the side cell shows this image; `secondaryHtml` is kept so removing the image brings the text back. */
+  secondaryImage?: SideImage
+  sideColumnPct?: SideColumnPct
 }
 
 export interface ParagraphBlock extends BlockBase {
@@ -38,6 +51,8 @@ export interface ParagraphBlock extends BlockBase {
   indent: IndentLevel
   spacing: ParagraphSpacing
   secondaryHtml?: InlineHtml
+  secondaryImage?: SideImage
+  sideColumnPct?: SideColumnPct
 }
 
 export interface ListItem {

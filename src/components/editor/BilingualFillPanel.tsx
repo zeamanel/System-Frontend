@@ -26,6 +26,8 @@ export function BilingualFillPanel({ block, documentLanguage, templateId, onAppl
   useEffect(() => setError(null), [block?.id])
 
   if (!block || (block.type !== 'paragraph' && block.type !== 'heading')) return null
+  // The side cell shows a picture: there is no text to fill.
+  if (block.secondaryImage) return null
   const language = isDocumentLanguage(documentLanguage) ? documentLanguage : 'en'
 
   const fill = async (): Promise<void> => {

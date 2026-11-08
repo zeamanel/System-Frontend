@@ -29,6 +29,8 @@ import {
   sanitizeModel,
   serializeModel,
   setBilingualMode,
+  setSideColumnPct,
+  setSideImage,
   setPageOrientation,
   setMargins,
   splitTextBlock,
@@ -678,6 +680,68 @@ describe('bilingual side-by-side mode', () => {
       html: 'ጉዳዩ፦ የማመልከቻ ጥያቄ',
       level: 1,
     })
+  })
+})
+
+describe('side cell image (bilingual mode)', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+  const paragraphOf = (doc: DocumentModel) => {
+    const block = doc.blocks[0]
+    if (block.type !== 'paragraph') throw new Error('paragraph expected')
+    return block
+  }
+
+  it('puts an image in the side cell, keeps the translation text, and brings it back on removal', () => {
+    const p = createParagraph('Left')
+    const withText = updateSecondaryText(modelWith(p), p.id, 'Right')
+    const withImage = setSideImage(withText, p.id, { src: PNG, alt: 'Photo' })
+    expect(paragraphOf(withImage)).toMatchObject({ secondaryImage: { src: PNG, alt: 'Photo' }, secondaryHtml: 'Right' })
+
+    const removed = setSideImage(withImage, p.id, null)
+    expect(paragraphOf(removed).secondaryImage).toBeUndefined()
+    expect(paragraphOf(removed).secondaryHtml).toBe('Right')
+    // The original model was not changed.
+    expect(paragraphOf(withText).secondaryImage).toBeUndefined()
+  })
+
+  it('sets the column split, treats 50 as the default, and keeps it when the picture is replaced', () => {
+    const p = createParagraph('Left')
+    let doc = setSideImage(modelWith(p), p.id, { src: PNG, alt: 'A' })
+    expect(paragraphOf(doc).sideColumnPct).toBeUndefined()
+    doc = setSideColumnPct(doc, p.id, 30)
+    expect(paragraphOf(doc).sideColumnPct).toBe(30)
+    doc = setSideImage(doc, p.id, { src: PNG, alt: 'B' })
+    expect(paragraphOf(doc)).toMatchObject({ secondaryImage: { alt: 'B' }, sideColumnPct: 30 })
+    expect(paragraphOf(setSideColumnPct(doc, p.id, 50)).sideColumnPct).toBeUndefined()
+    // Removing the picture drops its split too.
+    expect(paragraphOf(setSideImage(doc, p.id, null)).sideColumnPct).toBeUndefined()
+  })
+
+  it('works on headings and leaves other blocks alone', () => {
+    const h = createHeading('Title', 1)
+    const list = createList(['a'])
+    const doc = modelWith(h, list)
+    const next = setSideImage(doc, h.id, { src: PNG, alt: 'Logo' })
+    expect(next.blocks[0]).toMatchObject({ type: 'heading', secondaryImage: { alt: 'Logo' } })
+    expect(setSideImage(doc, list.id, { src: PNG, alt: 'x' }).blocks[1]).toBe(doc.blocks[1])
+  })
+
+  it('keeps a valid side image through cleaning and drops anything unsafe', () => {
+    const base = createEmptyDocument('en')
+    const good = sanitizeModel({
+      ...base,
+      blocks: [{ id: 'p', type: 'paragraph', html: 'x', align: 'left', indent: 0, spacing: 'normal', secondaryImage: { src: PNG, alt: 'Photo' }, sideColumnPct: 40 } as never],
+    })
+    expect(good.blocks[0]).toMatchObject({ secondaryImage: { src: PNG, alt: 'Photo' }, sideColumnPct: 40 })
+
+    for (const secondaryImage of [{ src: 'javascript:alert(1)', alt: 'x' }, { src: 'https://example.com/x.png', alt: 'x' }, { alt: 'no src' }, 'text']) {
+      const bad = sanitizeModel({
+        ...base,
+        blocks: [{ id: 'p', type: 'paragraph', html: 'x', align: 'left', indent: 0, spacing: 'normal', secondaryImage, sideColumnPct: 30 } as never],
+      })
+      expect(bad.blocks[0]).not.toHaveProperty('secondaryImage')
+      expect(bad.blocks[0]).not.toHaveProperty('sideColumnPct')
+    }
   })
 })
 

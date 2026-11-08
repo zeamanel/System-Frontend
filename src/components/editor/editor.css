@@ -880,6 +880,93 @@
   padding-left: 4mm;
 }
 
+/* An image in the side cell: the column keeps its rule, the picture fills the column. */
+.doc-bilingual-row--side-40 {
+  grid-template-columns: 60fr 40fr;
+}
+
+.doc-bilingual-row--side-30 {
+  grid-template-columns: 70fr 30fr;
+}
+
+.doc-bilingual-col--secondary {
+  position: relative;
+}
+
+.doc-side__file {
+  display: none;
+}
+
+.doc-side-image {
+  margin: 0;
+}
+
+.doc-side-image__img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* A small image button on the rule between the columns, where no text sits (never printed). */
+.doc-side__add-image {
+  position: absolute;
+  top: 0;
+  left: -12px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.doc-bilingual-col--secondary:hover .doc-side__add-image,
+.doc-side__add-image:hover,
+.doc-side__add-image:focus-visible {
+  opacity: 1;
+}
+
+.doc-side-image__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.doc-side-image__widths {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.doc-side-image__chip {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-round);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.doc-side-image__chip:hover {
+  color: var(--color-text);
+}
+
+.doc-side-image__chip[aria-pressed='true'] {
+  background-color: var(--color-selected);
+  border-color: var(--color-selected);
+  color: var(--color-on-selected);
+}
+
 .editor-refine-chip--bilingual {
   background-color: var(--color-surface-muted);
   border-color: var(--color-border);
@@ -1435,6 +1522,19 @@ figure.doc-block--image-right {
   .doc-bilingual-col--secondary {
     border-left: 1px solid var(--color-border-subtle) !important;
     padding-left: 4mm !important;
+  }
+
+  .doc-bilingual-row--side-40 {
+    grid-template-columns: 60fr 40fr !important;
+  }
+
+  .doc-bilingual-row--side-30 {
+    grid-template-columns: 70fr 30fr !important;
+  }
+
+  .doc-side__add-image,
+  .doc-side-image__tools {
+    display: none !important;
   }
 }
 

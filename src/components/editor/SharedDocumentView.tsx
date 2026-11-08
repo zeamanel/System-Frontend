@@ -18,6 +18,8 @@ import { ArrowLeftIcon, CopyIcon, PrinterIcon } from '../icons'
 const READ_ONLY_API: EditorApi = {
   updateText: () => undefined,
   updateSecondaryText: () => undefined,
+  setSideImage: () => undefined,
+  setSideColumnPct: () => undefined,
   updateListItem: () => undefined,
   updateTableCell: () => undefined,
   updateSignatureField: () => undefined,
@@ -57,6 +59,10 @@ export function SharedDocumentView({ document: doc, onBack, onCopy, copying }: S
       emptyText: '',
       tableHint: '',
       bilingualPlaceholder: '',
+      sideAddImage: '',
+      sideReplaceImage: '',
+      sideRemoveImage: '',
+      sideWidthGroup: '',
     }),
     [tDoc],
   )
