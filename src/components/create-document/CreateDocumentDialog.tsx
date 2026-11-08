@@ -1,11 +1,12 @@
 import './CreateDocumentDialog.css'
 
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import { useTemplatesList } from '../../hooks/use-templates'
 import { useStartTemplateDocument } from '../../hooks/use-start-template-document'
-import { ArrowRightIcon } from '../icons'
+import { ArrowLeftIcon, ArrowRightIcon } from '../icons'
 import { templateIcon } from '../templates/template-icons'
 import { Button, Dialog, PanelError, SearchInput } from '../ui'
 import { DesignSheetIcon } from '../designs'
@@ -29,17 +30,24 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
   const navigate = useNavigate()
   const { startTemplateDocument } = useStartTemplateDocument()
   const [filter, setFilter] = useState('')
+  // Documents are the main view; designs sit one tap away (and show up in a search).
+  const [view, setView] = useState<'documents' | 'designs'>('documents')
 
   const templates = useTemplatesList()
   const features = useFeatures()
   const { start: startDesign, pendingId } = useCreateDesign()
 
   useEffect(() => {
-    if (open) setFilter('')
+    if (open) {
+      setFilter('')
+      setView('documents')
+    }
   }, [open])
 
   const needle = filter.trim().toLowerCase()
-  const designs = features.designs
+  const searching = needle !== ''
+  const hasDesigns = features.designs && DESIGN_CATALOG.length > 0
+  const designs = hasDesigns
     ? DESIGN_CATALOG.filter(
         (design) =>
           !needle ||
@@ -57,6 +65,69 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
       template.description.toLowerCase().includes(needle),
   )
   const CustomIcon = custom ? templateIcon(custom.iconKey) : null
+
+  const designList = (
+    <ul className="create-dialog__list" data-testid="create-dialog-design-list">
+      {designs.map((design) => (
+        <li key={design.id}>
+          <button
+            type="button"
+            className="create-dialog__item"
+            disabled={pendingId !== null}
+            onClick={() => {
+              onClose()
+              void startDesign(design.id)
+            }}
+          >
+            <span className="create-dialog__item-icon">
+              <DesignSheetIcon orientation={design.orientation} />
+            </span>
+            <span className="create-dialog__item-text">
+              <span className="create-dialog__item-title">{t(design.titleKey)}</span>
+              <span className="create-dialog__item-description">{t(design.descriptionKey)}</span>
+            </span>
+            <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+
+  const documentList: ReactNode = templates.isPending ? (
+    <p className="create-dialog__hint">{t('common.loading')}</p>
+  ) : templates.isError ? (
+    <PanelError onRetry={() => void templates.refetch()} />
+  ) : items.length === 0 ? (
+    // With a search, a design that matches is a result too.
+    designs.length > 0 && searching ? null : <p className="create-dialog__hint">{t('createDialog.empty')}</p>
+  ) : (
+    <ul className="create-dialog__list" data-testid="create-dialog-document-list">
+      {items.map((template) => {
+        const Icon = templateIcon(template.iconKey)
+        return (
+          <li key={template.id}>
+            <button
+              type="button"
+              className="create-dialog__item"
+              onClick={() => {
+                onClose()
+                void startTemplateDocument(template)
+              }}
+            >
+              <span className="create-dialog__item-icon">
+                <Icon size={17} />
+              </span>
+              <span className="create-dialog__item-text">
+                <span className="create-dialog__item-title">{template.title}</span>
+                <span className="create-dialog__item-description">{template.description}</span>
+              </span>
+              <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
 
   return (
     <Dialog
@@ -107,73 +178,61 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
             <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
           </button>
         ) : null}
-        {designs.length > 0 ? (
-          <div className="create-dialog__group" data-testid="create-dialog-designs">
-            <p className="create-dialog__group-title">{t('designs.shelfTitle')}</p>
-            <ul className="create-dialog__list">
-              {designs.map((design) => (
-                <li key={design.id}>
-                  <button
-                    type="button"
-                    className="create-dialog__item"
-                    disabled={pendingId !== null}
-                    onClick={() => {
-                      onClose()
-                      void startDesign(design.id)
-                    }}
-                  >
-                    <span className="create-dialog__item-icon">
-                      <DesignSheetIcon orientation={design.orientation} />
-                    </span>
-                    <span className="create-dialog__item-text">
-                      <span className="create-dialog__item-title">{t(design.titleKey)}</span>
-                      <span className="create-dialog__item-description">{t(design.descriptionKey)}</span>
-                    </span>
-                    <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p className="create-dialog__group-title">{t('designs.textDocumentsTitle')}</p>
+
+        {hasDesigns && !searching ? (
+          <div className="create-dialog__tabs" role="tablist" aria-label={t('createDialog.title')}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'documents'}
+              className="create-dialog__tab"
+              data-testid="create-dialog-tab-documents"
+              onClick={() => setView('documents')}
+            >
+              {t('createDialog.tabDocuments')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'designs'}
+              className="create-dialog__tab"
+              data-testid="create-dialog-tab-designs"
+              onClick={() => setView('designs')}
+            >
+              {t('createDialog.tabDesigns', { count: String(DESIGN_CATALOG.length) })}
+            </button>
           </div>
         ) : null}
-        {templates.isPending ? (
-          <p className="create-dialog__hint">{t('common.loading')}</p>
-        ) : templates.isError ? (
-          <PanelError onRetry={() => void templates.refetch()} />
-        ) : items.length === 0 ? (
-          <p className="create-dialog__hint">{t('createDialog.empty')}</p>
+
+        {searching ? (
+          // A search covers both: documents first, then the designs that match.
+          <>
+            {designs.length > 0 && items.length > 0 ? (
+              <p className="create-dialog__group-title">{t('designs.textDocumentsTitle')}</p>
+            ) : null}
+            {documentList}
+            {designs.length > 0 ? (
+              <div className="create-dialog__group" data-testid="create-dialog-designs">
+                <p className="create-dialog__group-title">{t('designs.shelfTitle')}</p>
+                {designList}
+              </div>
+            ) : null}
+          </>
+        ) : hasDesigns && view === 'designs' ? (
+          <div className="create-dialog__group" data-testid="create-dialog-designs">
+            <button
+              type="button"
+              className="create-dialog__back"
+              data-testid="create-dialog-back"
+              onClick={() => setView('documents')}
+            >
+              <ArrowLeftIcon size={14} />
+              {t('createDialog.backToDocuments')}
+            </button>
+            {designList}
+          </div>
         ) : (
-          <ul className="create-dialog__list">
-            {items.map((template) => {
-              const Icon = templateIcon(template.iconKey)
-              return (
-                <li key={template.id}>
-                  <button
-                    type="button"
-                    className="create-dialog__item"
-                    onClick={() => {
-                      onClose()
-                      void startTemplateDocument(template)
-                    }}
-                  >
-                    <span className="create-dialog__item-icon">
-                      <Icon size={17} />
-                    </span>
-                    <span className="create-dialog__item-text">
-                      <span className="create-dialog__item-title">
-                        {template.title}
-                      </span>
-                      <span className="create-dialog__item-description">
-                        {template.description}
-                      </span>
-                    </span>
-                    <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+          documentList
         )}
       </div>
     </Dialog>

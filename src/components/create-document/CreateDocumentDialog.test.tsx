@@ -8,9 +8,9 @@ import { PreferencesProvider } from '../../preferences'
 import { ToastProvider } from '../ui'
 import { CreateDocumentDialog } from './CreateDocumentDialog'
 
-function renderDialog(onClose = vi.fn()) {
+function renderDialog(onClose = vi.fn(), designs = false) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  queryClient.setQueryData(['features'], { designs: false })
+  queryClient.setQueryData(['features'], { designs })
   render(
     <QueryClientProvider client={queryClient}>
       <PreferencesProvider>
@@ -59,5 +59,71 @@ describe('CreateDocumentDialog: write anything', () => {
 
     await waitFor(() => expect(screen.getByText(/no templates match/i)).toBeInTheDocument())
     expect(screen.getByTestId('create-dialog-custom')).toBeInTheDocument()
+  })
+})
+
+describe('CreateDocumentDialog: designs', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+
+  it('keeps documents as the main view and puts designs behind a tab with a count', async () => {
+    const user = userEvent.setup()
+    renderDialog(vi.fn(), true)
+    const custom = await screen.findByTestId('create-dialog-custom')
+
+    // Documents first: Write anything, then the tabs, then the document list; no design is shown.
+    const docsTab = screen.getByTestId('create-dialog-tab-documents')
+    const designsTab = screen.getByTestId('create-dialog-tab-designs')
+    expect(docsTab).toHaveAttribute('aria-selected', 'true')
+    expect(designsTab).toHaveTextContent(/^Designs \(\d+\)$/)
+    expect(custom.compareDocumentPosition(docsTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(await screen.findByTestId('create-dialog-document-list')).toBeInTheDocument()
+    expect(screen.queryByTestId('create-dialog-designs')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Vacancy announcement/ })).not.toBeInTheDocument()
+
+    // The Designs tab shows the designs (not the documents) with a way back.
+    await user.click(designsTab)
+    const designs = await screen.findByTestId('create-dialog-designs')
+    expect(within(designs).getByRole('button', { name: /^Vacancy announcement/ })).toBeInTheDocument()
+    expect(screen.queryByTestId('create-dialog-document-list')).not.toBeInTheDocument()
+    expect(screen.getByTestId('create-dialog-custom')).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('create-dialog-back'))
+    expect(await screen.findByTestId('create-dialog-document-list')).toBeInTheDocument()
+    expect(screen.queryByTestId('create-dialog-designs')).not.toBeInTheDocument()
+  })
+
+  it('shows matching documents and designs together in a search, documents first', async () => {
+    const user = userEvent.setup()
+    renderDialog(vi.fn(), true)
+    await screen.findByTestId('create-dialog-document-list')
+
+    // A design is found by searching from the Documents tab, without opening Designs first.
+    await user.type(screen.getByPlaceholderText(/filter templates/i), 'vacancy')
+    const designs = await screen.findByTestId('create-dialog-designs')
+    expect(within(designs).getByRole('button', { name: /^Vacancy announcement/ })).toBeInTheDocument()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    // A design match is a result, so the "no templates" message stays away.
+    expect(screen.queryByText(/no templates match/i)).not.toBeInTheDocument()
+  })
+
+  it('lists documents before designs when both match', async () => {
+    const user = userEvent.setup()
+    renderDialog(vi.fn(), true)
+    await screen.findByTestId('create-dialog-document-list')
+
+    // A single letter matches both kinds.
+    await user.type(screen.getByPlaceholderText(/filter templates/i), 'a')
+    const designs = await screen.findByTestId('create-dialog-designs')
+    const docList = await screen.findByTestId('create-dialog-document-list')
+    expect(docList.compareDocumentPosition(designs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('shows no tabs when designs are off', async () => {
+    renderDialog(vi.fn(), false)
+    await screen.findByTestId('create-dialog-document-list')
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
   })
 })
