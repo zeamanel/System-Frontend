@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { DocumentModel } from '../../lib/editor/types'
+import type { DocumentModel, PageSetup } from '../../lib/editor/types'
+import { firstPageNumber, pageNumbersVisible } from '../../lib/editor/page-numbers'
+import { PageNumberControls, type PageNumberControlsProps } from './PageNumberControls'
 import { sanitizeInlineHtml } from '../../lib/editor/sanitize'
 import { contentHeightMm } from '../../lib/editor/model'
 import { PAGINATION_SAFETY_FACTOR, paginateBlocks, type PageSlice, type SplittableBlock } from '../../lib/editor/paginate'
@@ -22,8 +24,13 @@ export interface A4PagesCanvasProps {
   activeBlockId: string | null
   api: EditorApi
   blockLabels: BlockLabels
-  /** e.g. `"Page {current} of {total}"` — resolved with the page numbers. */
-  formatPageLabel: (current: number, total: number) => string
+  /** e.g. `"Page {current} of {total}"`; `total` is null when the first page has a custom number (then `"Page {current}"`). */
+  formatPageLabel: (current: number, total: number | null) => string
+  /** The "Page numbers" checkbox and "Start at" field in the bar under the pages (editing only). */
+  pageNumbers?: {
+    onUpdatePageSetup: (patch: Partial<PageSetup>) => void
+    labels: PageNumberControlsProps['labels']
+  }
   pageAriaLabel: string
   zoomLabel: string
   fitLabel: string
@@ -70,6 +77,7 @@ export function A4PagesCanvas({
   api,
   blockLabels,
   formatPageLabel,
+  pageNumbers,
   pageAriaLabel,
   zoomLabel,
   fitLabel,
@@ -90,6 +98,8 @@ export function A4PagesCanvas({
   /** Line geometry of paragraphs/headings taller than a page (they continue on the next page). */
   const [textGeometry, setTextGeometry] = useState<Record<string, TextGeometry>>({})
 
+  const startNumber = firstPageNumber(model.page)
+  const showPageNumbers = pageNumbersVisible(model.page, pages.length)
   const zoom = zoomMode === 'fit' ? fit : zoomMode
   const blocksById = useMemo(() => {
     const map = new Map<string, DocumentModel['blocks'][number]>()
@@ -545,9 +555,9 @@ export function A4PagesCanvas({
                   dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(model.page.footerHtml) }}
                 />
               ) : null}
-              {model.page.showPageNumbers ? (
+              {showPageNumbers ? (
                 <span className="doc-paper__page-number" aria-hidden="true">
-                  {formatPageLabel(pageIndex + 1, pages.length)}
+                  {formatPageLabel(startNumber + pageIndex, startNumber === 1 ? pages.length : null)}
                 </span>
               ) : null}
             </footer>
@@ -574,6 +584,16 @@ export function A4PagesCanvas({
 
       <div className="doc-canvas-toolbar" role="toolbar" aria-label={zoomLabel}>
         <span className="doc-canvas-toolbar__pages">{pagesLabel(pages.length)}</span>
+        {pageNumbers ? (
+          <PageNumberControls
+            shown={showPageNumbers}
+            automatic={model.page.showPageNumbers === undefined}
+            start={startNumber}
+            labels={pageNumbers.labels}
+            onToggle={(shown) => pageNumbers.onUpdatePageSetup({ showPageNumbers: shown })}
+            onStartChange={(start) => pageNumbers.onUpdatePageSetup({ pageNumberStart: start === 1 ? undefined : start })}
+          />
+        ) : null}
         <div className="doc-canvas-toolbar__zoom">
           <button
             type="button"

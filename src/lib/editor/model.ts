@@ -159,7 +159,6 @@ export function createImage(src: string, alt: string): ImageBlock {
 export function createEmptyDocument(language = 'en'): DocumentModel {
   const page: PageSetup = {
     margins: { ...DEFAULT_MARGINS_MM },
-    showPageNumbers: true,
     headerEnabled: false,
     headerHtml: '',
     footerEnabled: false,
@@ -618,6 +617,12 @@ export function setMargins(model: DocumentModel, margins: Partial<PageMargins>):
   }
 }
 
+/** A first-page number: a whole number from 1 to 9999 (anything else counts as 1). */
+export function sanitizePageNumberStart(value: unknown): number {
+  const number = typeof value === 'number' ? value : Number.NaN
+  return Number.isInteger(number) && number >= 1 && number <= 9999 ? number : 1
+}
+
 export function updatePageSetup(model: DocumentModel, patch: Partial<PageSetup>): DocumentModel {
   return { ...model, page: { ...model.page, ...patch } }
 }
@@ -1068,11 +1073,16 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
 
   const style = sanitizeDocumentStyle(input.style)
   const { style: _unchecked, ...rest } = input
+  const { showPageNumbers: _show, pageNumberStart: _start, ...pageRest } = (input.page ?? {}) as Partial<PageSetup>
   return {
     ...rest,
     ...(style ? { style } : {}),
     page: {
-      ...input.page,
+      ...(pageRest as PageSetup),
+      ...(typeof input.page?.showPageNumbers === 'boolean' ? { showPageNumbers: input.page.showPageNumbers } : {}),
+      ...(sanitizePageNumberStart(input.page?.pageNumberStart) !== 1
+        ? { pageNumberStart: sanitizePageNumberStart(input.page?.pageNumberStart) }
+        : {}),
       headerHtml: sanitizeInlineHtml(String(input.page?.headerHtml ?? '')),
       footerHtml: sanitizeInlineHtml(String(input.page?.footerHtml ?? '')),
       ...(typeof input.page?.bilingual === 'boolean'

@@ -1387,7 +1387,22 @@ export function EditorWorkspace({
         api={api}
         blockLabels={blockLabels}
         formatPageLabel={(current, total) =>
-          tDoc('editor.pageOf', { current: String(current), total: String(total) })
+          total === null
+            ? tDoc('editor.pageOnly', { current: String(current) })
+            : tDoc('editor.pageOf', { current: String(current), total: String(total) })
+        }
+        pageNumbers={
+          previewMode || pageLocked
+            ? undefined
+            : {
+                onUpdatePageSetup: (patch) => updateModel((current) => updatePageSetup(current, patch)),
+                labels: {
+                  numbers: t('editor.pageNumbersShort'),
+                  startAt: t('editor.pageNumberStart'),
+                  automaticHint: t('editor.pageNumbersAutoHint'),
+                  startAria: t('editor.pageNumberStartAria'),
+                },
+              }
         }
         pageAriaLabel={t('editor.pageAriaLabel')}
         zoomLabel={t('editor.zoomLabel')}

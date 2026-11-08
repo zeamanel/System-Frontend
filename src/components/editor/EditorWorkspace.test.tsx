@@ -342,6 +342,56 @@ describe('EditorWorkspace', () => {
     expect(assistant).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('numbers a one-page document only when asked, and starts the numbers where the user says', async () => {
+    const created = await repos.documents.create({ title: 'One page', templateId: 'letter', language: 'en', content: '' })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    const toggle = screen.getByTestId('page-numbers-toggle') as HTMLInputElement
+    const label = () => document.querySelector('.doc-paper__page-number')?.textContent ?? null
+    // Automatic: one page, no number, no "Start at" field.
+    expect(toggle.checked).toBe(false)
+    expect(label()).toBeNull()
+    expect(screen.queryByTestId('page-number-start')).not.toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    expect(toggle.checked).toBe(true)
+    expect(label()).toBe('Page 1 of 1')
+
+    // Starting from another number shows just that number (a total would not match it).
+    fireEvent.change(screen.getByTestId('page-number-start'), { target: { value: '5' } })
+    expect(label()).toBe('Page 5')
+    fireEvent.change(screen.getByTestId('page-number-start'), { target: { value: '1' } })
+    expect(label()).toBe('Page 1 of 1')
+
+    // Unticking is a choice that sticks.
+    fireEvent.click(toggle)
+    expect(toggle.checked).toBe(false)
+    expect(label()).toBeNull()
+  })
+
+  it('lets the Format panel return to automatic, always show or hide', async () => {
+    const created = await repos.documents.create({ title: 'One page', templateId: 'letter', language: 'en', content: '' })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+    const select = screen.getByLabelText('Page numbers', { selector: 'select' }) as HTMLSelectElement
+    const label = () => document.querySelector('.doc-paper__page-number')?.textContent ?? null
+
+    expect(select.value).toBe('auto')
+    fireEvent.change(select, { target: { value: 'on' } })
+    expect(label()).toBe('Page 1 of 1')
+    fireEvent.change(select, { target: { value: 'off' } })
+    expect(label()).toBeNull()
+    fireEvent.change(select, { target: { value: 'auto' } })
+    expect(label()).toBeNull()
+
+    // A first-page number other than 1 numbers even a one-page document in automatic mode.
+    fireEvent.change(screen.getByTestId('format-page-number-start'), { target: { value: '3' } })
+    expect(label()).toBe('Page 3')
+  })
+
   it('recovers unsaved changes from the local buffer on reload', async () => {
     const { doc, template } = await loadDocument('doc-fixture-1')
     renderWorkspace(doc, template)
@@ -366,6 +416,9 @@ describe('EditorWorkspace', () => {
     renderWorkspace(doc, template)
     await screen.findByTestId('editor-title-input')
 
+    // A one-page document is unnumbered until the box under the pages is ticked.
+    expect(screen.queryByText(/ገጽ 1/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('page-numbers-toggle'))
     // The page footer inside the A4 paper follows the document language
     // (am.json: "ገጽ {current} ከ {total}") even though the UI locale is en…
     expect(screen.getByText('ገጽ 1 ከ 1')).toBeInTheDocument()
