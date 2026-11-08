@@ -1,5 +1,5 @@
 import type { EditableRef } from './caret'
-import type { InlineHtml } from '../../lib/editor/types'
+import type { InlineHtml, SideColumnPct } from '../../lib/editor/types'
 
 /**
  * Everything a block needs from its host editor. The workspace implements
@@ -10,6 +10,10 @@ export interface EditorApi {
   // ---- text content ----
   updateText(blockId: string, html: InlineHtml): void
   updateSecondaryText(blockId: string, html: InlineHtml): void
+  /** Puts a picture in the side cell (a PNG or JPEG file), or null to take it out and bring the cell's text back. */
+  setSideImage(blockId: string, file: File | null): void
+  /** How much of the width the side picture takes. */
+  setSideColumnPct(blockId: string, pct: SideColumnPct): void
   updateListItem(blockId: string, itemId: string, html: InlineHtml): void
   updateTableCell(blockId: string, cellId: string, html: InlineHtml): void
   updateSignatureField(

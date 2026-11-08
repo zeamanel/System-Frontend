@@ -37,6 +37,8 @@ import {
   setMargins,
   setPageOrientation,
   setSpacing,
+  setSideColumnPct,
+  setSideImage,
   setTableHeaderRow,
   splitTextBlock,
   toggleList,
@@ -101,6 +103,7 @@ const PRINT_CHECK_LISTED = 5
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+const SIDE_IMAGE_TYPES = ['image/png', 'image/jpeg']
 
 export interface EditorWorkspaceProps {
   document: DocumentDetailRecord
@@ -678,6 +681,8 @@ export function EditorWorkspace({
         ),
       updateSecondaryText: (blockId, html) =>
         updateModel((current) => updateSecondaryText(current, blockId, html), { coalesce: `secondary:${blockId}` }),
+      setSideImage: (blockId, file) => handleSideImage(blockId, file),
+      setSideColumnPct: (blockId, pct) => updateModel((current) => setSideColumnPct(current, blockId, pct)),
       updateListItem: (blockId, itemId, html) =>
         updateModel((current) => updateListItem(current, blockId, itemId, html), { coalesce: `item:${itemId}` }),
       updateTableCell: (blockId, cellId, html) =>
@@ -722,6 +727,8 @@ export function EditorWorkspace({
     () => ({
       updateText: (...args) => apiImplRef.current.updateText(...args),
       updateSecondaryText: (...args) => apiImplRef.current.updateSecondaryText(...args),
+      setSideImage: (...args) => apiImplRef.current.setSideImage(...args),
+      setSideColumnPct: (...args) => apiImplRef.current.setSideColumnPct(...args),
       updateListItem: (...args) => apiImplRef.current.updateListItem(...args),
       updateTableCell: (...args) => apiImplRef.current.updateTableCell(...args),
       updateSignatureField: (...args) => apiImplRef.current.updateSignatureField(...args),
@@ -810,6 +817,35 @@ export function EditorWorkspace({
       reader.readAsDataURL(file)
     },
     [insertAfterActive, t],
+  )
+
+  // A picture in the side cell: PNG or JPEG only (those are the ones the PDF and Word file can carry).
+  const handleSideImage = useCallback(
+    (blockId: string, file: File | null): void => {
+      if (!file) {
+        updateModel((current) => setSideImage(current, blockId, null))
+        return
+      }
+      if (!SIDE_IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES) {
+        toast.push(t('editor.side.imageInvalid'), { variant: 'error' })
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = async () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : ''
+        if (!isSafeUrl(dataUrl)) {
+          toast.push(t('editor.side.imageInvalid'), { variant: 'error' })
+          return
+        }
+        const compressed = await compressImageDataUrl(dataUrl)
+        updateModel((current) =>
+          setSideImage(current, blockId, { src: compressed, alt: file.name.replace(/\.[^.]+$/, '') }),
+        )
+      }
+      reader.onerror = () => toast.push(t('editor.side.imageInvalid'), { variant: 'error' })
+      reader.readAsDataURL(file)
+    },
+    [t, toast, updateModel],
   )
 
   const handleGenerate = useCallback(
@@ -1077,8 +1113,12 @@ export function EditorWorkspace({
       emptyText: tDoc('editor.emptyBlockHint'),
       tableHint: tDoc('editor.tableHint'),
       bilingualPlaceholder: tDoc('editor.bilingualPlaceholder'),
+      sideAddImage: t('editor.side.addImage'),
+      sideReplaceImage: t('editor.side.replaceImage'),
+      sideRemoveImage: t('editor.side.removeImage'),
+      sideWidthGroup: t('editor.side.widthGroup'),
     }),
-    [tDoc],
+    [t, tDoc],
   )
 
   const formatCallbacks = useMemo<FormatPanelCallbacks>(

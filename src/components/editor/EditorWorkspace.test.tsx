@@ -342,6 +342,41 @@ describe('EditorWorkspace', () => {
     expect(assistant).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('puts a picture in a side cell when side-by-side is on, and brings the text back when it is removed', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    // Off: nothing about side cells shows (the existing bilingual feature is unchanged).
+    expect(screen.queryByTestId('side-image-add')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText(/bilingual side-by-side/i))
+    expect((await screen.findAllByTestId('side-image-add')).length).toBeGreaterThan(0)
+    expect(document.querySelector('[data-bilingual-secondary="true"]')).not.toBeNull()
+
+    // A PNG goes into the first side cell: the picture shows and that cell's text box is replaced.
+    const textCellsBefore = document.querySelectorAll('[data-bilingual-secondary="true"]').length
+    const png = new File([Uint8Array.from([137, 80, 78, 71])], 'site-photo.png', { type: 'image/png' })
+    fireEvent.change(screen.getAllByTestId('side-image-file')[0], { target: { files: [png] } })
+    const image = await screen.findByTestId('side-image')
+    expect(within(image).getByRole('img')).toHaveAttribute('alt', 'site-photo')
+    expect(document.querySelectorAll('[data-bilingual-secondary="true"]').length).toBe(textCellsBefore - 1)
+
+    // The width options change the column split.
+    fireEvent.click(screen.getByTestId('side-image-width-30'))
+    expect(document.querySelector('.doc-bilingual-row--side-30')).not.toBeNull()
+
+    // A file that cannot be exported is refused.
+    const gif = new File(['x'], 'anim.gif', { type: 'image/gif' })
+    fireEvent.change(screen.getAllByTestId('side-image-file')[1], { target: { files: [gif] } })
+    expect(await screen.findByText(/PNG or JPEG image under 2 MB/i)).toBeInTheDocument()
+    expect(screen.getAllByTestId('side-image')).toHaveLength(1)
+
+    // Removing the picture brings the cell's text box back.
+    fireEvent.click(screen.getByTestId('side-image-remove'))
+    await waitFor(() => expect(screen.queryByTestId('side-image')).not.toBeInTheDocument())
+    expect(document.querySelectorAll('[data-bilingual-secondary="true"]').length).toBe(textCellsBefore)
+  })
+
   it('numbers a one-page document only when asked, and starts the numbers where the user says', async () => {
     const created = await repos.documents.create({ title: 'One page', templateId: 'letter', language: 'en', content: '' })
     const { doc, template } = await loadDocument(created.id)

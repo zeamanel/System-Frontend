@@ -1,5 +1,5 @@
-import { memo, useMemo } from 'react'
-import type { Block, InlineHtml } from '../../../lib/editor/types'
+import { memo, useMemo, useRef } from 'react'
+import type { Block, InlineHtml, SideColumnPct } from '../../../lib/editor/types'
 import { insertPlainText } from '../../../lib/editor/commands'
 import { inlineHtmlToText } from '../../../lib/editor/sanitize'
 import {
@@ -10,6 +10,7 @@ import {
   type EditableRef,
 } from '../caret'
 import { EditableHtml } from '../EditableHtml'
+import { ImagePlusIcon } from '../../icons'
 import { blockViewPropsEqual } from './props-equal'
 import type { EditorApi } from '../editor-api'
 import type { KeyboardEvent, PasteEvent } from '../events'
@@ -37,6 +38,11 @@ export interface BlockLabels {
   emptyText: string
   tableHint: string
   bilingualPlaceholder: string
+  /** Side cell picture controls (side-by-side mode). */
+  sideAddImage: string
+  sideReplaceImage: string
+  sideRemoveImage: string
+  sideWidthGroup: string
 }
 
 /**
@@ -57,6 +63,7 @@ function BlockViewInner({
   tone,
 }: BlockViewProps) {
   const ref = useMemo<EditableRef>(() => ({ blockId: block.id }), [block.id])
+  const sideFileRef = useRef<HTMLInputElement>(null)
 
   const handleTextInput = (html: InlineHtml): void => api.updateText(block.id, html)
 
@@ -129,7 +136,14 @@ function BlockViewInner({
             .filter(Boolean)
             .join(' ')}
         >
-          <div className="doc-bilingual-row">
+          <div
+            className={[
+              'doc-bilingual-row',
+              block.secondaryImage && block.sideColumnPct ? `doc-bilingual-row--side-${block.sideColumnPct}` : null,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             <div className="doc-bilingual-col doc-bilingual-col--primary">
               <EditableHtml
                 html={block.html}
@@ -145,6 +159,83 @@ function BlockViewInner({
               />
             </div>
             <div className="doc-bilingual-col doc-bilingual-col--secondary">
+              {editable ? (
+                <input
+                  ref={sideFileRef}
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="doc-side__file"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  data-testid="side-image-file"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) api.setSideImage(block.id, file)
+                    // The same file can be chosen again later.
+                    event.target.value = ''
+                  }}
+                />
+              ) : null}
+              {block.secondaryImage ? (
+                <figure className="doc-side-image" data-testid="side-image">
+                  <img
+                    src={block.secondaryImage.src}
+                    alt={block.secondaryImage.alt}
+                    className="doc-side-image__img"
+                    onLoad={() => onImageLoad?.()}
+                    draggable={false}
+                  />
+                  {editable ? (
+                    <figcaption className="doc-side-image__tools">
+                      <span className="doc-side-image__widths" role="group" aria-label={labels.sideWidthGroup}>
+                        {([50, 40, 30] as SideColumnPct[]).map((pct) => (
+                          <button
+                            key={pct}
+                            type="button"
+                            className="doc-side-image__chip"
+                            aria-pressed={(block.sideColumnPct ?? 50) === pct}
+                            data-testid={`side-image-width-${pct}`}
+                            onClick={() => api.setSideColumnPct(block.id, pct)}
+                          >
+                            {pct}%
+                          </button>
+                        ))}
+                      </span>
+                      <button
+                        type="button"
+                        className="doc-side-image__chip"
+                        data-testid="side-image-replace"
+                        onClick={() => sideFileRef.current?.click()}
+                      >
+                        {labels.sideReplaceImage}
+                      </button>
+                      <button
+                        type="button"
+                        className="doc-side-image__chip"
+                        data-testid="side-image-remove"
+                        onClick={() => api.setSideImage(block.id, null)}
+                      >
+                        {labels.sideRemoveImage}
+                      </button>
+                    </figcaption>
+                  ) : null}
+                </figure>
+              ) : (
+                <>
+                  {editable ? (
+                    <button
+                      type="button"
+                      className="doc-side__add-image"
+                      title={labels.sideAddImage}
+                      aria-label={labels.sideAddImage}
+                      data-testid="side-image-add"
+                      // Keep the caret where it is while the file window opens.
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => sideFileRef.current?.click()}
+                    >
+                      <ImagePlusIcon size={14} />
+                    </button>
+                  ) : null}
               <EditableHtml
                 html={block.secondaryHtml ?? ''}
                 editable={editable}
@@ -160,6 +251,8 @@ function BlockViewInner({
                 onPaste={handlePaste}
                 onFocus={handleFocus}
               />
+                </>
+              )}
             </div>
           </div>
         </div>

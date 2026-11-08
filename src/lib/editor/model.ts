@@ -23,6 +23,8 @@ import type {
   PageSetup,
   ParagraphBlock,
   ParagraphSpacing,
+  SideColumnPct,
+  SideImage,
   SignatureBlock,
   SignatureParty,
   TableBlock,
@@ -652,6 +654,25 @@ export function updateSecondaryText(
   })
 }
 
+/** Puts an image in the side cell of a paragraph or heading, or (null) takes it out and brings the cell's text back. */
+export function setSideImage(model: DocumentModel, blockId: string, image: SideImage | null): DocumentModel {
+  return updateBlock(model, blockId, (block) => {
+    if (block.type !== 'paragraph' && block.type !== 'heading') return block
+    const { secondaryImage: _image, sideColumnPct: _pct, ...rest } = block
+    if (!image) return rest as typeof block
+    // Keep a split the person already chose when replacing the picture.
+    return { ...rest, secondaryImage: image, ...(block.sideColumnPct ? { sideColumnPct: block.sideColumnPct } : {}) } as typeof block
+  })
+}
+
+export function setSideColumnPct(model: DocumentModel, blockId: string, pct: SideColumnPct): DocumentModel {
+  return updateBlock(model, blockId, (block) => {
+    if (block.type !== 'paragraph' && block.type !== 'heading') return block
+    const { sideColumnPct: _pct, ...rest } = block
+    return (pct === 50 ? rest : { ...rest, sideColumnPct: pct }) as typeof block
+  })
+}
+
 // ---------- Split / merge (Enter & Backspace mechanics) ----------
 
 /**
@@ -1031,6 +1052,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
           ...(typeof raw.secondaryHtml === 'string'
             ? { secondaryHtml: sanitizeInlineHtml(raw.secondaryHtml) }
             : {}),
+          ...sanitizeSideCell(raw),
         })
         break
       }
@@ -1047,6 +1069,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
           ...(typeof raw.secondaryHtml === 'string'
             ? { secondaryHtml: sanitizeInlineHtml(raw.secondaryHtml) }
             : {}),
+          ...sanitizeSideCell(raw),
         })
         break
       case 'list':
@@ -1093,6 +1116,21 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
         : {}),
     },
     blocks,
+  }
+}
+
+/** The side cell's image and column split, kept only when valid (and the split only when not the default). */
+function sanitizeSideCell(raw: Record<string, unknown>): {
+  secondaryImage?: SideImage
+  sideColumnPct?: SideColumnPct
+} {
+  const image = raw.secondaryImage
+  const src = isRecord(image) && typeof image.src === 'string' ? image.src : ''
+  if (!src.startsWith('data:image/') || !isSafeUrl(src)) return {}
+  const pct = raw.sideColumnPct === 30 || raw.sideColumnPct === 40 ? raw.sideColumnPct : undefined
+  return {
+    secondaryImage: { src, alt: String((image as Record<string, unknown>).alt ?? '').slice(0, 500) },
+    ...(pct ? { sideColumnPct: pct } : {}),
   }
 }
 
