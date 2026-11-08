@@ -91,7 +91,11 @@ export function SharedDocumentView({ document: doc, onBack, onCopy, copying }: S
           activeBlockId={null}
           api={READ_ONLY_API}
           blockLabels={blockLabels}
-          formatPageLabel={(current, total) => tDoc('editor.pageOf', { current: String(current), total: String(total) })}
+          formatPageLabel={(current, total) =>
+            total === null
+              ? tDoc('editor.pageOnly', { current: String(current) })
+              : tDoc('editor.pageOf', { current: String(current), total: String(total) })
+          }
           pageAriaLabel={t('editor.pageAriaLabel')}
           zoomLabel={t('editor.zoomLabel')}
           fitLabel={t('editor.zoomFit')}

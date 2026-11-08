@@ -135,7 +135,13 @@ export type PageOrientation = 'portrait' | 'landscape'
 
 export interface PageSetup {
   margins: PageMargins
-  showPageNumbers: boolean
+  /**
+   * Page numbers: true (always), false (never), or absent = automatic (shown only
+   * when the document has more than one page, or starts from a number other than 1).
+   */
+  showPageNumbers?: boolean
+  /** The number of the first page (default 1). */
+  pageNumberStart?: number
   headerEnabled: boolean
   headerHtml: InlineHtml
   footerEnabled: boolean

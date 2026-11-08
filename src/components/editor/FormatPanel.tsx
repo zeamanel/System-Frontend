@@ -522,15 +522,41 @@ function renderPageSetup(model: DocumentModel, callbacks: FormatPanelCallbacks, 
         {t('editor.bilingualMode')}
       </label>
 
-      <label className="editor-panel__check">
+      <Select
+        id="format-page-numbers"
+        label={t('editor.pageNumbers')}
+        hint={t('editor.pageNumbersAutoHint')}
+        hintMode="always"
+        value={model.page.showPageNumbers === undefined ? 'auto' : model.page.showPageNumbers ? 'on' : 'off'}
+        options={[
+          { value: 'auto', label: t('editor.pageNumbersAuto') },
+          { value: 'on', label: t('editor.pageNumbersOn') },
+          { value: 'off', label: t('editor.pageNumbersOff') },
+        ]}
+        onChange={(event) =>
+          callbacks.onUpdatePageSetup({
+            showPageNumbers: event.target.value === 'auto' ? undefined : event.target.value === 'on',
+          })
+        }
+      />
+      <label className="editor-panel__margin">
+        <span>{t('editor.pageNumberStart')}</span>
         <input
-          type="checkbox"
-          checked={model.page.showPageNumbers}
-          onChange={(event) =>
-            callbacks.onUpdatePageSetup({ showPageNumbers: event.target.checked })
-          }
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={9999}
+          step={1}
+          value={model.page.pageNumberStart ?? 1}
+          aria-label={t('editor.pageNumberStartAria')}
+          data-testid="format-page-number-start"
+          onChange={(event) => {
+            const value = Number(event.target.value)
+            if (Number.isInteger(value) && value >= 1 && value <= 9999) {
+              callbacks.onUpdatePageSetup({ pageNumberStart: value === 1 ? undefined : value })
+            }
+          }}
         />
-        {t('editor.pageNumbers')}
       </label>
 
       <LetterheadButton callbacks={callbacks} />
