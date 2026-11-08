@@ -218,12 +218,6 @@ export function EditorWorkspace({
       return !current
     })
   }, [compact])
-  const toggleRight = useCallback((): void => {
-    setRightOpen((current) => {
-      if (!current && compact) setLeftOpen(false)
-      return !current
-    })
-  }, [compact])
   const closePanels = useCallback((): void => {
     setLeftOpen(false)
     setRightOpen(false)
@@ -235,6 +229,14 @@ export function EditorWorkspace({
       if (compact) setLeftOpen(false)
     },
     [compact],
+  )
+  // The Format and Assistant buttons: open the sidebar on that tab, or close it when it already shows it.
+  const toggleRightTab = useCallback(
+    (tab: 'assistant' | 'format'): void => {
+      if (rightOpen && rightTab === tab) setRightOpen(false)
+      else showRightTab(tab)
+    },
+    [rightOpen, rightTab, showRightTab],
   )
   // Escape closes a sheet on small screens.
   useEffect(() => {
@@ -1244,8 +1246,10 @@ export function EditorWorkspace({
         exportError={exportError}
         leftPanelOpen={leftOpen}
         rightPanelOpen={rightOpen}
+        rightPanelTab={rightTab}
+        assistantUnread={assistant.unread}
         onToggleLeftPanel={toggleLeft}
-        onToggleRightPanel={toggleRight}
+        onToggleRightTab={toggleRightTab}
         onBack={onBack}
         onImportFile={handleImportFile}
         onApplyTelegramData={handleApplyTelegramData}
@@ -1498,9 +1502,7 @@ export function EditorWorkspace({
           type="button"
           className="editor-mobile-bar__btn"
           aria-pressed={rightOpen && rightTab === 'assistant'}
-          onClick={() =>
-            rightOpen && rightTab === 'assistant' ? setRightOpen(false) : showRightTab('assistant')
-          }
+          onClick={() => toggleRightTab('assistant')}
         >
           <ChatIcon size={20} />
           <span>{t('assistant.tabAssistant')}</span>
@@ -1512,9 +1514,7 @@ export function EditorWorkspace({
           type="button"
           className="editor-mobile-bar__btn"
           aria-pressed={rightOpen && rightTab === 'format'}
-          onClick={() =>
-            rightOpen && rightTab === 'format' ? setRightOpen(false) : showRightTab('format')
-          }
+          onClick={() => toggleRightTab('format')}
         >
           <SlidersIcon size={20} />
           <span>{t('assistant.tabFormat')}</span>
