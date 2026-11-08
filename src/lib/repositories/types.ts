@@ -418,6 +418,10 @@ export interface UsageRepository {
 export interface SessionRepository {
   getCurrent(): Promise<SessionUser | null>
   signIn(email: string, password: string): Promise<SessionUser>
+  /** Creates an email-and-password account and signs it in. */
+  signUp?(email: string, password: string): Promise<SessionUser>
+  /** Emails a link to choose a new password. */
+  sendPasswordReset?(email: string): Promise<void>
   signInWithGoogle?(): Promise<SessionUser>
   signOut(): Promise<void>
   /**

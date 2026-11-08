@@ -110,7 +110,19 @@ export async function signUpWithPassword(
       // Cosmetic only — sync-user falls back to the email prefix.
     }
   }
+  // A verification email goes out, but nothing waits for it or depends on it.
+  try {
+    await sdk.sendEmailVerification(credentials.user)
+  } catch {
+    // Best effort: the account works without it.
+  }
   return credentials.user
+}
+
+/** Sends a "choose a new password" email. Succeeds quietly for an unknown address. */
+export async function sendPasswordReset(email: string): Promise<void> {
+  const { auth, sdk } = await loadFirebaseAuth()
+  await sdk.sendPasswordResetEmail(auth, email)
 }
 
 /** Signs out of Firebase (no-op in fixture mode). */
