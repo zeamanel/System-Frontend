@@ -316,6 +316,32 @@ describe('EditorWorkspace', () => {
     }
   })
 
+  it('opens the sidebar on the Format or Assistant tab from the toolbar, and closes it on a second click', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    const format = screen.getByTestId('editor-open-format')
+    const assistant = screen.getByTestId('editor-open-assistant')
+    const tab = (name: RegExp) => screen.getByRole('tab', { name })
+
+    fireEvent.click(assistant)
+    expect(assistant).toHaveAttribute('aria-pressed', 'true')
+    expect(format).toHaveAttribute('aria-pressed', 'false')
+    expect(tab(/^assistant/i)).toHaveAttribute('aria-selected', 'true')
+
+    // Another tab switches in place instead of closing the sidebar.
+    fireEvent.click(format)
+    expect(format).toHaveAttribute('aria-pressed', 'true')
+    expect(assistant).toHaveAttribute('aria-pressed', 'false')
+    expect(tab(/^format/i)).toHaveAttribute('aria-selected', 'true')
+
+    // The same button again closes it.
+    fireEvent.click(format)
+    expect(format).toHaveAttribute('aria-pressed', 'false')
+    expect(assistant).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('recovers unsaved changes from the local buffer on reload', async () => {
     const { doc, template } = await loadDocument('doc-fixture-1')
     renderWorkspace(doc, template)

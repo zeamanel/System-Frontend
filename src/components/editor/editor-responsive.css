@@ -31,7 +31,9 @@
   }
 
   /* Panel toggles move to the bottom bar. */
-  .editor-toolbar .editor-icon-btn[aria-label][aria-pressed] {
+  .editor-toolbar .editor-icon-btn[aria-label][aria-pressed],
+  .editor-toolbar .editor-toolbar__panel-btn,
+  .editor-toolbar .editor-toolbar__panels {
     display: none;
   }
 

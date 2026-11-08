@@ -13,10 +13,11 @@ import {
   EyeIcon,
   HistoryIcon,
   PageStyleIcon,
+  ChatIcon,
   PanelLeftIcon,
-  PanelRightIcon,
   PrinterIcon,
   RedoIcon,
+  SlidersIcon,
   UndoIcon,
 } from '../icons'
 
@@ -46,8 +47,13 @@ export interface EditorToolbarProps {
   exportError: string | null
   leftPanelOpen: boolean
   rightPanelOpen: boolean
+  /** The tab the right sidebar shows (or would open on). */
+  rightPanelTab: 'assistant' | 'format'
+  /** Unread assistant messages and proposals, shown on the Assistant button. */
+  assistantUnread: number
   onToggleLeftPanel: () => void
-  onToggleRightPanel: () => void
+  /** Opens the right sidebar on this tab; closes it when it already shows that tab. */
+  onToggleRightTab: (tab: 'assistant' | 'format') => void
   onBack: () => void
   onImportFile?: (content: string, title: string) => void
   onApplyTelegramData?: (data: TelegramBridgeTransferPayload) => void
@@ -122,8 +128,10 @@ export function EditorToolbar({
   exportError,
   leftPanelOpen,
   rightPanelOpen,
+  rightPanelTab,
+  assistantUnread,
   onToggleLeftPanel,
-  onToggleRightPanel,
+  onToggleRightTab,
   onBack,
   onImportFile,
   onApplyTelegramData,
@@ -151,28 +159,19 @@ export function EditorToolbar({
 
         <span className="editor-toolbar__divider" aria-hidden="true" />
 
-        <button
-          type="button"
-          className={['editor-icon-btn', leftPanelOpen ? 'editor-icon-btn--active' : null]
-            .filter(Boolean)
-            .join(' ')}
-          aria-label={t('editor.toggleFieldsPanel')}
+        {/* On phones and tablets these move to the bottom bar. */}
+        <Button
+          variant="ghost"
+          icon={<PanelLeftIcon size={16} />}
           aria-pressed={leftPanelOpen}
           onClick={onToggleLeftPanel}
+          aria-label={t('editor.toggleFieldsPanel')}
+          title={t('editor.toggleFieldsPanel')}
+          className="editor-toolbar__panel-btn"
+          data-testid="editor-open-fields"
         >
-          <PanelLeftIcon size={16} />
-        </button>
-        <button
-          type="button"
-          className={['editor-icon-btn', rightPanelOpen ? 'editor-icon-btn--active' : null]
-            .filter(Boolean)
-            .join(' ')}
-          aria-label={t('editor.toggleFormatPanel')}
-          aria-pressed={rightPanelOpen}
-          onClick={onToggleRightPanel}
-        >
-          <PanelRightIcon size={16} />
-        </button>
+          <span className="editor-toolbar__label editor-toolbar__label--named">{t('editor.mobile.fields')}</span>
+        </Button>
 
         <input
           className="editor-toolbar__title"
@@ -221,6 +220,10 @@ export function EditorToolbar({
       {renderToolbarEnd({
         previewMode,
         onTogglePreview,
+        rightPanelOpen,
+        rightPanelTab,
+        assistantUnread,
+        onToggleRightTab,
         onUndo,
         onRedo,
         canUndo,
@@ -252,6 +255,10 @@ type T = ReturnType<typeof useI18n>['t']
 function renderToolbarEnd(props: {
   previewMode: boolean
   onTogglePreview: () => void
+  rightPanelOpen: boolean
+  rightPanelTab: 'assistant' | 'format'
+  assistantUnread: number
+  onToggleRightTab: (tab: 'assistant' | 'format') => void
   onUndo?: () => void
   onRedo?: () => void
   canUndo: boolean
@@ -315,6 +322,35 @@ function renderToolbarEnd(props: {
           />
         </span>
       ) : null}
+      {/* Format and Assistant open the right sidebar on their own tab (phones use the bottom bar). */}
+      <span className="editor-toolbar__panels" role="group" aria-label={t('editor.sidePanels')}>
+        {(
+          [
+            { tab: 'format', icon: <SlidersIcon size={16} />, label: t('assistant.tabFormat'), hint: t('editor.openFormat') },
+            { tab: 'assistant', icon: <ChatIcon size={16} />, label: t('assistant.tabAssistant'), hint: t('editor.openAssistant') },
+          ] as const
+        ).map(({ tab, icon, label, hint }) => {
+          const active = props.rightPanelOpen && props.rightPanelTab === tab
+          const unread = tab === 'assistant' && !active ? props.assistantUnread : 0
+          return (
+            <Button
+              key={tab}
+              variant="ghost"
+              icon={icon}
+              aria-pressed={active}
+              onClick={() => props.onToggleRightTab(tab)}
+              aria-label={unread > 0 ? `${label} — ${t('assistant.unread', { count: String(unread) })}` : label}
+              title={hint}
+              className="editor-toolbar__panel-btn"
+              data-testid={`editor-open-${tab}`}
+            >
+              <span className="editor-toolbar__label editor-toolbar__label--named">{label}</span>
+              {unread > 0 ? <span className="editor-toolbar__badge" aria-hidden="true">{unread}</span> : null}
+            </Button>
+          )
+        })}
+      </span>
+
       <Button
         variant="ghost"
         icon={<EyeIcon size={16} />}
