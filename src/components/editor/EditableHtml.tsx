@@ -29,6 +29,8 @@ export interface EditableHtmlProps {
   onBlur?: (element: HTMLElement) => void
   /** Render as `span` for inline surfaces (signature fields). */
   inline?: boolean
+  /** Writing direction (right to left for Arabic); absent: inherited. */
+  dir?: 'ltr' | 'rtl'
 }
 
 export const EditableHtml = forwardRef<HTMLElement, EditableHtmlProps>(function EditableHtml(
@@ -44,6 +46,7 @@ export const EditableHtml = forwardRef<HTMLElement, EditableHtmlProps>(function 
     onFocus,
     onBlur,
     inline = false,
+    dir,
     ...dataAttrs
   },
   ref,
@@ -76,6 +79,7 @@ export const EditableHtml = forwardRef<HTMLElement, EditableHtmlProps>(function 
       aria-multiline={inline || editable === false ? undefined : true}
       aria-label={ariaLabel}
       data-placeholder={placeholder}
+      dir={dir}
       translate="no"
       onInput={(event) => onInput?.((event.target as HTMLElement).innerHTML, event.currentTarget)}
       onKeyDown={(event) => onKeyDown?.(event, event.currentTarget)}

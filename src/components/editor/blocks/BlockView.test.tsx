@@ -88,7 +88,8 @@ describe('BlockView table column alignment', () => {
       for (const tr of Array.from(container.querySelectorAll('tr'))) {
         const [first, second] = Array.from(tr.querySelectorAll('td'))
         expect(first.style.textAlign).toBe('')
-        expect(second.style.textAlign).toBe('right')
+        // "right" is the end of the line (the right in left-to-right text, the left in Arabic).
+        expect(second.style.textAlign).toBe('end')
       }
       unmount()
     }
@@ -222,5 +223,41 @@ describe('BlockView side cell (side-by-side mode)', () => {
   it('shows no restore handle where the page cannot be edited', () => {
     render(<BlockView block={paragraph({ sideHidden: true })} editable={false} active={false} api={api} labels={labels} bilingual />)
     expect(screen.queryByTestId('side-box-add')).not.toBeInTheDocument()
+  })
+})
+
+describe('BlockView direction (Arabic)', () => {
+  const paragraph = (html: string): Block =>
+    ({ id: 'p1', type: 'paragraph', html, align: 'left', indent: 0, spacing: 'normal' }) as Block
+
+  it('adds no direction to text on a left-to-right page without Arabic', () => {
+    const { container } = render(<BlockView block={paragraph('Plain text')} editable api={api} labels={labels} active={false} />)
+    expect(container.querySelector('[dir]')).toBeNull()
+  })
+
+  it('runs an Arabic paragraph right to left, and English text on an Arabic page left to right', () => {
+    const arabic = render(<BlockView block={paragraph('عقد عمل')} editable api={api} labels={labels} active={false} direction="rtl" />)
+    expect(arabic.container.querySelector('[data-block-id="p1"]')?.getAttribute('dir')).toBe('rtl')
+    arabic.unmount()
+    const english = render(<BlockView block={paragraph('English line')} editable api={api} labels={labels} active={false} direction="rtl" />)
+    expect(english.container.querySelector('[data-block-id="p1"]')?.getAttribute('dir')).toBe('ltr')
+  })
+
+  it('gives the text and side cells of a side-by-side row their own direction', () => {
+    const block = { ...(paragraph('عقد عمل') as object), secondaryHtml: 'Employment contract' } as Block
+    render(<BlockView block={block} editable api={api} labels={labels} active={false} bilingual direction="rtl" />)
+    expect(screen.getByLabelText('Paragraph').getAttribute('dir')).toBe('rtl')
+    expect(screen.getByLabelText('Paragraph (secondary)').getAttribute('dir')).toBe('ltr')
+  })
+
+  it('sets each table cell and the whole list from its text', () => {
+    const arabicTable = { ...table, rows: [{ id: 'h', cells: [{ id: 'hc', html: 'البند' }] }, { id: 'r', cells: [{ id: 'rc', html: 'Item' }] }] } as Block
+    const { container } = render(<BlockView block={arabicTable} editable api={api} labels={labels} active={false} direction="rtl" />)
+    const cells = container.querySelectorAll('td')
+    expect(cells[0].getAttribute('dir')).toBe('rtl')
+    expect(cells[1].getAttribute('dir')).toBe('ltr')
+    const arabicList = { ...list, items: [{ id: 'a', html: 'البند الأول' }, { id: 'b', html: 'Second' }] } as Block
+    const rendered = render(<BlockView block={arabicList} editable api={api} labels={labels} active={false} />)
+    expect(rendered.container.querySelector('ol')?.getAttribute('dir')).toBe('rtl')
   })
 })

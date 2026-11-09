@@ -1694,6 +1694,15 @@ const DRAFT_L10N: Record<string, DraftL10n> = {
     amount: 'Baay’ina',
     signatory: 'Nam-tartiib',
   },
+  ar: {
+    date: 'التاريخ',
+    to: 'إلى',
+    subject: 'الموضوع',
+    signatures: 'التوقيعات',
+    description: 'الوصف',
+    amount: 'المبلغ',
+    signatory: 'الموقّع',
+  },
 }
 
 function draftL10n(language: string): DraftL10n {
@@ -1701,7 +1710,8 @@ function draftL10n(language: string): DraftL10n {
 }
 
 function localizedDate(language: string): string {
-  const locale = language === 'am' ? 'am-ET' : language === 'om' ? 'om-ET' : 'en-US'
+  // Arabic: Arabic month names with Western digits (as the documents use).
+  const locale = language === 'am' ? 'am-ET' : language === 'om' ? 'om-ET' : language === 'ar' ? 'ar-u-nu-latn' : 'en-US'
   return new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
@@ -1794,7 +1804,9 @@ export function draftFromTemplate(
         ? ['አዘጋጅ / ፈራሚ ወገን', 'ተቀባይ / ምስክር']
         : language === 'om'
           ? ['Qopheessaa / Mallatteessaa', 'Fudhataa / Ragaa']
-          : ['First Party / Signatory', 'Second Party / Witness']
+          : language === 'ar'
+            ? ['الطرف الأول / الموقّع', 'الطرف الثاني / الشاهد']
+            : ['First Party / Signatory', 'Second Party / Witness']
     blocks.push(createSignature(sigParties))
 
     return { ...createEmptyDocument(language), blocks }
@@ -1863,7 +1875,9 @@ export function draftFromTemplate(
         ? 'ተጨማሪ መረጃ እና ልዩ ውሎች'
         : language === 'om'
           ? 'Odeeffannoo fi Haalawwan Dabalataa'
-          : 'Additional Details & Terms'
+          : language === 'ar'
+            ? 'تفاصيل وشروط إضافية'
+            : 'Additional Details & Terms'
     blocks.push(createHeading(escapePlainText(additionalHeading), 2))
     blocks.push(...answerToBlocks(additionalInstructions))
   }

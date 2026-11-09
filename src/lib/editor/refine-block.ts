@@ -124,6 +124,7 @@ const EXPAND_CLAUSE: Record<DocumentLanguage, string> = {
   am: 'ወገኖቹ በዚህ አንቀጽ ሥር የሚሰጡ ሁሉም ማስታወቂያዎችና ግንኙነቶች በጽሑፍ እንዲመዘገቡ ይደረጋል፤ የዚህ አንቀጽ ጥሰት ሲኖር አስር (10) የቀን የማስተካከያ ጊዜ ይሰጣል።',
   // Oromo interface resources are English placeholders (see src/lib/languages.ts).
   om: 'The parties shall keep written records of all notices and communications under this clause, and any breach shall be subject to a notice and cure period of ten (10) calendar days.',
+  ar: 'يلتزم الطرفان بالاحتفاظ بسجلات مكتوبة لجميع الإشعارات والمراسلات بموجب هذا البند، ويُمنح الطرف المُخل مهلة عشرة (10) أيام تقويمية من تاريخ إشعاره لتصحيح أي إخلال.',
 }
 
 /** Formal Amharic contractual frame used by formalize / translate-am. */

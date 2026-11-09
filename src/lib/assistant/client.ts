@@ -192,7 +192,7 @@ async function readStreamedAnswer(
 export interface TranslateSideInput {
   documentId: string
   /** The side column's language. */
-  target: 'am' | 'en'
+  target: 'am' | 'en' | 'ar'
   blocks: Array<{ id: string; text: string }>
 }
 

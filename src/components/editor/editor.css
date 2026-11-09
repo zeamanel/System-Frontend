@@ -697,7 +697,7 @@
 }
 
 .doc-paper__page-number {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-variant-numeric: tabular-nums;
 }
 
@@ -876,8 +876,8 @@
 }
 
 .doc-bilingual-col--secondary {
-  border-left: 1px solid var(--color-border-subtle);
-  padding-left: 4mm;
+  border-inline-start: 1px solid var(--color-border-subtle);
+  padding-inline-start: 4mm;
 }
 
 /* An image in the side cell: the column keeps its rule, the picture fills the column. */
@@ -911,7 +911,7 @@
 .doc-side-menu {
   position: absolute;
   top: 0;
-  left: -12px;
+  inset-inline-start: -12px;
   z-index: 3;
 }
 
@@ -945,7 +945,7 @@
 .doc-side-menu__list {
   position: absolute;
   top: 28px;
-  left: 0;
+  inset-inline-start: 0;
   min-width: 15rem;
   padding: var(--space-1);
   background-color: var(--color-surface-raised, var(--color-surface));
@@ -967,7 +967,7 @@
   background: none;
   color: var(--color-text);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -1000,7 +1000,7 @@
 .doc-side__restore {
   position: absolute;
   top: 0;
-  right: 0;
+  inset-inline-end: 0;
   z-index: 2;
   display: inline-flex;
   align-items: center;
@@ -1079,7 +1079,8 @@
 }
 
 .doc-block--align-left {
-  text-align: left;
+  /* Alignment is logical, as in the exports: "left" is the start of the line (the right in Arabic). */
+  text-align: start;
 }
 
 .doc-block--align-center {
@@ -1087,7 +1088,7 @@
 }
 
 .doc-block--align-right {
-  text-align: right;
+  text-align: end;
 }
 
 .doc-block--align-justify {
@@ -1095,20 +1096,20 @@
 }
 
 .doc-block--indent-1 {
-  margin-left: 2em;
+  margin-inline-start: 2em;
 }
 
 .doc-block--indent-2 {
-  margin-left: 4em;
+  margin-inline-start: 4em;
 }
 
 .doc-block--indent-3 {
-  margin-left: 6em;
+  margin-inline-start: 6em;
 }
 
 .doc-block--list {
   margin: 0 0 0.55em;
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
 }
 
 .doc-block--list ol {
@@ -1122,7 +1123,7 @@
 .doc-list__item {
   display: list-item;
   margin: 0 0 0.2em;
-  padding-left: 0.35em;
+  padding-inline-start: 0.35em;
 }
 
 .doc-list__text {
@@ -1220,6 +1221,15 @@ figure.doc-block--image-center {
 figure.doc-block--image-right {
   align-self: flex-end;
   text-align: right;
+}
+
+/* Image placement is physical (left is the left of the page), as in the exports. */
+[dir='rtl'] figure.doc-block--image-left {
+  align-self: flex-end;
+}
+
+[dir='rtl'] figure.doc-block--image-right {
+  align-self: flex-start;
 }
 
 .doc-image__caption {
@@ -1609,8 +1619,8 @@ figure.doc-block--image-right {
   }
 
   .doc-bilingual-col--secondary {
-    border-left: 1px solid var(--color-border-subtle) !important;
-    padding-left: 4mm !important;
+    border-inline-start: 1px solid var(--color-border-subtle) !important;
+    padding-inline-start: 4mm !important;
   }
 
   .doc-bilingual-row--side-40 {

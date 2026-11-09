@@ -290,6 +290,22 @@ function SideColumnSection({ assistant }: { assistant: AssistantController }) {
   return (
     <section className="assistant-side" aria-label={t('assistant.side.title')} data-testid="assistant-side">
       <p className="assistant-notes__label">{t('assistant.side.title')}</p>
+      <label className="assistant-side__language">
+        <span>{t('assistant.side.into')}</span>
+        <select
+          className="assistant-side__select"
+          value={assistant.sideLanguage}
+          disabled={assistant.sending}
+          onChange={(event) => assistant.setSideLanguage(event.target.value as typeof assistant.sideLanguage)}
+          data-testid="assistant-side-language"
+        >
+          {assistant.sideLanguageOptions.map((language) => (
+            <option key={language} value={language}>
+              {t(`assistant.side.lang.${language}`)}
+            </option>
+          ))}
+        </select>
+      </label>
       <Button
         variant="secondary"
         size="sm"

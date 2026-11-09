@@ -2,6 +2,7 @@ import { memo, useMemo, useRef } from 'react'
 import type { Block, InlineHtml, SideColumnPct } from '../../../lib/editor/types'
 import { insertPlainText } from '../../../lib/editor/commands'
 import { inlineHtmlToText } from '../../../lib/editor/sanitize'
+import { textDirection, type TextDirection } from '../../../lib/editor/direction'
 import {
   focusEditable,
   selectionAtEnd,
@@ -29,6 +30,8 @@ export interface BlockViewProps {
   range?: { from: number; to: number }
   /** While a generation streams in: a block just written (fades in) or old text about to be replaced (dimmed). */
   tone?: 'streamed' | 'stale' | 'hint'
+  /** The page's direction: right to left for an Arabic document (absent: left to right). */
+  direction?: TextDirection
 }
 
 export interface BlockLabels {
@@ -66,6 +69,7 @@ function BlockViewInner({
   bilingual = false,
   range,
   tone,
+  direction = 'ltr',
 }: BlockViewProps) {
   const ref = useMemo<EditableRef>(() => ({ blockId: block.id }), [block.id])
   const sideFileRef = useRef<HTMLInputElement>(null)
@@ -165,6 +169,7 @@ function BlockViewInner({
                 className={isHeading ? `doc-heading doc-heading--${block.level}` : 'doc-paragraph'}
                 placeholder={isHeading && block.level === 1 ? labels.emptyText : undefined}
                 ariaLabel={isHeading ? `${block.type} ${block.level}` : 'Paragraph'}
+                dir={textDirection(block.html, direction)}
                 data-block-id={block.id}
                 onInput={handleTextInput}
                 onKeyDown={handleTextKeyDown}
@@ -242,6 +247,7 @@ function BlockViewInner({
                 editable={editable}
                 className={isHeading ? `doc-heading doc-heading--${block.level}` : 'doc-paragraph'}
                 placeholder={labels.bilingualPlaceholder}
+                dir={textDirection(block.secondaryHtml ?? '', direction)}
                 ariaLabel={
                   isHeading ? `${block.type} ${block.level} (secondary)` : 'Paragraph (secondary)'
                 }
@@ -265,6 +271,8 @@ function BlockViewInner({
     return (
       <div
         data-block-id={block.id}
+        // The paragraph's own direction: its indent and "left" (start) alignment follow it.
+        dir={textDirection(block.html, direction)}
         className={[blockClass, `doc-block--align-${block.align}`, indentClass, spacingClass, boxRemoved ? 'doc-block--side-removed' : null]
           .filter(Boolean)
           .join(' ')}
@@ -306,6 +314,8 @@ function BlockViewInner({
     return (
       <Tag
         data-block-id={block.id}
+        // One direction for the whole list (its markers and indent), from its first letter.
+        dir={textDirection(block.items.map((item) => item.html).join(' '), direction)}
         className={[blockClass, `doc-block--indent-${block.indent}`, from > 0 ? 'doc-block--continued' : null].filter(Boolean).join(' ')}
         // A list continued from the previous page keeps counting.
         start={block.ordered && from > 0 ? from + 1 : undefined}
@@ -334,11 +344,11 @@ function BlockViewInner({
   }
 
   if (block.type === 'table') {
-    return renderTable(block, blockClass, editable, api, labels, handleFocus, handlePaste, range)
+    return renderTable(block, blockClass, editable, api, labels, handleFocus, handlePaste, range, direction)
   }
 
   if (block.type === 'signature') {
-    return renderSignature(block, blockClass, editable, api, labels, handleFocus, handlePaste)
+    return renderSignature(block, blockClass, editable, api, labels, handleFocus, handlePaste, direction)
   }
 
   if (block.type === 'image') {
@@ -380,10 +390,14 @@ function BlockViewInner({
 type FocusHandler = (element: HTMLElement) => void
 type PasteHandler = (event: PasteEvent<HTMLElement>) => void
 
-/** A column's alignment, when the table sets one other than left. */
-function cellAlign(block: Extract<Block, { type: 'table' }>, column: number): { textAlign: 'center' | 'right' } | undefined {
+/**
+ * A column's alignment, when the table sets one other than left. Alignment
+ * is logical, as in the exports: "right" is the end of the line (the left in
+ * a right-to-left cell), and left (the default) its start.
+ */
+function cellAlign(block: Extract<Block, { type: 'table' }>, column: number): { textAlign: 'center' | 'end' } | undefined {
   const align = block.columnAlign?.[column]
-  return align === 'center' || align === 'right' ? { textAlign: align } : undefined
+  return align === 'center' ? { textAlign: 'center' } : align === 'right' ? { textAlign: 'end' } : undefined
 }
 
 function renderTable(
@@ -395,6 +409,7 @@ function renderTable(
   handleFocus: FocusHandler,
   handlePaste: PasteHandler,
   range?: { from: number; to: number },
+  direction: TextDirection = 'ltr',
 ) {
   const from = range?.from ?? 0
   const rows = range ? block.rows.slice(range.from, range.to) : block.rows
@@ -413,7 +428,7 @@ function renderTable(
         {repeatedHeader ? (
           <tr className="doc-table__head" data-repeated-header="true" aria-hidden="true">
             {repeatedHeader.cells.map((cell, column) => (
-              <td key={cell.id} className="doc-table__cell" style={cellAlign(block, column)}>
+              <td key={cell.id} className="doc-table__cell" style={cellAlign(block, column)} dir={textDirection(cell.html, direction)}>
                 <EditableHtml html={cell.html} editable={false} className="doc-table__text" />
               </td>
             ))}
@@ -427,7 +442,7 @@ function renderTable(
             className={rowIndex === 0 && block.headerRow ? 'doc-table__head' : undefined}
           >
             {row.cells.map((cell, column) => (
-              <td key={cell.id} className="doc-table__cell" style={cellAlign(block, column)}>
+              <td key={cell.id} className="doc-table__cell" style={cellAlign(block, column)} dir={textDirection(cell.html, direction)}>
                 <EditableHtml
                   html={cell.html}
                   editable={editable}
@@ -459,6 +474,7 @@ function renderSignature(
   labels: BlockLabels,
   handleFocus: FocusHandler,
   handlePaste: PasteHandler,
+  direction: TextDirection = 'ltr',
 ) {
   return (
     <div data-block-id={block.id} className={blockClass}>
@@ -468,6 +484,7 @@ function renderSignature(
             <EditableHtml
               html={party.label}
               editable={editable}
+              dir={textDirection(party.label, direction)}
               className="doc-signature__label"
               placeholder={labels.signatureCaption}
               ariaLabel="Signature role"
@@ -480,7 +497,7 @@ function renderSignature(
               onFocus={handleFocus}
             />
             <div className="doc-signature__line" aria-hidden="true" />
-            <div className="doc-signature__meta">
+            <div className="doc-signature__meta" dir={textDirection(`${labels.printName} ${party.name}`, direction)}>
               {renderSignatureField(block, party, 'name', `${labels.printName}:`, editable, api, handleFocus, handlePaste)}
               {renderSignatureField(block, party, 'date', `${labels.date}:`, editable, api, handleFocus, handlePaste)}
             </div>

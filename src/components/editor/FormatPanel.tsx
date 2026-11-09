@@ -15,6 +15,8 @@ import type { DocumentPreset } from '../../lib/editor/model'
 import { MAX_FONT_SIZE_PT, MIN_FONT_SIZE_PT } from '../../lib/editor/types'
 import type { InlineCommand } from '../../lib/editor/commands'
 import { FONT_OPTIONS, type EthiopicSupport } from '../../lib/editor/fonts'
+import { textDirection } from '../../lib/editor/direction'
+import { languageDirection } from '../../lib/languages'
 import { Button, Input, Select, useToast } from '../ui'
 import { useOrganization } from '../../hooks/use-organization'
 import { hasLetterhead, letterheadPageSetup } from '../../lib/organization/letterhead'
@@ -136,6 +138,13 @@ export function FormatPanel({
   const textBlock = isHeading || isParagraph
   const activeAlign: TextAlign =
     textBlock && activeBlock ? (activeBlock as { align: TextAlign }).align : 'left'
+  // Alignment is stored logically ("left" is the start of the line). In a
+  // right-to-left (Arabic) paragraph the start is the right, so the
+  // align-left and align-right buttons swap values and keep their look.
+  const activeRtl =
+    textBlock && activeBlock
+      ? textDirection((activeBlock as { html: string }).html, languageDirection(model.language)) === 'rtl'
+      : false
 
   const fontSupportNote = (key: FontKey): string => {
     const support = ethiopicSupport[key]
@@ -206,6 +215,7 @@ export function FormatPanel({
         isList,
         textBlock,
         activeAlign,
+        activeRtl,
       })}
       {renderMoreSections(model, activeBlock, callbacks, t, {
         imageError,
@@ -228,8 +238,12 @@ function renderParagraphSection(
     isList: boolean
     textBlock: boolean
     activeAlign: TextAlign
+    activeRtl?: boolean
   },
 ) {
+  // The value each side button stores: in right-to-left text the left of the line is its end.
+  const visualLeft: TextAlign = state.activeRtl ? 'right' : 'left'
+  const visualRight: TextAlign = state.activeRtl ? 'left' : 'right'
   return (
     <section className="editor-panel__section" aria-labelledby="format-paragraph">
       <h2 id="format-paragraph" className="editor-panel__title">
@@ -239,9 +253,9 @@ function renderParagraphSection(
       <div className="editor-panel__buttongroup" role="group" aria-label={t('editor.align')}>
         <IconButton
           label={t('editor.alignLeft')}
-          active={state.activeAlign === 'left'}
+          active={state.activeAlign === visualLeft}
           disabled={!state.textBlock}
-          onClick={() => callbacks.onSetAlign('left')}
+          onClick={() => callbacks.onSetAlign(visualLeft)}
         >
           <AlignLeftIcon size={16} />
         </IconButton>
@@ -255,9 +269,9 @@ function renderParagraphSection(
         </IconButton>
         <IconButton
           label={t('editor.alignRight')}
-          active={state.activeAlign === 'right'}
+          active={state.activeAlign === visualRight}
           disabled={!state.textBlock}
-          onClick={() => callbacks.onSetAlign('right')}
+          onClick={() => callbacks.onSetAlign(visualRight)}
         >
           <AlignRightIcon size={16} />
         </IconButton>

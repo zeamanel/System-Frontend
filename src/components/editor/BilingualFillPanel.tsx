@@ -37,7 +37,8 @@ export function BilingualFillPanel({ block, documentLanguage, templateId, onAppl
     try {
       const html = await refineBlockContent({
         block,
-        action: language === 'am' ? 'translate-en' : 'translate-am',
+        // Same rule as the assistant's side column: English beside Amharic or Arabic, Amharic otherwise.
+        action: language === 'am' || language === 'ar' ? 'translate-en' : 'translate-am',
         documentLanguage: language,
         templateId,
       })

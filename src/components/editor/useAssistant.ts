@@ -9,8 +9,10 @@ import {
   findPlaceholders,
   proposalTargetText,
   restrictToPage,
+  SIDE_LANGUAGES,
   sideTargetLanguage,
   sideTargetText,
+  type SideLanguage,
   sideTranslationBlocks,
   toAssistantBlocks,
 } from '../../lib/assistant/context'
@@ -106,7 +108,7 @@ export interface UseAssistantParams {
     side: {
       nothing: string
       /** The reply that carries the translation proposals. */
-      reply: (count: number, language: 'am' | 'en') => string
+      reply: (count: number, language: SideLanguage) => string
       replyMissing: (count: number) => string
       unavailable: (reason: AssistantOfflineInfo['reason']) => string
     }
@@ -131,6 +133,9 @@ export function useAssistant({
   const editorRef = useRef(editor)
   editorRef.current = editor
   const abortRef = useRef<AbortController | null>(null)
+  // The side column's language: the usual one for the document, until the user picks another.
+  const [sideChoice, setSideChoice] = useState<SideLanguage | null>(null)
+  const sideLanguage: SideLanguage = sideChoice && sideChoice !== documentLanguage ? sideChoice : sideTargetLanguage(documentLanguage)
 
   useEffect(() => {
     writeThread(documentId, messages)
@@ -325,7 +330,7 @@ export function useAssistant({
   const runSideTranslation = useCallback(
     async (blocks: Array<{ id: string; text: string }>): Promise<boolean> => {
       if (blocks.length === 0) return false
-      const target = sideTargetLanguage(documentLanguage)
+      const target = sideLanguage
       const { model } = editorRef.current
       const baseById = new Map(blocks.map((block) => [block.id, sideTargetText(model, block.id) ?? '']))
       setSending(true)
@@ -398,7 +403,7 @@ export function useAssistant({
         setSending(false)
       }
     },
-    [append, documentId, documentLanguage, labels, notice, update],
+    [append, documentId, sideLanguage, labels, notice, update],
   )
 
   /** How many paragraphs "Translate the side column" would translate now (empty side cells only). */
@@ -713,6 +718,11 @@ export function useAssistant({
     clearThread,
     translateSideColumn,
     sideTranslationCount,
+    /** The language "Translate the side column" translates into, and a way to choose another. */
+    sideLanguage,
+    setSideLanguage: setSideChoice,
+    /** The languages the side column can be translated into (not the document's own). */
+    sideLanguageOptions: SIDE_LANGUAGES.filter((language) => language !== documentLanguage),
     updateStaleTranslations,
     dismissStaleTranslations,
     /** Current text of a paragraph's side cell (null when gone or it holds a picture). */

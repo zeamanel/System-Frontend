@@ -95,9 +95,17 @@ export function sideTargetText(model: DocumentModel, blockId: string): string | 
   return sideCellText(block)
 }
 
-/** The language of the side column: Amharic beside an English or Afaan Oromoo text, English beside Amharic. */
-export function sideTargetLanguage(documentLanguage: string): 'am' | 'en' {
-  return documentLanguage === 'am' ? 'en' : 'am'
+/** A language the side column can be translated into. */
+export type SideLanguage = 'am' | 'en' | 'ar'
+
+export const SIDE_LANGUAGES: readonly SideLanguage[] = ['am', 'en', 'ar']
+
+/**
+ * The default language of the side column: Amharic beside an English or Afaan Oromoo text,
+ * English beside Amharic or Arabic. The user can choose another one in the assistant.
+ */
+export function sideTargetLanguage(documentLanguage: string): SideLanguage {
+  return documentLanguage === 'am' || documentLanguage === 'ar' ? 'en' : 'am'
 }
 
 /**

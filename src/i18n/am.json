@@ -577,6 +577,8 @@
   "assistant.side.proposalTitle": "የጎን ዓምድ ትርጉም",
   "assistant.side.lang.en": "እንግሊዝኛ",
   "assistant.side.lang.am": "አማርኛ",
+  "assistant.side.lang.ar": "ዐረብኛ",
+  "assistant.side.into": "የሚተረጎምበት ቋንቋ",
   "assistant.side.replyMissing": "{count} ሊተረጎሙ አልቻሉም፤ ለእነሱ እንደገና ይሞክሩ።",
   "assistant.side.replyOne": "1 አንቀጽ ለጎን ዓምድ ወደ {language} ተርጉሜአለሁ። ይቀበሉት ወይም ይተዉት።",
   "assistant.side.reply": "{count} አንቀጾችን ለጎን ዓምድ ወደ {language} ተርጉሜአለሁ። አንድ በአንድ ወይም ሁሉንም በአንድ ጊዜ ይቀበሉ።",

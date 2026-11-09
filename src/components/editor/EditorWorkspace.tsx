@@ -386,7 +386,7 @@ export function EditorWorkspace({
         reply: (count, language) =>
           t(count === 1 ? 'assistant.side.replyOne' : 'assistant.side.reply', {
             count: String(count),
-            language: t(language === 'am' ? 'assistant.side.lang.am' : 'assistant.side.lang.en'),
+            language: t(`assistant.side.lang.${language}`),
           }),
         replyMissing: (count) => t('assistant.side.replyMissing', { count: String(count) }),
         unavailable: (reason) =>

@@ -55,6 +55,24 @@ export function interpolate(template: string, vars?: MessageVars): string {
 }
 
 /**
+ * Labels shown on the A4 page itself for languages that documents can be
+ * written in but the interface is not (yet) translated into.
+ */
+const DOCUMENT_ONLY_LABELS: Record<string, Partial<Record<MessageKey, string>>> = {
+  ar: {
+    'editor.signatureCaption': 'الموقّع',
+    'editor.printName': 'الاسم',
+    'editor.dateLabel': 'التاريخ',
+    'editor.pageBreakLabel': 'فاصل صفحة',
+    'editor.emptyBlockHint': 'اكتب عنوان المستند…',
+    'editor.tableHint': 'خلية',
+    'editor.bilingualPlaceholder': 'الترجمة / النص الثاني…',
+    'editor.pageOf': 'صفحة {current} من {total}',
+    'editor.pageOnly': 'صفحة {current}',
+  },
+}
+
+/**
  * Translate a key against an explicit locale instead of the active UI
  * locale. Used by the document editor, where labels rendered inside the
  * A4 paper (signature captions, page numbers) must follow the *document's*
@@ -62,6 +80,10 @@ export function interpolate(template: string, vars?: MessageVars): string {
  * language. Unknown locale codes fall back to English instead of failing.
  */
 export function tForLocale(locale: string, key: MessageKey, vars?: MessageVars): string {
+  // Document-only languages (Arabic): the few labels printed on the page are
+  // translated here; everything else falls back to English.
+  const documentOnly = DOCUMENT_ONLY_LABELS[locale]?.[key]
+  if (documentOnly !== undefined) return interpolate(documentOnly, vars)
   const resolved = resolveLocale(locale)
   const dictionary = loaded[resolved]
   if (!dictionary) {

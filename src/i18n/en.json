@@ -577,6 +577,8 @@
   "assistant.side.proposalTitle": "Side column translation",
   "assistant.side.lang.en": "English",
   "assistant.side.lang.am": "Amharic",
+  "assistant.side.lang.ar": "Arabic",
+  "assistant.side.into": "Translate into",
   "assistant.side.replyMissing": "{count} could not be translated: try again for those.",
   "assistant.side.replyOne": "I translated 1 paragraph into {language} for the side column. Accept it or leave it.",
   "assistant.side.reply": "I translated {count} paragraphs into {language} for the side column. Accept them one by one or all at once.",
