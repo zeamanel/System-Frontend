@@ -5,6 +5,14 @@ import { Badge, Button, Popover } from '../ui'
 import { OpenLocalFileButton } from '../documents/OpenLocalFileButton'
 import { TelegramBridgeButton, type TelegramBridgeTransferPayload } from '../documents/TelegramBridgeButton'
 import { EditorTelegramVaultDrawer } from './EditorTelegramVaultDrawer'
+
+export interface ToolbarGaps {
+  count: number
+  /** "3 to fill". */
+  label: string
+  title: string
+  onNext: () => void
+}
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -16,6 +24,7 @@ import {
   ChatIcon,
   PanelLeftIcon,
   PrinterIcon,
+  EditIcon,
   RedoIcon,
   SlidersIcon,
   UndoIcon,
@@ -41,6 +50,8 @@ export interface EditorToolbarProps {
   onReloadLatest: () => void
   onOverwrite: () => void
   onPrint: () => void
+  /** Places still to fill in ("[payment deadline]"): a counter beside Print that goes to the next one. */
+  gaps?: ToolbarGaps
   onExportServerPdf: () => void
   onExportServerDocx: () => void
   exportPending: boolean
@@ -122,6 +133,7 @@ export function EditorToolbar({
   onReloadLatest,
   onOverwrite,
   onPrint,
+  gaps,
   onExportServerPdf,
   onExportServerDocx,
   exportPending,
@@ -232,6 +244,7 @@ export function EditorToolbar({
         onShowHistory,
         onChooseStyle,
         onPrint,
+        gaps,
         onExportServerPdf,
         onExportServerDocx,
         exportPending,
@@ -267,6 +280,7 @@ function renderToolbarEnd(props: {
   onShowHistory?: () => void
   onChooseStyle?: () => void
   onPrint: () => void
+  gaps?: ToolbarGaps
   onExportServerPdf: () => void
   onExportServerDocx: () => void
   exportPending: boolean
@@ -462,6 +476,19 @@ function renderToolbarEnd(props: {
           </div>
         )}
       </Popover>
+
+      {props.gaps && props.gaps.count > 0 ? (
+        <Button
+          variant="secondary"
+          icon={<EditIcon size={16} />}
+          onClick={props.gaps.onNext}
+          className="editor-toolbar__gaps"
+          title={props.gaps.title}
+          data-testid="toolbar-gaps"
+        >
+          {props.gaps.label}
+        </Button>
+      ) : null}
 
       <Button
         variant="primary"

@@ -97,6 +97,9 @@ import { ChatIcon, DocumentIcon, PanelLeftIcon, SlidersIcon, XIcon } from '../ic
 import './editor.css'
 import './editor-responsive.css'
 import { TIP_KEYS } from '../../lib/tips'
+import { countGap, countGaps, fillGap } from '../../lib/editor/gaps'
+import { useGaps } from './useGaps'
+import { GapFillBox } from './GapFillBox'
 
 /** Printing goes ahead without the check if it takes longer than this. */
 const PRINT_CHECK_TIMEOUT_MS = 4000
@@ -1280,6 +1283,28 @@ export function EditorWorkspace({
     ],
   )
 
+  // ---- Gaps still to fill ("[payment deadline]") ----
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  const gapsEnabled = !previewMode && !pageLocked
+  const gaps = useGaps(workspaceRef, gapsEnabled)
+  const gapCount = useMemo(() => (gapsEnabled ? countGaps(model) : 0), [gapsEnabled, model])
+  const handleFillGap = useCallback(
+    (value: string, all: boolean): void => {
+      const gap = gaps.active
+      if (!gap) return
+      const before = countGaps(model)
+      const next = fillGap(model, gap.gap, value, all ? undefined : gap.target)
+      if (next === model) return
+      gaps.filled(gap)
+      updateModel(() => next)
+      if (countGaps(next) === 0 && before > 0) {
+        gaps.close()
+        toast.push(t('editor.gaps.done'), { variant: 'success' })
+      }
+    },
+    [gaps, model, t, toast, updateModel],
+  )
+
   const workspaceClass = [
     'editor-workspace',
     leftOpen ? 'editor-workspace--left-open' : null,
@@ -1289,7 +1314,7 @@ export function EditorWorkspace({
     .join(' ')
 
   return (
-    <div className={workspaceClass}>
+    <div className={workspaceClass} ref={workspaceRef}>
       <EditorToolbar
         title={editor.title}
         onTitleChange={editor.setTitle}
@@ -1310,6 +1335,16 @@ export function EditorWorkspace({
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
+        gaps={
+          gapCount > 0
+            ? {
+                count: gapCount,
+                label: gapCount === 1 ? t('editor.gaps.countOne') : t('editor.gaps.count', { count: String(gapCount) }),
+                title: t('editor.gaps.countTitle'),
+                onNext: gaps.next,
+              }
+            : undefined
+        }
         onExportServerPdf={() => void handleExportServer('pdf')}
         onExportServerDocx={() => void handleExportServer('docx')}
         exportPending={exportMutation.isPending}
@@ -1640,6 +1675,24 @@ export function EditorWorkspace({
           </div>
         ) : null}
       </Dialog>
+
+      {gaps.active ? (
+        <GapFillBox
+          gap={gaps.active}
+          count={countGap(model, gaps.active.gap)}
+          labels={{
+            title: t('editor.gaps.title'),
+            allPlaces: (count) => t('editor.gaps.allPlaces', { count: String(count) }),
+            fill: t('editor.gaps.fill'),
+            skip: t('editor.gaps.skip'),
+            close: t('editor.gaps.close'),
+            hint: t('editor.gaps.hint'),
+          }}
+          onFill={handleFillGap}
+          onSkip={(step) => (step === 1 ? gaps.next() : gaps.previous())}
+          onClose={gaps.close}
+        />
+      ) : null}
     </div>
   )
 }

@@ -10,6 +10,8 @@ const NAMES = new Set([
   'SenedDesk', 'Telegram', 'Qal', 'Chapa', 'Google', 'Word', 'Amharic', 'English', 'Oromoo', 'WebP', 'FAQs',
   // Names of pages and buttons quoted inside a sentence.
   'Organization', 'Download', 'Save', 'Allow', 'Service', 'Policy', 'The',
+  // Keyboard keys.
+  'Enter', 'Tab', 'Esc', 'Arabic',
 ])
 
 describe('English labels', () => {

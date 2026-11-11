@@ -1,0 +1,121 @@
+/* ---------- Gaps to fill ("[payment deadline]") ---------- */
+
+/* On screen only: the highlight is painted over the text, never part of it, so print and exports are unchanged. */
+@media screen {
+  ::highlight(doc-gap) {
+    background-color: rgb(250 204 21 / 0.32);
+  }
+
+  ::highlight(doc-gap-active) {
+    background-color: rgb(250 204 21 / 0.8);
+  }
+}
+
+.gap-fill {
+  position: fixed;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: calc(100vw - 16px);
+  padding: var(--space-3);
+  background-color: var(--color-surface-raised, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+}
+
+.gap-fill__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.gap-fill__title {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.gap-fill__title strong {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+.gap-fill__close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gap-fill__close:hover {
+  background-color: var(--color-action-ghost-hover);
+}
+
+.gap-fill__input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-base, 1rem);
+}
+
+.gap-fill__input:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.gap-fill__all {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.gap-fill__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gap-fill__hint {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+/* The counter beside Print. */
+.editor-toolbar__gaps {
+  border-color: rgb(250 204 21 / 0.9);
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-toolbar__gaps:hover {
+  background-color: rgb(250 204 21 / 0.28);
+}
+
+@media (max-width: 640px) {
+  .gap-fill__hint {
+    display: none;
+  }
+}
+
+@media print {
+  .gap-fill {
+    display: none !important;
+  }
+}
