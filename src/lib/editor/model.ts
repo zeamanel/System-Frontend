@@ -1144,7 +1144,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
 
   const style = sanitizeDocumentStyle(input.style)
   const { style: _unchecked, ...rest } = input
-  const { showPageNumbers: _show, pageNumberStart: _start, ...pageRest } = (input.page ?? {}) as Partial<PageSetup>
+  const { showPageNumbers: _show, pageNumberStart: _start, draft: _draft, ...pageRest } = (input.page ?? {}) as Partial<PageSetup>
   return {
     ...rest,
     ...(style ? { style } : {}),
@@ -1162,6 +1162,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
       ...(input.page?.orientation === 'landscape' || input.page?.orientation === 'portrait'
         ? { orientation: input.page.orientation }
         : {}),
+      ...(input.page?.draft === true ? { draft: true } : {}),
     },
     blocks,
   }

@@ -635,6 +635,17 @@ function renderPageSetup(model: DocumentModel, callbacks: FormatPanelCallbacks, 
           placeholder={t('editor.footerPlaceholder')}
         />
       ) : null}
+
+      <label className="editor-panel__check">
+        <input
+          type="checkbox"
+          checked={Boolean(model.page.draft)}
+          onChange={(event) => callbacks.onUpdatePageSetup({ draft: event.target.checked ? true : undefined })}
+          data-testid="draft-mark-toggle"
+        />
+        {t('editor.draftMarkToggle')}
+      </label>
+      <p className="editor-panel__hint">{t('editor.draftMarkHint')}</p>
     </section>
   )
 }

@@ -185,6 +185,63 @@ export function numberToWordsOm(n: number): string {
   return parts.join(' ')
 }
 
+// ---------- Arabic ----------
+
+const AR_ONES = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة']
+const AR_TEENS = ['أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر']
+const AR_TENS = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون']
+const AR_HUNDREDS = ['', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة']
+
+function arUnderHundred(n: number): string {
+  if (n <= 10) return AR_ONES[n]
+  if (n < 20) return AR_TEENS[n - 11]
+  const tens = AR_TENS[Math.floor(n / 10)]
+  const ones = n % 10
+  // Units come before the tens: 25 is "five and twenty".
+  return ones > 0 ? `${AR_ONES[ones]} و${tens}` : tens
+}
+
+/** `beforeNoun`: a round two hundred directly before "thousand" or "million" loses its ending (مائتا ألف). */
+function arUnderThousand(n: number, beforeNoun = false): string {
+  const hundreds = Math.floor(n / 100)
+  const rest = n % 100
+  const parts: string[] = []
+  if (hundreds > 0) parts.push(beforeNoun && rest === 0 && hundreds === 2 ? 'مائتا' : AR_HUNDREDS[hundreds])
+  if (rest > 0) parts.push(arUnderHundred(rest))
+  return parts.join(' و')
+}
+
+/**
+ * A count of thousands or millions. The noun follows the last two digits of
+ * the count: one, two (dual), 3 to 10 (plural), 11 to 99 (singular with
+ * tanween), and a round hundred (plain singular).
+ */
+function arCounted(count: number, one: string, two: string, plural: string, accusative: string): string {
+  if (count === 1) return one
+  if (count === 2) return two
+  const rest = count % 100
+  if (rest === 0) return `${arUnderThousand(count, true)} ${one}`
+  if (rest === 1) return `${arUnderThousand(count - 1, true)} ${one} و${one}`
+  if (rest === 2) return `${arUnderThousand(count - 2, true)} ${one} و${two}`
+  if (rest <= 10) return `${arUnderThousand(count)} ${plural}`
+  return `${arUnderThousand(count)} ${accusative}`
+}
+
+/** 150000 → 'مائة وخمسون ألفاً' (formal Arabic, the number on its own). */
+export function numberToWordsAr(n: number): string {
+  const value = Math.floor(Math.abs(n))
+  if (value === 0) return 'صفر'
+  if (value > 999_999_999) return String(value)
+  const parts: string[] = []
+  const millions = Math.floor(value / 1_000_000)
+  const thousands = Math.floor((value % 1_000_000) / 1_000)
+  const rest = value % 1_000
+  if (millions > 0) parts.push(arCounted(millions, 'مليون', 'مليونان', 'ملايين', 'مليوناً'))
+  if (thousands > 0) parts.push(arCounted(thousands, 'ألف', 'ألفان', 'آلاف', 'ألفاً'))
+  if (rest > 0) parts.push(arUnderThousand(rest))
+  return parts.join(' و')
+}
+
 // ---------- Legal birr formatting ----------
 
 const PURE_AMOUNT = /^\d{1,9}(\.\d{1,2})?$/
@@ -194,6 +251,7 @@ const PURE_AMOUNT = /^\d{1,9}(\.\d{1,2})?$/
  * - `am`: `150,000 (አንድ መቶ ሃምሳ ሺህ ብር)`
  * - `en`: `ETB 150,000 (One Hundred Fifty Thousand Birr)`
  * - `om`: `ETB 150,000 (Qarshii Kuma Dhibba Tokkoo fi Shantama)`
+ * - `ar`: `150,000 (مائة وخمسون ألفاً)` (no currency word; whole amounts only)
  * Returns `null` when the input is not a pure positive amount (already
  * contains parentheses/words) or exceeds 999,999,999.99.
  */
@@ -211,6 +269,10 @@ export function formatLegalBirr(raw: string, locale: string): string | null {
   const santim = decimalRaw ? Number(decimalRaw.padEnd(2, '0')) : 0
   const grouped = whole.toLocaleString('en-US')
 
+  if (locale === 'ar') {
+    // The number on its own (the currency is written by the document); whole amounts only.
+    return santim > 0 ? null : `${grouped} (${numberToWordsAr(whole)})`
+  }
   if (locale === 'am') {
     const words =
       santim > 0

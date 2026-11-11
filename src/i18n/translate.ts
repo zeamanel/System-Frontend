@@ -69,6 +69,7 @@ const DOCUMENT_ONLY_LABELS: Record<string, Partial<Record<MessageKey, string>>> 
     'editor.bilingualPlaceholder': 'الترجمة / النص الثاني…',
     'editor.pageOf': 'صفحة {current} من {total}',
     'editor.pageOnly': 'صفحة {current}',
+    'editor.draftMark': 'مسودة',
   },
 }
 

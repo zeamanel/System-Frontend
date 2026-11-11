@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n'
 import { PreferencesProvider } from '../preferences'
 import { ToastProvider } from '../components/ui'
@@ -30,6 +30,14 @@ function renderTemplatesPage(features?: { designs: boolean }) {
 }
 
 describe('TemplatesPage Filtering & Multilingual Browser', () => {
+  // The demo templates rank higher when "updated in the last 60 days": a fixed date keeps the order, and these tests, stable.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-20T12:00:00Z') })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   beforeEach(() => {
     window.localStorage.clear()
     window.sessionStorage.clear()

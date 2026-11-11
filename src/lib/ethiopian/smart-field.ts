@@ -15,9 +15,9 @@ export interface SmartFieldDescriptor {
 
 export type SmartFieldKind = 'date' | 'currency' | null
 
-const DATE_HINT = /date|ቀን|guyyaa|effective|start|expiry|birth/i
+const DATE_HINT = /date|ቀን|guyyaa|effective|start|expiry|birth|تاريخ/i
 const CURRENCY_HINT =
-  /price|amount|salary|rent|fee|payment|deposit|loan|ዋጋ|ደመወዝ|ኪራይ|ክፍያ|ብድር|kaffaltii|mindaa|gatii/i
+  /price|amount|salary|rent|fee|payment|deposit|loan|ዋጋ|ደመወዝ|ኪራይ|ክፍያ|ብድር|kaffaltii|mindaa|gatii|مبلغ|راتب|إيجار|أجر|رسوم|أتعاب|قيمة|سعر|ثمن|قرض|وديعة/i
 
 /**
  * Best-effort field classification. `type` wins when the schema declares
@@ -53,6 +53,8 @@ export function getSmartSuggestion(
 ): SmartSuggestion | null {
   const kind = detectSmartFieldKind(field)
   if (kind === 'date') {
+    // Arabic documents use Gregorian dates as typed: no Ethiopian-calendar form to offer.
+    if (language === 'ar') return null
     const suggestion = formatEthiopianLegalDate(value, language)
     if (suggestion && suggestion.formatted !== value) return { kind, ...suggestion }
     return null

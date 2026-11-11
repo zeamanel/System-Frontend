@@ -11,6 +11,8 @@ export interface GapFillBoxLabels {
   skip: string
   close: string
   hint: string
+  /** "Write it as": above a suggested amount in words or legal date. */
+  useSuggestion: string
 }
 
 export interface GapFillBoxProps {
@@ -22,6 +24,11 @@ export interface GapFillBoxProps {
   onFill: (value: string, all: boolean) => void
   onSkip: (step: 1 | -1) => void
   onClose: () => void
+  /**
+   * A better way to write what was typed, for a gap that asks for an amount or
+   * a date: "15,000 (fifteen thousand birr)". Null: nothing to offer.
+   */
+  suggest?: (label: string, value: string) => string | null
 }
 
 const BOX_WIDTH = 320
@@ -32,12 +39,13 @@ const BOX_WIDTH = 320
  * to the next gap; Tab skips; Esc closes and leaves the gap selected, to edit
  * it by hand. Never part of the page: it sits above it.
  */
-export function GapFillBox({ gap, count, labels, onFill, onSkip, onClose }: GapFillBoxProps) {
+export function GapFillBox({ gap, count, labels, onFill, onSkip, onClose, suggest }: GapFillBoxProps) {
   const [value, setValue] = useState('')
   const [all, setAll] = useState(true)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const label = gapLabel(gap.gap)
+  const suggestion = value.trim() ? (suggest?.(label, value.trim()) ?? null) : null
 
   // A new gap: a fresh, focused field.
   useEffect(() => {
@@ -130,6 +138,21 @@ export function GapFillBox({ gap, count, labels, onFill, onSkip, onClose }: GapF
         onChange={(event) => setValue(event.target.value)}
         data-testid="gap-fill-input"
       />
+      {suggestion ? (
+        <button
+          type="button"
+          className="gap-fill__suggestion"
+          title={labels.useSuggestion}
+          onClick={() => {
+            setValue(suggestion)
+            inputRef.current?.focus({ preventScroll: true })
+          }}
+          data-testid="gap-fill-suggestion"
+        >
+          <span className="gap-fill__suggestion-label">{labels.useSuggestion}</span>
+          <span dir="auto">{suggestion}</span>
+        </button>
+      ) : null}
       {count > 1 ? (
         <label className="gap-fill__all">
           <input type="checkbox" checked={all} onChange={(event) => setAll(event.target.checked)} data-testid="gap-fill-all" />

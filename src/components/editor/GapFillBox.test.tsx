@@ -10,6 +10,7 @@ const labels = {
   skip: 'Skip',
   close: 'Close',
   hint: 'Enter: fill',
+  useSuggestion: 'Write it as',
 }
 
 function pageGap() {
@@ -47,5 +48,18 @@ describe('GapFillBox', () => {
     expect(onFill).not.toHaveBeenCalled()
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('offers the amount in words for what was typed, and writes it into the field when chosen', () => {
+    const onFill = vi.fn()
+    const suggest = vi.fn((label: string, value: string) => (label === 'monthly rent' && value === '15000' ? '15,000 (fifteen thousand birr)' : null))
+    render(<GapFillBox gap={pageGap()} count={1} labels={labels} onFill={onFill} onSkip={vi.fn()} onClose={vi.fn()} suggest={suggest} />)
+    const input = screen.getByTestId('gap-fill-input') as HTMLInputElement
+    expect(screen.queryByTestId('gap-fill-suggestion')).toBeNull()
+    fireEvent.change(input, { target: { value: '15000' } })
+    fireEvent.click(screen.getByTestId('gap-fill-suggestion'))
+    expect(input.value).toBe('15,000 (fifteen thousand birr)')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onFill).toHaveBeenLastCalledWith('15,000 (fifteen thousand birr)', false)
   })
 })

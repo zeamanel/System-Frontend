@@ -926,3 +926,15 @@ describe('removeEmptySideBoxes', () => {
     expect(removeEmptySideBoxes(tidied)).toBe(tidied)
   })
 })
+
+describe('draft mark', () => {
+  it('is kept only when it is exactly true', async () => {
+    const { createEmptyDocument, parseDocumentContent } = await import('./model')
+    const base = createEmptyDocument('en')
+    const read = (draft: unknown) => parseDocumentContent(JSON.stringify({ ...base, page: { ...base.page, draft } }), 'en')?.page.draft
+    expect(read(true)).toBe(true)
+    expect(read(false)).toBeUndefined()
+    expect(read('yes')).toBeUndefined()
+    expect(parseDocumentContent(JSON.stringify(base), 'en')?.page.draft).toBeUndefined()
+  })
+})

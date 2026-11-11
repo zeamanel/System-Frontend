@@ -166,6 +166,8 @@ export interface PageSetup {
   footerHtml: InlineHtml
   bilingual?: boolean
   orientation?: PageOrientation
+  /** A faint "DRAFT" across every page (editor, print, PDF) until the document is final. Absent: no mark. */
+  draft?: boolean
 }
 
 /** A named look for a text document (frames, letterhead band, fonts). */

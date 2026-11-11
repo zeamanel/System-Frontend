@@ -101,6 +101,7 @@ import { TIP_KEYS } from '../../lib/tips'
 import { countGap, countGaps, fillGap } from '../../lib/editor/gaps'
 import { useGaps } from './useGaps'
 import { GapFillBox } from './GapFillBox'
+import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
 
 /** Printing goes ahead without the check if it takes longer than this. */
 const PRINT_CHECK_TIMEOUT_MS = 4000
@@ -1512,6 +1513,7 @@ export function EditorWorkspace({
         activeBlockId={activeRef?.blockId ?? null}
         api={api}
         blockLabels={blockLabels}
+        draftMark={model.page.draft ? tDoc('editor.draftMark') : undefined}
         formatPageLabel={(current, total) =>
           total === null
             ? tDoc('editor.pageOnly', { current: String(current) })
@@ -1708,7 +1710,9 @@ export function EditorWorkspace({
             skip: t('editor.gaps.skip'),
             close: t('editor.gaps.close'),
             hint: t('editor.gaps.hint'),
+            useSuggestion: t('editor.gaps.useSuggestion'),
           }}
+          suggest={(label, value) => getSmartSuggestion({ label }, value, editor.language)?.formatted ?? null}
           onFill={handleFillGap}
           onSkip={(step) => (step === 1 ? gaps.next() : gaps.previous())}
           onClose={gaps.close}

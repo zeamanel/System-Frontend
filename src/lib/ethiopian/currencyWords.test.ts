@@ -61,3 +61,38 @@ describe('formatLegalBirr', () => {
     expect(formatLegalBirr('1000000000', 'en')).toBeNull()
   })
 })
+
+describe('numberToWordsAr', () => {
+  it('writes units before tens, and joins the parts with "and"', async () => {
+    const { numberToWordsAr } = await import('./currencyWords')
+    expect(numberToWordsAr(0)).toBe('صفر')
+    expect(numberToWordsAr(7)).toBe('سبعة')
+    expect(numberToWordsAr(11)).toBe('أحد عشر')
+    expect(numberToWordsAr(21)).toBe('واحد وعشرون')
+    expect(numberToWordsAr(325)).toBe('ثلاثمائة وخمسة وعشرون')
+    expect(numberToWordsAr(900)).toBe('تسعمائة')
+  })
+
+  it('uses the form of "thousand" and "million" that the count calls for', async () => {
+    const { numberToWordsAr } = await import('./currencyWords')
+    expect(numberToWordsAr(1000)).toBe('ألف')
+    expect(numberToWordsAr(2000)).toBe('ألفان')
+    expect(numberToWordsAr(5000)).toBe('خمسة آلاف')
+    expect(numberToWordsAr(10000)).toBe('عشرة آلاف')
+    expect(numberToWordsAr(15000)).toBe('خمسة عشر ألفاً')
+    expect(numberToWordsAr(100000)).toBe('مائة ألف')
+    expect(numberToWordsAr(150000)).toBe('مائة وخمسون ألفاً')
+    expect(numberToWordsAr(200000)).toBe('مائتا ألف')
+    expect(numberToWordsAr(103000)).toBe('مائة وثلاثة آلاف')
+    expect(numberToWordsAr(101000)).toBe('مائة ألف وألف')
+    expect(numberToWordsAr(1250500)).toBe('مليون ومائتان وخمسون ألفاً وخمسمائة')
+    expect(numberToWordsAr(3000000)).toBe('ثلاثة ملايين')
+    expect(numberToWordsAr(2000000)).toBe('مليونان')
+  })
+
+  it('formats an Arabic amount with its words, without a currency, for whole amounts only', async () => {
+    const { formatLegalBirr } = await import('./currencyWords')
+    expect(formatLegalBirr('15000', 'ar')).toBe('15,000 (خمسة عشر ألفاً)')
+    expect(formatLegalBirr('15000.50', 'ar')).toBeNull()
+  })
+})

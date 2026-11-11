@@ -28,6 +28,8 @@ export interface A4PagesCanvasProps {
   blockLabels: BlockLabels
   /** e.g. `"Page {current} of {total}"`; `total` is null when the first page has a custom number (then `"Page {current}"`). */
   formatPageLabel: (current: number, total: number | null) => string
+  /** The word drawn faintly across every page of a draft ("DRAFT", in the document's language); absent: no mark. */
+  draftMark?: string
   /** The "Page numbers" checkbox and "Start at" field in the bar under the pages (editing only). */
   pageNumbers?: {
     onUpdatePageSetup: (patch: Partial<PageSetup>) => void
@@ -79,6 +81,7 @@ export function A4PagesCanvas({
   api,
   blockLabels,
   formatPageLabel,
+  draftMark,
   pageNumbers,
   pageAriaLabel,
   zoomLabel,
@@ -556,6 +559,12 @@ export function A4PagesCanvas({
                 )
               })}
             </div>
+
+            {draftMark ? (
+              <div className="doc-paper__draft" aria-hidden="true" data-testid="draft-mark">
+                <span>{draftMark}</span>
+              </div>
+            ) : null}
 
             <footer className="doc-paper__footer">
               {model.page.footerEnabled ? (

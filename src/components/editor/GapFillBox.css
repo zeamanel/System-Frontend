@@ -77,6 +77,32 @@
   outline-offset: 1px;
 }
 
+.gap-fill__suggestion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.gap-fill__suggestion:hover,
+.gap-fill__suggestion:focus-visible {
+  background-color: var(--color-action-ghost-hover);
+}
+
+.gap-fill__suggestion-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
 .gap-fill__all {
   display: flex;
   align-items: center;

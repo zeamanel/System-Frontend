@@ -1960,3 +1960,37 @@ figure.doc-block--image-right {
   gap: var(--space-1);
   margin: 0 0 var(--space-2) var(--space-5);
 }
+
+/* A draft's mark: faint, across the page, never in the way of the text (it prints: that is its job). */
+.doc-paper__draft {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  font-size: 96pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+  color: rgb(0 0 0 / 0.07);
+  /* The same angle on every page, whatever the page's direction. */
+  direction: ltr;
+}
+
+.doc-paper__draft > span {
+  transform: rotate(-35deg);
+}
+
+@media print {
+  .doc-paper__draft {
+    /* Printers drop very light greys: a little stronger on paper. */
+    color: rgb(0 0 0 / 0.1);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
