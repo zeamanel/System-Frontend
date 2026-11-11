@@ -9,6 +9,7 @@ import {
   saveDocumentAsTemplate as saveDocumentAsTemplateEndpoint,
   getDocument as fetchDocumentEndpoint,
   listDocumentVersions as fetchDocumentVersionsEndpoint,
+  getDocumentVersion as getDocumentVersionEndpoint,
   listDocuments as fetchDocumentsEndpoint,
   setDocumentSharing,
   renameDocument as renameDocumentEndpoint,
@@ -45,6 +46,7 @@ import type {
   CreateDocumentPayload,
   DocumentDetailRecord,
   DocumentRecord,
+  DocumentVersionContent,
   DocumentVersionSnapshot,
   DocumentsRepository,
   ExportsRepository,
@@ -615,6 +617,10 @@ class HttpDocumentsRepository implements DocumentsRepository {
 
   async versions(id: string): Promise<DocumentVersionSnapshot[]> {
     return fetchDocumentVersionsEndpoint(id)
+  }
+
+  async versionContent(id: string, version: number): Promise<DocumentVersionContent | null> {
+    return nullOnNotFound(() => getDocumentVersionEndpoint(id, version))
   }
 
   async restoreVersion(id: string, version: number): Promise<DocumentDetailRecord> {

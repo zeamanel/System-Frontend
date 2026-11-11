@@ -25,6 +25,7 @@ import type {
   CreateDocumentPayload,
   DocumentDetailRecord,
   DocumentRecord,
+  DocumentVersionContent,
   DocumentVersionSnapshot,
   DocumentsRepository,
   ExportsRepository,
@@ -550,6 +551,16 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       { version: detail.version ?? 1, title: detail.title, createdAt: detail.updatedAt },
       ...this.storedVersions(id).map(({ version, title, createdAt }) => ({ version, title, createdAt })),
     ]
+  }
+
+  async versionContent(id: string, version: number): Promise<DocumentVersionContent | null> {
+    const detail = await this.get(id)
+    if (!detail) return null
+    if (version === (detail.version ?? 1)) {
+      return { version, title: detail.title, createdAt: detail.updatedAt, content: detail.content ?? null }
+    }
+    const stored = this.storedVersions(id).find((entry) => entry.version === version)
+    return stored ? { version, title: stored.title, createdAt: stored.createdAt, content: stored.content ?? null } : null
   }
 
   async restoreVersion(id: string, version: number): Promise<DocumentDetailRecord> {

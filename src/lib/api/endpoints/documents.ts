@@ -189,3 +189,11 @@ export function restoreDocumentVersion(
   )
 }
 
+
+/** One saved version with its content (GET /documents/:id/versions/:version). */
+export function getDocumentVersion(
+  id: string,
+  version: number,
+): Promise<{ version: number; title: string; createdAt: string; content: string | null }> {
+  return apiClient.get(`/documents/${encodeURIComponent(id)}/versions/${encodeURIComponent(String(version))}`, { auth: 'required' })
+}

@@ -125,6 +125,11 @@ export interface DocumentVersionSnapshot {
   createdAt: string
 }
 
+/** One saved version with its content (to compare it with the current text). */
+export interface DocumentVersionContent extends DocumentVersionSnapshot {
+  content: string | null
+}
+
 export interface CreateDocumentPayload {
   /** `design` for fixed-layout designs; text otherwise. */
   kind?: DocumentKind
@@ -346,6 +351,8 @@ export interface DocumentsRepository {
   restore(id: string): Promise<DocumentDetailRecord>
   /** Version snapshots, newest first. */
   versions(id: string): Promise<DocumentVersionSnapshot[]>
+  /** One saved version with its content; null when it does not exist. */
+  versionContent(id: string, version: number): Promise<DocumentVersionContent | null>
   /** Restore title/content/answers from a snapshot (bumps the version). */
   restoreVersion(id: string, version: number): Promise<DocumentDetailRecord>
   delete(id: string): Promise<void>

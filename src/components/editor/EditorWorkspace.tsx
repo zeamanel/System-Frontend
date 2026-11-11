@@ -1534,6 +1534,7 @@ export function EditorWorkspace({
         onClose={() => setHistoryOpen(false)}
         documentId={doc.id}
         currentVersion={editor.savedVersion}
+        currentModel={model}
         beforeRestore={async () => {
           if (!(await editor.saveAll())) throw new Error('unsaved')
         }}
