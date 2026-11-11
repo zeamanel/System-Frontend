@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useI18n, tForLocale } from '../../i18n'
 import type { MessageKey, MessageVars } from '../../i18n'
 import { useCreateExportRequest, useDuplicateDocument, useSaveAsTemplate } from '../../hooks/use-documents'
@@ -102,6 +102,9 @@ import { countGap, countGaps, fillGap } from '../../lib/editor/gaps'
 import { useGaps } from './useGaps'
 import { GapFillBox } from './GapFillBox'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
+
+/** Loaded only when "Send to my Telegram" is used. */
+const TelegramQrCode = lazy(() => import('../telegram/QrCode').then((module) => ({ default: module.QrCode })))
 
 /** Printing goes ahead without the check if it takes longer than this. */
 const PRINT_CHECK_TIMEOUT_MS = 4000
@@ -1159,6 +1162,24 @@ export function EditorWorkspace({
     }
   }, [doc.id, editor, exportMutation, t, toast])
 
+  // ---- Send to my Telegram: a one-time link to the bot, shown with a QR code for a phone ----
+  const [telegramLink, setTelegramLink] = useState<string | null>(null)
+  const handleSendToTelegram = useCallback(async (): Promise<void> => {
+    setExportError(null)
+    // The bot sends the saved document: save the latest edits first.
+    if (!(await editor.flush())) {
+      setExportError(t('editor.exportNeedsSave'))
+      return
+    }
+    try {
+      const result = await exportMutation.mutateAsync({ documentId: doc.id, format: 'pdf', delivery: 'telegram' })
+      if (!result.deepLink) throw new Error('missing link')
+      setTelegramLink(result.deepLink)
+    } catch (error) {
+      setExportError(error instanceof ExportUnavailableError ? t('editor.sendTelegramUnavailable') : t('editor.exportFailed'))
+    }
+  }, [doc.id, editor, exportMutation, t])
+
   const handleOutlineSelect = useCallback((blockId: string): void => {
     document
       .querySelector<HTMLElement>(`[data-block-id="${blockId}"]`)
@@ -1389,6 +1410,7 @@ export function EditorWorkspace({
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
         onSaveAsTemplate={doc.isTemplate || doc.access === 'view' ? undefined : () => setTemplateName(editor.title)}
+        onSendToTelegram={() => void handleSendToTelegram()}
         gaps={
           gapCount > 0
             ? {
@@ -1704,6 +1726,26 @@ export function EditorWorkspace({
           <span>{t('assistant.tabFormat')}</span>
         </button>
       </nav>
+
+      <Dialog
+        open={telegramLink !== null}
+        onClose={() => setTelegramLink(null)}
+        title={t('editor.sendTelegramTitle')}
+        closeLabel={t('common.close')}
+        width="sm"
+      >
+        <p className="editor-dialog__text">{t('editor.sendTelegramBody')}</p>
+        {telegramLink ? (
+          <div className="editor-telegram-send" data-testid="send-telegram-dialog">
+            <Suspense fallback={null}>
+              <TelegramQrCode value={telegramLink} label={t('editor.sendTelegramQr')} />
+            </Suspense>
+            <a className="btn btn--primary btn--md" href={telegramLink} target="_blank" rel="noopener noreferrer" data-testid="send-telegram-open">
+              {t('editor.sendTelegramOpen')}
+            </a>
+          </div>
+        ) : null}
+      </Dialog>
 
       <Dialog
         open={templateName !== null}

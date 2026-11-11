@@ -671,6 +671,8 @@ class HttpExportsRepository implements ExportsRepository {
     } catch (error) {
       // 422: format not offered. A 404 for the route itself: no export service on this backend.
       if (error instanceof ApiError && error.status === 422) throw new ExportUnavailableError(error.message)
+      // 503: this server cannot send to Telegram (no bot configured).
+      if (error instanceof ApiError && error.status === 503 && input.delivery === 'telegram') throw new ExportUnavailableError(error.message)
       if (error instanceof ApiError && error.status === 404 && error.message.startsWith('Route ')) {
         throw new ExportUnavailableError()
       }

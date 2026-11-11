@@ -316,6 +316,27 @@ describe('EditorWorkspace', () => {
     }
   })
 
+  it('sends the PDF to Telegram through a one-time link, shown with a QR code for a phone', async () => {
+    const deepLink = 'https://t.me/SenedDeskBot?start=x0123456789abcdef0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWX'
+    const createRequest = vi
+      .spyOn(repos.exports, 'createRequest')
+      .mockResolvedValue({ id: 'e2', status: 'completed', deepLink })
+    try {
+      const { doc, template } = await loadDocument('doc-fixture-1')
+      renderWorkspace(doc, template)
+      await screen.findByTestId('editor-title-input')
+      fireEvent.click(screen.getByRole('button', { name: /^export$/i }))
+      fireEvent.click(screen.getByTestId('editor-send-telegram'))
+      const open = await screen.findByTestId('send-telegram-open')
+      expect(createRequest).toHaveBeenCalledWith({ documentId: doc.id, format: 'pdf', delivery: 'telegram' })
+      expect(open).toHaveAttribute('href', deepLink)
+      expect(open).toHaveAttribute('target', '_blank')
+      expect(await screen.findByLabelText(/QR code that opens the SenedDesk bot/)).toBeInTheDocument()
+    } finally {
+      createRequest.mockRestore()
+    }
+  })
+
   it('opens the sidebar on the Format or Assistant tab from the toolbar, and closes it on a second click', async () => {
     const { doc, template } = await loadDocument('doc-fixture-1')
     renderWorkspace(doc, template)

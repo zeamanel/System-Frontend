@@ -94,10 +94,11 @@ export function useUpdateDocument() {
 /** Server-side export boundary (PDF/DOCX). See `endpoints/exports.ts`. */
 export function useCreateExportRequest() {
   return useMutation({
-    mutationFn: (input: { documentId: string; format: ExportFormat }) =>
+    mutationFn: (input: { documentId: string; format: ExportFormat; delivery?: 'download' | 'telegram' }) =>
       getRepositories().exports.createRequest({
         documentId: input.documentId,
         format: input.format,
+        ...(input.delivery ? { delivery: input.delivery } : {}),
       }),
   })
 }

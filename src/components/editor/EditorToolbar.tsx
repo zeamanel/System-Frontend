@@ -26,6 +26,7 @@ import {
   PrinterIcon,
   EditIcon,
   CopyIcon,
+  SmartphoneIcon,
   RedoIcon,
   SlidersIcon,
   UndoIcon,
@@ -53,6 +54,8 @@ export interface EditorToolbarProps {
   onPrint: () => void
   /** Keeps a copy of the document as one of the user's templates (absent: no menu item). */
   onSaveAsTemplate?: () => void
+  /** Sends the PDF to the user's Telegram (absent: no menu item). */
+  onSendToTelegram?: () => void
   /** Places still to fill in ("[payment deadline]"): a counter beside Print that goes to the next one. */
   gaps?: ToolbarGaps
   onExportServerPdf: () => void
@@ -137,6 +140,7 @@ export function EditorToolbar({
   onOverwrite,
   onPrint,
   onSaveAsTemplate,
+  onSendToTelegram,
   gaps,
   onExportServerPdf,
   onExportServerDocx,
@@ -249,6 +253,7 @@ export function EditorToolbar({
         onChooseStyle,
         onPrint,
         onSaveAsTemplate,
+        onSendToTelegram,
         gaps,
         onExportServerPdf,
         onExportServerDocx,
@@ -286,6 +291,7 @@ function renderToolbarEnd(props: {
   onChooseStyle?: () => void
   onPrint: () => void
   onSaveAsTemplate?: () => void
+  onSendToTelegram?: () => void
   gaps?: ToolbarGaps
   onExportServerPdf: () => void
   onExportServerDocx: () => void
@@ -465,6 +471,21 @@ function renderToolbarEnd(props: {
                 <small>{t('editor.exportDocxHint')}</small>
               </span>
             </button>
+            {props.onSendToTelegram ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={props.onSendToTelegram}
+                disabled={props.exportPending}
+                data-testid="editor-send-telegram"
+              >
+                <SmartphoneIcon size={16} />
+                <span>
+                  <strong>{t('editor.sendTelegram')}</strong>
+                  <small>{t('editor.sendTelegramHint')}</small>
+                </span>
+              </button>
+            ) : null}
             {props.onSaveAsTemplate ? (
               <button
                 type="button"

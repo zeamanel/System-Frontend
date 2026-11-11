@@ -2009,3 +2009,11 @@ figure.doc-block--image-right {
   color: var(--color-text-secondary);
   line-height: 1.5;
 }
+
+/* "Send to my Telegram": the QR code for a phone, and the link to open on this device. */
+.editor-telegram-send {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
