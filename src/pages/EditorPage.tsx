@@ -136,6 +136,7 @@ export default function EditorPage() {
       onBack={() => navigate('/documents')}
       refresh={refresh}
       onNewCustomer={handleNewCustomer}
+      onOpenDocument={(id) => navigate(`/documents/${encodeURIComponent(id)}`)}
     />
   )
 }

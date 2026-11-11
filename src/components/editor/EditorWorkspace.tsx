@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useI18n, tForLocale } from '../../i18n'
 import type { MessageKey, MessageVars } from '../../i18n'
-import { useCreateExportRequest } from '../../hooks/use-documents'
+import { useCreateExportRequest, useDuplicateDocument, useSaveAsTemplate } from '../../hooks/use-documents'
 import { useCreateGenerationRequest, useGenerationJob } from '../../hooks/use-generation'
 import { generateKey } from '../../lib/api/idempotency'
 import type { TelegramBridgeTransferPayload } from '../documents/TelegramBridgeButton'
@@ -64,7 +64,7 @@ import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { newId } from '../../lib/editor/ids'
 import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
 import { LANGUAGES } from '../../lib/languages'
-import { Button, Dialog, useToast } from '../ui'
+import { Button, Dialog, Input, useToast } from '../ui'
 import { ApiError } from '../../lib/api'
 import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
@@ -122,6 +122,8 @@ export interface EditorWorkspaceProps {
    * (the route owns navigation). The open document is never modified.
    */
   onNewCustomer?: (input: NewCustomerDocumentInput) => Promise<void>
+  /** Opens another document (the route owns navigation): a document just started from this template. */
+  onOpenDocument?: (documentId: string) => void
 }
 
 export interface NewCustomerDocumentInput {
@@ -162,6 +164,7 @@ export function EditorWorkspace({
   onBack,
   refresh,
   onNewCustomer,
+  onOpenDocument,
 }: EditorWorkspaceProps) {
   const { t } = useI18n()
   const toast = useToast()
@@ -339,6 +342,34 @@ export function EditorWorkspace({
 
   // ---- export ----
   const exportMutation = useCreateExportRequest()
+
+  // ---- My templates ----
+  const saveTemplateMutation = useSaveAsTemplate()
+  const duplicateMutation = useDuplicateDocument()
+  const [templateName, setTemplateName] = useState<string | null>(null)
+  const saveAsTemplate = async (): Promise<void> => {
+    const title = templateName?.trim()
+    if (!title) return
+    try {
+      // The template is a copy of what is saved: save the latest edits first.
+      if (!(await editor.saveAll())) throw new Error('unsaved')
+      await saveTemplateMutation.mutateAsync({ id: doc.id, title })
+      setTemplateName(null)
+      toast.push(t('editor.saveTemplate.saved'), { variant: 'success' })
+    } catch {
+      toast.push(t('editor.saveTemplate.failed'), { variant: 'error' })
+    }
+  }
+  /** On a template: a new document from it (a copy), opened in its place. */
+  const startFromTemplate = async (): Promise<void> => {
+    try {
+      if (!(await editor.saveAll())) throw new Error('unsaved')
+      const started = await duplicateMutation.mutateAsync(doc.id)
+      onOpenDocument?.(started.id)
+    } catch {
+      toast.push(t('editor.saveTemplate.failed'), { variant: 'error' })
+    }
+  }
   const [exportError, setExportError] = useState<string | null>(null)
 
   const activeBlock = useMemo<Block | null>(
@@ -1357,6 +1388,7 @@ export function EditorWorkspace({
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
+        onSaveAsTemplate={doc.isTemplate || doc.access === 'view' ? undefined : () => setTemplateName(editor.title)}
         gaps={
           gapCount > 0
             ? {
@@ -1389,6 +1421,13 @@ export function EditorWorkspace({
       {editor.recovered ? (
         <div className="editor-recovered" role="status">
           {t('editor.recovered')}
+        </div>
+      ) : doc.isTemplate && onOpenDocument ? (
+        <div className="editor-recovered editor-template-banner" role="status" data-testid="editor-template-banner">
+          <span>{t('editor.templateBanner')}</span>
+          <Button variant="secondary" size="sm" loading={duplicateMutation.isPending} onClick={() => void startFromTemplate()} data-testid="editor-template-start">
+            {t('editor.templateBannerStart')}
+          </Button>
         </div>
       ) : null}
 
@@ -1664,6 +1703,42 @@ export function EditorWorkspace({
           <span>{t('assistant.tabFormat')}</span>
         </button>
       </nav>
+
+      <Dialog
+        open={templateName !== null}
+        onClose={() => setTemplateName(null)}
+        title={t('editor.saveAsTemplate')}
+        closeLabel={t('common.close')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setTemplateName(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              loading={saveTemplateMutation.isPending}
+              disabled={!templateName?.trim()}
+              onClick={() => void saveAsTemplate()}
+              data-testid="save-template-confirm"
+            >
+              {t('editor.saveTemplate.save')}
+            </Button>
+          </>
+        }
+      >
+        <p className="editor-dialog__text">{t('editor.saveTemplate.body')}</p>
+        <Input
+          id="save-template-name"
+          label={t('editor.saveTemplate.name')}
+          value={templateName ?? ''}
+          maxLength={200}
+          onChange={(event) => setTemplateName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') void saveAsTemplate()
+          }}
+          data-testid="save-template-name"
+        />
+      </Dialog>
 
       <Dialog
         open={printCheck !== null}

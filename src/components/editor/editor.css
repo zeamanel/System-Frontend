@@ -1994,3 +1994,18 @@ figure.doc-block--image-right {
     print-color-adjust: exact;
   }
 }
+
+/* Editing one of the user's templates: says so, with a way to start a document from it. */
+.editor-template-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.editor-dialog__text {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}

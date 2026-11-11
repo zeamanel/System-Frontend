@@ -25,6 +25,7 @@ import {
   PanelLeftIcon,
   PrinterIcon,
   EditIcon,
+  CopyIcon,
   RedoIcon,
   SlidersIcon,
   UndoIcon,
@@ -50,6 +51,8 @@ export interface EditorToolbarProps {
   onReloadLatest: () => void
   onOverwrite: () => void
   onPrint: () => void
+  /** Keeps a copy of the document as one of the user's templates (absent: no menu item). */
+  onSaveAsTemplate?: () => void
   /** Places still to fill in ("[payment deadline]"): a counter beside Print that goes to the next one. */
   gaps?: ToolbarGaps
   onExportServerPdf: () => void
@@ -133,6 +136,7 @@ export function EditorToolbar({
   onReloadLatest,
   onOverwrite,
   onPrint,
+  onSaveAsTemplate,
   gaps,
   onExportServerPdf,
   onExportServerDocx,
@@ -244,6 +248,7 @@ export function EditorToolbar({
         onShowHistory,
         onChooseStyle,
         onPrint,
+        onSaveAsTemplate,
         gaps,
         onExportServerPdf,
         onExportServerDocx,
@@ -280,6 +285,7 @@ function renderToolbarEnd(props: {
   onShowHistory?: () => void
   onChooseStyle?: () => void
   onPrint: () => void
+  onSaveAsTemplate?: () => void
   gaps?: ToolbarGaps
   onExportServerPdf: () => void
   onExportServerDocx: () => void
@@ -459,6 +465,20 @@ function renderToolbarEnd(props: {
                 <small>{t('editor.exportDocxHint')}</small>
               </span>
             </button>
+            {props.onSaveAsTemplate ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={props.onSaveAsTemplate}
+                data-testid="editor-save-as-template"
+              >
+                <CopyIcon size={16} />
+                <span>
+                  <strong>{t('editor.saveAsTemplate')}</strong>
+                  <small>{t('editor.saveAsTemplateHint')}</small>
+                </span>
+              </button>
+            ) : null}
             {props.exportPending ? (
               <p className="editor-export-menu__status" data-testid="export-pending">
                 {t('editor.exportStarted')}

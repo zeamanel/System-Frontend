@@ -6,6 +6,7 @@ import {
   createDocument as createDocumentEndpoint,
   deleteDocument as deleteDocumentEndpoint,
   duplicateDocument as duplicateDocumentEndpoint,
+  saveDocumentAsTemplate as saveDocumentAsTemplateEndpoint,
   getDocument as fetchDocumentEndpoint,
   listDocumentVersions as fetchDocumentVersionsEndpoint,
   listDocuments as fetchDocumentsEndpoint,
@@ -203,6 +204,7 @@ function mapDocument(record: DocumentApiRecord): DocumentRecord {
     shared: record.shared === true,
     access: record.access === 'view' ? 'view' : 'owner',
     ...(record.access === 'view' ? { ownerName: record.ownerName ?? '' } : {}),
+    ...(record.isTemplate ? { isTemplate: true } : {}),
   }
 }
 
@@ -637,6 +639,16 @@ class HttpDocumentsRepository implements DocumentsRepository {
 
   async setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord> {
     return mapDocumentDetail(await setDocumentSharing(id, shared))
+  }
+
+  async listTemplates(): Promise<DocumentRecord[]> {
+    // An older backend ignores `scope` and returns ordinary documents: only records marked as templates count.
+    const records = await nullOnNotFound(() => fetchDocumentsEndpoint({ limit: 200, scope: 'templates' }))
+    return (records ?? []).filter((record) => record.isTemplate === true).map(mapDocument)
+  }
+
+  async saveAsTemplate(id: string, title?: string): Promise<DocumentDetailRecord> {
+    return mapDocumentDetail(await saveDocumentAsTemplateEndpoint(id, title))
   }
 }
 

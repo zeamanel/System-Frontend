@@ -25,10 +25,12 @@ export interface DocumentListItemProps {
   onDelete?: (id: string) => void
   /** Share with the organization / make private (own documents only). */
   onToggleShare?: (document: DocumentRecord) => void
+  /** A template: start a new document from it. */
+  onUse?: (id: string) => void
 }
 
 /** Clickable document row: navigates to the document (editor route). */
-export function DocumentListItem({ document, onDuplicate, onDelete, onToggleShare }: DocumentListItemProps) {
+export function DocumentListItem({ document, onDuplicate, onDelete, onToggleShare, onUse }: DocumentListItemProps) {
   const { t, locale } = useI18n()
   const status = STATUS_BADGE[document.status]
   // A colleague's shared document: open and copy only.
@@ -49,19 +51,35 @@ export function DocumentListItem({ document, onDuplicate, onDelete, onToggleShar
           <span className="document-item__title">{document.title}</span>
           <span className="document-item__meta">
             {viewOnly ? `${t('documents.sharedBy', { name: document.ownerName || t('documents.colleague') })} · ` : null}
-            {document.templateTitle} ·{' '}
+            {document.templateTitle ? `${document.templateTitle} · ` : null}
             <time dateTime={document.updatedAt}>
               {formatRelativeTime(document.updatedAt, locale)}
             </time>
           </span>
         </span>
         {document.kind === 'design' ? <Badge variant="neutral">{t('designs.badge')}</Badge> : null}
+        {document.isTemplate ? <Badge variant="neutral">{t('documents.templateBadge')}</Badge> : null}
         {document.shared && !viewOnly ? <Badge variant="info">{t('documents.sharedBadge')}</Badge> : null}
         {viewOnly ? <Badge variant="neutral">{t('documents.viewOnlyBadge')}</Badge> : null}
-        <Badge variant={status.variant}>{t(status.labelKey)}</Badge>
+        {document.isTemplate ? null : <Badge variant={status.variant}>{t(status.labelKey)}</Badge>}
       </Link>
-      {(onDuplicate || canDelete || canShare) && (
+      {(onDuplicate || canDelete || canShare || onUse) && (
         <div className="document-item__actions">
+          {onUse && (
+            <button
+              type="button"
+              className="document-item__use-btn"
+              data-testid={`use-template-${document.id}`}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onUse(document.id)
+              }}
+              title={t('documents.actions.useTemplateTitle')}
+            >
+              {t('documents.actions.useTemplate')}
+            </button>
+          )}
           {canShare && (
             <button
               type="button"

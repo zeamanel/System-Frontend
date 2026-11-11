@@ -109,6 +109,8 @@ export interface DocumentRecord {
   access?: 'owner' | 'view'
   /** Owner's name, on documents shared by a colleague. */
   ownerName?: string
+  /** One of the user's own templates: kept to start new documents from (each start makes a copy). */
+  isTemplate?: boolean
 }
 
 export interface DocumentDetailRecord extends DocumentRecord {
@@ -351,6 +353,10 @@ export interface DocumentsRepository {
   listShared(options?: { search?: string }): Promise<DocumentRecord[]>
   /** Owner only: share with the organization, or make private again. */
   setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord>
+  /** The user's own templates, and those colleagues shared with their organization. */
+  listTemplates(): Promise<DocumentRecord[]>
+  /** Keeps a copy of a document as one of the user's templates (the document is unchanged). */
+  saveAsTemplate(id: string, title?: string): Promise<DocumentDetailRecord>
 }
 
 export interface GenerationRepository {

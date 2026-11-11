@@ -28,6 +28,7 @@ export interface DocumentApiRecord {
   shared?: boolean
   access?: 'owner' | 'view'
   ownerName?: string
+  isTemplate?: boolean
   /** Present on detail responses: serialized structured content. */
   content?: string | null
   answers?: Record<string, string>
@@ -40,8 +41,8 @@ export interface ListDocumentsApiQuery {
   /** Page size (backend default 50, max 200). */
   limit?: number
   offset?: number
-  /** `shared`: documents shared with the caller's organization. */
-  scope?: 'shared'
+  /** `shared`: documents shared with the caller's organization; `templates`: the caller's templates. */
+  scope?: 'shared' | 'templates'
 }
 
 export function listDocuments(
@@ -137,6 +138,14 @@ export function duplicateDocument(id: string): Promise<DocumentApiRecord> {
   return apiClient.post<DocumentApiRecord>(
     `/documents/${encodeURIComponent(id)}/duplicate`,
     undefined,
+    { auth: 'required' },
+  )
+}
+
+export function saveDocumentAsTemplate(id: string, title?: string): Promise<DocumentApiRecord> {
+  return apiClient.post<DocumentApiRecord>(
+    `/documents/${encodeURIComponent(id)}/save-as-template`,
+    title ? { title } : {},
     { auth: 'required' },
   )
 }
