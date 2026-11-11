@@ -19,6 +19,8 @@ describe('English labels', () => {
     const offenders: string[] = []
     for (const [key, value] of Object.entries(en as Record<string, string>)) {
       if (value.length > 60) continue
+      // A comma-separated list of names (weekday abbreviations), not a sentence.
+      if (key === 'datePicker.weekdays') continue
       for (const part of value.split(/[.!?:]\s+|\(|\s[—–-]\s|\//)) {
         const words = part.match(/[A-Za-z][A-Za-z']*/g) ?? []
         for (const word of words.slice(1)) {

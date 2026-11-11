@@ -4,10 +4,10 @@ import { QuestionLabel } from '../guided-flow/QuestionLabel'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useI18n } from '../../i18n'
 import { DOCUMENT_LANGUAGES, LANGUAGES } from '../../lib/languages'
-import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
+import { detectSmartFieldKind, getSmartSuggestion } from '../../lib/ethiopian/smart-field'
 import { clearSavedAnswers, getSavedSuggestionsForField } from '../../lib/saved-answers/party-memory'
 import { listTelegramMediaVault, type TelegramVaultProfile } from '../../lib/api'
-import { SmartSuggestionChip } from '../smart-fields'
+import { DatePicker, SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
 import { useOrganization } from '../../hooks/use-organization'
 import { SavedCustomers, SaveCustomerButton } from '../customers'
@@ -1041,17 +1041,24 @@ export function GuidedFieldsPanel({
                   })}
 
 
-                {suggestion ? (
-                  <SmartSuggestionChip
-                    suggestion={suggestion}
-                    onApply={(formatted) => {
-                      if (isParty) {
-                        handlePrimaryChange(fieldKey, formatted, question.label, currentValue)
-                      } else {
-                        onAnswerChange(question.id, formatted)
-                      }
-                    }}
-                  />
+                {suggestion || detectSmartFieldKind(question) === 'date' ? (
+                  <div className="guided-smart-row">
+                    {detectSmartFieldKind(question) === 'date' ? (
+                      <DatePicker value={currentValue} language={language} onPick={pick} />
+                    ) : null}
+                    {suggestion ? (
+                      <SmartSuggestionChip
+                        suggestion={suggestion}
+                        onApply={(formatted) => {
+                          if (isParty) {
+                            handlePrimaryChange(fieldKey, formatted, question.label, currentValue)
+                          } else {
+                            onAnswerChange(question.id, formatted)
+                          }
+                        }}
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
                 <RecentAnswerChips
                   suggestions={fromOrganization}

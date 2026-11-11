@@ -473,3 +473,19 @@
   color: var(--color-text);
   word-break: break-word;
 }
+
+/* Beside a date or amount field: the date picker and the suggested way to write it. */
+.guided-smart-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.guided-smart-row .smart-chip {
+  margin-top: 0;
+}
+
+.guided-smart-row > .popover {
+  margin-top: var(--space-2);
+}
