@@ -901,3 +901,28 @@ describe('table column alignment', () => {
   })
 })
 
+
+describe('removeEmptySideBoxes', () => {
+  it('removes only side boxes that hold nothing, in side-by-side mode, in one change', async () => {
+    const { countEmptySideBoxes, createEmptyDocument, createParagraph, removeEmptySideBoxes } = await import('./model')
+    const base = createEmptyDocument('en')
+    const blocks = [
+      createParagraph('Empty side', { id: 'a' }),
+      createParagraph('Blank side', { id: 'b', secondaryHtml: ' <br> ' }),
+      createParagraph('Has text', { id: 'c', secondaryHtml: 'ጽሑፍ' }),
+      createParagraph('Has picture', { id: 'd', secondaryImage: { src: 'data:image/png;base64,AA==', alt: '' } }),
+      createParagraph('Already removed', { id: 'e', sideHidden: true }),
+    ]
+    const off = { ...base, blocks }
+    expect(countEmptySideBoxes(off)).toBe(0)
+    expect(removeEmptySideBoxes(off)).toBe(off)
+    const on = { ...base, page: { ...base.page, bilingual: true }, blocks }
+    expect(countEmptySideBoxes(on)).toBe(2)
+    const tidied = removeEmptySideBoxes(on)
+    expect(tidied.blocks.map((block) => ('sideHidden' in block && block.sideHidden) === true)).toEqual([true, true, false, false, true])
+    // Blocks that keep their box are the same objects; nothing left to remove afterwards.
+    expect(tidied.blocks[2]).toBe(blocks[2])
+    expect(countEmptySideBoxes(tidied)).toBe(0)
+    expect(removeEmptySideBoxes(tidied)).toBe(tidied)
+  })
+})

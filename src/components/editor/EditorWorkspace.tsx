@@ -32,6 +32,7 @@ import {
   setAlignment,
   setBilingualMode,
   setDocumentFont,
+  removeEmptySideBoxes,
   setDocumentFontSize,
   setIndent,
   setMargins,
@@ -1266,6 +1267,7 @@ export function EditorWorkspace({
         ),
       onToggleBilingual: () =>
         updateModel((current) => setBilingualMode(current, !current.page.bilingual)),
+      onRemoveEmptySideBoxes: () => updateModel((current) => removeEmptySideBoxes(current)),
       onUpdateSecondaryHtml: (blockId, html) =>
         updateModel((current) => updateSecondaryText(current, blockId, html)),
     }),
@@ -1285,6 +1287,25 @@ export function EditorWorkspace({
 
   // ---- Gaps still to fill ("[payment deadline]") ----
   const workspaceRef = useRef<HTMLDivElement>(null)
+  // When the caret leaves a paragraph: numbers in its Arabic text go back to typed order.
+  const { tidyAfterTyping } = editor
+  useEffect(() => {
+    const root = workspaceRef.current
+    if (!root) return
+    let timer = 0
+    const onFocusOut = (event: FocusEvent): void => {
+      if (!(event.target instanceof HTMLElement) || !event.target.isContentEditable) return
+      window.clearTimeout(timer)
+      // After the focus has moved, so the block the caret went to is the one left alone.
+      timer = window.setTimeout(tidyAfterTyping, 0)
+    }
+    root.addEventListener('focusout', onFocusOut)
+    return () => {
+      window.clearTimeout(timer)
+      root.removeEventListener('focusout', onFocusOut)
+    }
+  }, [tidyAfterTyping])
+
   const gapsEnabled = !previewMode && !pageLocked
   const gaps = useGaps(workspaceRef, gapsEnabled)
   const gapCount = useMemo(() => (gapsEnabled ? countGaps(model) : 0), [gapsEnabled, model])

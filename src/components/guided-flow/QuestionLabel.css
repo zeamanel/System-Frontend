@@ -1,0 +1,17 @@
+/* A question of an Arabic document: the Arabic label, and the interface-language one under it. */
+.question-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.question-label__ar {
+  font-family: 'SenedDesk Arabic Sans', var(--font-sans);
+  font-weight: var(--weight-semibold);
+}
+
+.question-label__ui {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular, 400);
+  color: var(--color-text-tertiary);
+}

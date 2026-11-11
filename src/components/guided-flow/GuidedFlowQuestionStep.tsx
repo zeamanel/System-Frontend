@@ -1,4 +1,5 @@
 import { useI18n } from '../../i18n'
+import { QuestionLabel } from './QuestionLabel'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
 import { getSavedSuggestionsForField } from '../../lib/saved-answers/party-memory'
 import { SmartSuggestionChip } from '../smart-fields'
@@ -74,14 +75,14 @@ export function GuidedFlowQuestionStep({
         ) : null}
       </div>
 
-      <CardTitle>{question.label}</CardTitle>
+      <CardTitle><QuestionLabel question={question} language={language} /></CardTitle>
 
       <CardBody>
         <div style={{ marginTop: 'var(--space-4)' }}>
           {question.type === 'file_upload' ? (
             <FileUploadField
               id={`question-${question.id}`}
-              label={question.label}
+              label={<QuestionLabel question={question} language={language} />}
               value={answer}
               fileName=""
               onChange={(inputId) => onAnswerChange(inputId)}

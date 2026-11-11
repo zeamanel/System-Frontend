@@ -680,6 +680,30 @@ export function setSideMode(model: DocumentModel, blockId: string, mode: 'text' 
   })
 }
 
+/** A side box that holds nothing: shown (side-by-side mode, not removed), no picture, no text. */
+function emptySideBox(block: Block): boolean {
+  if (block.type !== 'paragraph' && block.type !== 'heading') return false
+  if (block.sideHidden || block.secondaryImage) return false
+  return inlineHtmlToText(block.secondaryHtml ?? '').trim() === ''
+}
+
+/** How many side boxes are empty (side-by-side mode only). */
+export function countEmptySideBoxes(model: DocumentModel): number {
+  return model.page.bilingual ? model.blocks.filter(emptySideBox).length : 0
+}
+
+/**
+ * Removes every empty side box at once: those paragraphs and headings use the
+ * full width (as if "Remove side box" was chosen on each). One undo step.
+ */
+export function removeEmptySideBoxes(model: DocumentModel): DocumentModel {
+  if (!model.page.bilingual || !model.blocks.some(emptySideBox)) return model
+  return {
+    ...model,
+    blocks: model.blocks.map((block) => (emptySideBox(block) ? ({ ...block, sideHidden: true } as Block) : block)),
+  }
+}
+
 /** Brings back a removed side box, with whatever it held. */
 export function showSideBox(model: DocumentModel, blockId: string): DocumentModel {
   return updateBlock(model, blockId, (block) => {

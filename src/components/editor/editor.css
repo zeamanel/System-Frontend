@@ -1951,3 +1951,12 @@ figure.doc-block--image-right {
     row-gap: var(--space-1);
   }
 }
+
+/* "Remove empty side boxes" under the side-by-side checkbox. */
+.editor-panel__side-tidy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2) var(--space-5);
+}

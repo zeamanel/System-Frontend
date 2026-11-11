@@ -11,7 +11,7 @@ import type {
   ParagraphSpacing,
   TextAlign,
 } from '../../lib/editor/types'
-import type { DocumentPreset } from '../../lib/editor/model'
+import { countEmptySideBoxes, type DocumentPreset } from '../../lib/editor/model'
 import { MAX_FONT_SIZE_PT, MIN_FONT_SIZE_PT } from '../../lib/editor/types'
 import type { InlineCommand } from '../../lib/editor/commands'
 import { FONT_OPTIONS, type EthiopicSupport } from '../../lib/editor/fonts'
@@ -69,6 +69,8 @@ export interface FormatPanelCallbacks {
   /** Replace exactly one block's inline HTML (scoped AI refinement). */
   onUpdateBlockHtml(blockId: string, html: string): void
   onToggleBilingual(): void
+  /** Side-by-side mode: removes every side box that holds nothing. */
+  onRemoveEmptySideBoxes?(): void
   onUpdateSecondaryHtml(blockId: string, html: string): void
 }
 
@@ -535,6 +537,25 @@ function renderPageSetup(model: DocumentModel, callbacks: FormatPanelCallbacks, 
         />
         {t('editor.bilingualMode')}
       </label>
+      {model.page.bilingual && callbacks.onRemoveEmptySideBoxes ? (
+        (() => {
+          const empty = countEmptySideBoxes(model)
+          return (
+            <div className="editor-panel__side-tidy">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={empty === 0}
+                onClick={() => callbacks.onRemoveEmptySideBoxes?.()}
+                data-testid="remove-empty-side-boxes"
+              >
+                {empty === 0 ? t('editor.side.noEmptyBoxes') : t('editor.side.removeEmpty', { count: String(empty) })}
+              </Button>
+              <p className="editor-panel__hint">{t('editor.side.removeEmptyHint')}</p>
+            </div>
+          )
+        })()
+      ) : null}
 
       <Select
         id="format-page-numbers"

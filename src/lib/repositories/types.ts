@@ -43,6 +43,8 @@ export interface TemplatePreviewInfo {
 export interface TemplateQuestion {
   id: string
   label: string
+  /** The Arabic label, shown for documents written in Arabic (templates that have one). */
+  labelAr?: string
   required: boolean
   /** 'text', 'textarea', 'select' (pick one of `options`), or 'file' (attach a file whose text goes into the field named by `fills`). */
   type?: string

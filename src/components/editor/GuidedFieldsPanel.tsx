@@ -1,4 +1,5 @@
 import './GuidedFieldsPanel.css'
+import { QuestionLabel } from '../guided-flow/QuestionLabel'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useI18n } from '../../i18n'
@@ -664,7 +665,7 @@ export function GuidedFieldsPanel({
                     id={`field-${question.id}`}
                     label={
                       <>
-                        {question.label}
+                        <QuestionLabel question={question} language={language} />
                         {question.required ? <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge> : null}
                       </>
                     }
@@ -686,7 +687,7 @@ export function GuidedFieldsPanel({
               return (
                 <div key={question.id} className="editor-panel__field guided-file-field" data-testid={`file-field-${question.id}`}>
                   <span className="field__label">
-                    {question.label}
+                    <QuestionLabel question={question} language={language} />
                     {question.required ? <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge> : null}
                   </span>
                   {attached ? (
@@ -758,7 +759,7 @@ export function GuidedFieldsPanel({
                   <div className="field">
                     <div className="guided-fields-panel__field-header-row">
                       <label className="field__label" htmlFor={`field-${question.id}`}>
-                        {question.label}
+                        <QuestionLabel question={question} language={language} />
                         {question.required ? (
                           <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                         ) : null}
@@ -842,7 +843,7 @@ export function GuidedFieldsPanel({
                         question={question}
                         label={
                           <>
-                            {question.label}
+                            <QuestionLabel question={question} language={language} />
                             {question.required ? (
                               <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                             ) : null}
@@ -857,7 +858,7 @@ export function GuidedFieldsPanel({
                         id={`field-${question.id}`}
                         label={
                           <>
-                            {question.label}
+                            <QuestionLabel question={question} language={language} />
                             {question.required ? (
                               <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                             ) : null}
@@ -889,7 +890,7 @@ export function GuidedFieldsPanel({
                         id={`field-${question.id}`}
                         label={
                           <>
-                            {question.label}
+                            <QuestionLabel question={question} language={language} />
                             {question.required ? (
                               <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                             ) : null}
