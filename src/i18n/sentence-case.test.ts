@@ -14,6 +14,8 @@ const NAMES = new Set([
   'Enter', 'Tab', 'Esc', 'Arabic',
   // Browsers.
   'Chrome', 'Edge', 'Firefox', 'Safari',
+  // Example names of people.
+  'Haile',
 ])
 
 describe('English labels', () => {

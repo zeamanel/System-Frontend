@@ -103,6 +103,7 @@ import { countGap, countGaps, fillGap } from '../../lib/editor/gaps'
 import { useGaps } from './useGaps'
 import { GapFillBox } from './GapFillBox'
 import { DictationPanel } from './DictationPanel'
+import { SendForReviewDialog } from '../reviews/SendForReviewDialog'
 import { useDictation } from './useDictation'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
 
@@ -353,6 +354,7 @@ export function EditorWorkspace({
   const saveTemplateMutation = useSaveAsTemplate()
   const duplicateMutation = useDuplicateDocument()
   const [templateName, setTemplateName] = useState<string | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const saveAsTemplate = async (): Promise<void> => {
     const title = templateName?.trim()
     if (!title) return
@@ -1460,6 +1462,7 @@ export function EditorWorkspace({
         onPrint={() => void handlePrint()}
         onSaveAsTemplate={doc.isTemplate || doc.access === 'view' ? undefined : () => setTemplateName(editor.title)}
         onSendToTelegram={() => void handleSendToTelegram()}
+        onSendForReview={doc.isTemplate || doc.access === 'view' || doc.kind === 'design' ? undefined : () => setReviewOpen(true)}
         onDictate={pageLocked || previewMode || doc.access === 'view' ? undefined : handleDictate}
         dictating={dictation.state.phase !== 'idle'}
         gaps={
@@ -1868,6 +1871,13 @@ export function EditorWorkspace({
           </div>
         ) : null}
       </Dialog>
+
+      <SendForReviewDialog
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        documentId={doc.id}
+        beforeCreate={() => editor.flush()}
+      />
 
       <DictationPanel
         state={dictation.state}

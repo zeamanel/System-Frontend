@@ -37,6 +37,11 @@ export const queryKeys = {
     all: ['notifications'] as const,
   },
   features: ['features'] as const,
+  reviews: {
+    all: ['reviews'] as const,
+    forDocument: (documentId: string) => ['reviews', 'document', documentId] as const,
+    public: (token: string) => ['reviews', 'public', token] as const,
+  },
   customers: {
     all: ['customers'] as const,
     list: (query: string) => ['customers', 'list', query] as const,

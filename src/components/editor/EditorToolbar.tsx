@@ -28,6 +28,7 @@ import {
   CopyIcon,
   SmartphoneIcon,
   MicIcon,
+  UsersIcon,
   RedoIcon,
   SlidersIcon,
   UndoIcon,
@@ -57,6 +58,8 @@ export interface EditorToolbarProps {
   onSaveAsTemplate?: () => void
   /** Sends the PDF to the user's Telegram (absent: no menu item). */
   onSendToTelegram?: () => void
+  /** Sends a read-only copy to the other party to comment and approve (absent: no menu item). */
+  onSendForReview?: () => void
   /** Dictate at the caret (absent: no button). */
   onDictate?: () => void
   /** Dictation is open (the button shows as pressed). */
@@ -146,6 +149,7 @@ export function EditorToolbar({
   onPrint,
   onSaveAsTemplate,
   onSendToTelegram,
+  onSendForReview,
   onDictate,
   dictating,
   gaps,
@@ -261,6 +265,7 @@ export function EditorToolbar({
         onPrint,
         onSaveAsTemplate,
         onSendToTelegram,
+        onSendForReview,
         onDictate,
         dictating,
         gaps,
@@ -301,6 +306,7 @@ function renderToolbarEnd(props: {
   onPrint: () => void
   onSaveAsTemplate?: () => void
   onSendToTelegram?: () => void
+  onSendForReview?: () => void
   onDictate?: () => void
   dictating?: boolean
   gaps?: ToolbarGaps
@@ -494,6 +500,20 @@ function renderToolbarEnd(props: {
                 <span>
                   <strong>{t('editor.sendTelegram')}</strong>
                   <small>{t('editor.sendTelegramHint')}</small>
+                </span>
+              </button>
+            ) : null}
+            {props.onSendForReview ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={props.onSendForReview}
+                data-testid="editor-send-review"
+              >
+                <UsersIcon size={16} />
+                <span>
+                  <strong>{t('reviews.menu')}</strong>
+                  <small>{t('reviews.menuHint')}</small>
                 </span>
               </button>
             ) : null}
