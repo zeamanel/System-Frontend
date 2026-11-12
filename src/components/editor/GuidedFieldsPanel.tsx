@@ -44,6 +44,8 @@ export interface GuidedFieldsPanelProps {
    * The open document is never modified (its saved answers stay intact).
    */
   onNewCustomer?: () => void
+  /** The open document (links a customer used or saved here to it). */
+  documentId?: string
   children?: React.ReactNode
 }
 
@@ -160,6 +162,7 @@ export function GuidedFieldsPanel({
   generationFailed,
   onGenerate,
   onNewCustomer,
+  documentId,
   children,
 }: GuidedFieldsPanelProps) {
   const { t } = useI18n()
@@ -656,6 +659,7 @@ export function GuidedFieldsPanel({
             answers={answers}
             onFill={(fills) => handleCustomerFill(fills, fills[0]?.questionId ?? '')}
             onAppendInstructions={handleAppendInstructions}
+            documentId={documentId}
           />
           {questions.map((question) => {
             if (question.type === 'file_upload') {
@@ -1068,7 +1072,7 @@ export function GuidedFieldsPanel({
                 />
                 <RecentAnswerChips suggestions={recents} onPick={pick} />
                 {customerTargets(questions).some((target) => target.id === question.id) ? (
-                  <SaveCustomerButton questions={questions} answers={answers} fieldId={question.id} />
+                  <SaveCustomerButton questions={questions} answers={answers} fieldId={question.id} documentId={documentId} />
                 ) : null}
               </div>
             )

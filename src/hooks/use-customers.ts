@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  CUSTOMER_COUNT_LIMIT,
   deleteAllCustomers,
   deleteCustomer,
+  getCustomer,
   listAllCustomers,
+  listCustomerDocuments,
   listCustomers,
   markCustomerUsed,
   saveCustomer,
@@ -20,6 +23,33 @@ export function useCustomers(query = '', enabled = true) {
   })
 }
 
+/** The customers page: up to the count limit, matching `query`. */
+export function useCustomerDirectory(query = '') {
+  return useQuery({
+    queryKey: [...queryKeys.customers.list(query.trim()), 'directory'],
+    queryFn: ({ signal }) => listCustomers(query, signal, CUSTOMER_COUNT_LIMIT),
+    staleTime: 30_000,
+  })
+}
+
+/** One saved customer (null when forgotten or not visible). */
+export function useCustomer(id: string) {
+  return useQuery({
+    queryKey: queryKeys.customers.detail(id),
+    queryFn: ({ signal }) => getCustomer(id, signal),
+    enabled: Boolean(id),
+  })
+}
+
+/** The documents made for a customer. */
+export function useCustomerDocuments(id: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.customers.documents(id),
+    queryFn: ({ signal }) => listCustomerDocuments(id, signal),
+    enabled: Boolean(id) && enabled,
+  })
+}
+
 export function useSaveCustomer() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -31,7 +61,7 @@ export function useSaveCustomer() {
 export function useMarkCustomerUsed() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => markCustomerUsed(id),
+    mutationFn: ({ id, documentId }: { id: string; documentId?: string }) => markCustomerUsed(id, documentId),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.customers.all }),
   })
 }

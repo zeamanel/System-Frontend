@@ -15,6 +15,7 @@ import {
   StarIcon,
   TemplateIcon,
   UserIcon,
+  UsersIcon,
   XIcon,
   ReceiptIcon,
 } from '../icons'
@@ -34,6 +35,7 @@ const WORKSPACE_ITEMS: NavItem[] = [
   { to: '/', labelKey: 'nav.home', icon: HomeIcon, end: true },
   { to: '/templates', labelKey: 'nav.templates', icon: TemplateIcon },
   { to: '/documents', labelKey: 'nav.documents', icon: DocumentIcon },
+  { to: '/customers', labelKey: 'nav.customers', icon: UsersIcon },
   { to: '/telegram-files', labelKey: 'nav.telegramFiles', icon: SmartphoneIcon },
   { to: '/favorites', labelKey: 'nav.favorites', icon: StarIcon },
 ]

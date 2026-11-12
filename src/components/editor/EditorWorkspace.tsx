@@ -1474,6 +1474,7 @@ export function EditorWorkspace({
           outline={outline}
           onOutlineSelect={handleOutlineSelect}
           onNewCustomer={onNewCustomer ? () => void handleNewCustomer() : undefined}
+          documentId={doc.id}
         >
         {telegramMedia ? (
           <div className="telegram-media-tray" data-testid="telegram-media-tray">

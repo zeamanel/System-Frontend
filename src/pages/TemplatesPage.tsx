@@ -28,6 +28,7 @@ import {
 } from '../components/ui'
 import { DesignShelf } from '../components/designs'
 import { useFeatures } from '../hooks/use-features'
+import { PendingCustomerNotice } from '../components/customers/PendingCustomerNotice'
 
 type CategoryFilter = 'all' | TemplateCategory
 
@@ -160,6 +161,7 @@ export default function TemplatesPage() {
   return (
     <div className="page">
       <PageHeader title={t('templates.title')} />
+      <PendingCustomerNotice />
 
       <WriteAnythingStrip />
 

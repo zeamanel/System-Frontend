@@ -9,6 +9,7 @@ import {
   useMarkCustomerUsed,
   useSaveCustomer,
 } from '../../hooks/use-customers'
+import { clearPendingCustomer, getPendingCustomer } from '../../lib/customers/pending'
 import { customerFromAnswers, customerTargets, planCustomerFill, type FieldFill, type FillQuestion } from '../../lib/customers/fill'
 import type { Customer } from '../../lib/customers/types'
 import { Badge, Button, useToast } from '../ui'
@@ -22,6 +23,8 @@ export interface SavedCustomersProps {
   onFill: (fills: FieldFill[]) => void
   /** For documents without party fields: add the details to the free-text instructions. */
   onAppendInstructions: (text: string) => void
+  /** The open document: using or saving a customer here lists it on the customer's page. */
+  documentId?: string
 }
 
 function detailsOf(customer: Customer): string {
@@ -35,7 +38,7 @@ function detailsOf(customer: Customer): string {
  * saves a customer by itself; saving is the explicit "Save customer" button
  * under a name field (see {@link SaveCustomerButton}).
  */
-export function SavedCustomers({ questions, answers, onFill, onAppendInstructions }: SavedCustomersProps) {
+export function SavedCustomers({ questions, answers, onFill, onAppendInstructions, documentId }: SavedCustomersProps) {
   const { t } = useI18n()
   const toast = useToast()
   const [open, setOpen] = useState(false)
@@ -45,6 +48,12 @@ export function SavedCustomers({ questions, answers, onFill, onAppendInstruction
   const markUsed = useMarkCustomerUsed()
   const forget = useDeleteCustomer()
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  // Chosen with "New document for this customer" on the customer's page.
+  const [pending, setPending] = useState(() => getPendingCustomer())
+  const dropPending = (): void => {
+    clearPendingCustomer()
+    setPending(null)
+  }
 
   const targets = useMemo(() => customerTargets(questions), [questions])
   const [targetId, setTargetId] = useState<string>('')
@@ -62,13 +71,34 @@ export function SavedCustomers({ questions, answers, onFill, onAppendInstruction
       onFill(planCustomerFill(customer, questions, targetId))
       toast.push(t('customers.used', { name: customer.name }))
     }
-    markUsed.mutate(customer.id)
+    markUsed.mutate({ id: customer.id, documentId })
   }
 
   const visible = (customers.data ?? []).slice(0, VISIBLE)
 
   return (
     <section className="saved-customers" data-testid="saved-customers">
+      {pending ? (
+        <div className="saved-customers__pending" role="group" aria-label={t('customers.pendingPrompt', { name: pending.name })} data-testid="pending-customer">
+          <span className="saved-customers__pending-text">{t('customers.pendingPrompt', { name: pending.name })}</span>
+          <div className="saved-customers__actions">
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                use(pending)
+                dropPending()
+              }}
+              data-testid="pending-customer-fill"
+            >
+              {targets.length === 0 ? t('customers.addToInstructions') : t('customers.fillIn')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={dropPending}>
+              {t('customers.notNow')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <button
         type="button"
         className="saved-customers__toggle"
@@ -173,10 +203,12 @@ export interface SaveCustomerButtonProps {
   answers: Record<string, string>
   /** The name field this button sits under. */
   fieldId: string
+  /** The open document: saving links the customer to it. */
+  documentId?: string
 }
 
 /** "Save customer" under a name field that holds a customer not saved yet. */
-export function SaveCustomerButton({ questions, answers, fieldId }: SaveCustomerButtonProps) {
+export function SaveCustomerButton({ questions, answers, fieldId, documentId }: SaveCustomerButtonProps) {
   const { t } = useI18n()
   const toast = useToast()
   const save = useSaveCustomer()
@@ -201,7 +233,7 @@ export function SaveCustomerButton({ questions, answers, fieldId }: SaveCustomer
       disabled={save.isPending}
       data-testid="save-customer"
       onClick={() =>
-        save.mutate(input, {
+        save.mutate(documentId ? { ...input, documentId } : input, {
           onSuccess: (customer) =>
             toast.push(t(customer.shared ? 'customers.savedShared' : 'customers.saved', { name: customer.name })),
           onError: () => toast.push(t('customers.saveFailed'), { variant: 'error' }),
