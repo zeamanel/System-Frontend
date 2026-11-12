@@ -1282,5 +1282,17 @@
   "review.expiredTitle": "የዚህ ሊንክ ጊዜ አልፏል",
   "review.expiredBody": "ላኪውን አዲስ ሊንክ ይጠይቁ።",
   "review.unreadableTitle": "ሰነዱ ሊታይ አልቻለም",
-  "review.unreadableBody": "ላኪው እንደገና እንዲልኩት ይጠይቁ።"
+  "review.unreadableBody": "ላኪው እንደገና እንዲልኩት ይጠይቁ።",
+  "assistant.proposal.headingTitle": "የቀረበ አዲስ ርዕስ",
+  "assistant.proposal.deleteTitle": "እንዲወጣ የቀረበ",
+  "assistant.proposal.moveTitle": "እንዲዛወር የቀረበ",
+  "assistant.proposal.moveAfter": "ወደዚህ በኋላ ይዛወራል፦ “{text}”",
+  "assistant.proposal.moveToTop": "ወደ ሰነዱ መጀመሪያ ይዛወራል",
+  "assistant.proposal.undoneDelete": "ተቀልብሷል — ጽሑፉ ወደ ቦታው ተመልሷል።",
+  "assistant.proposal.undoneMove": "ተቀልብሷል — ወደ ቀድሞ ቦታው ተመልሷል።",
+  "check.issue.SIDE_NUMBER_MISMATCH": "{number} ከሁለቱ ዓምዶች በአንዱ ብቻ ይገኛል፦ አንቀጹንና ጎኑ ያለውን ትርጉም ያረጋግጡ።",
+  "reviews.workOn": "በዚህ ላይ ስራ",
+  "reviews.workOnMessage": "{name} ይህን ሰነድ ገምግመው እንዲህ ጽፈዋል፦ “{text}” ይህ የሚጠይቀውን የሰነዱን ለውጥ አቅርብ።",
+  "assistant.dictate": "መልእክትዎን በድምፅ ይናገሩ",
+  "dictation.useInMessage": "በመልእክቱ ተጠቀም"
 }

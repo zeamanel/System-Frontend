@@ -18,15 +18,18 @@ export interface AssistantQuestion {
 /** A block-scoped change the assistant proposes; applied only on Accept. */
 export interface AssistantProposal {
   /**
-   * "replace" rewrites `blockId`; "insert" adds a new paragraph after `afterBlockId`;
+   * "replace" rewrites `blockId`; "insert" adds a new paragraph (or heading) after `afterBlockId`;
+   * "delete" removes `blockId`; "move" puts `blockId` right after `afterBlockId` ('' = first);
    * "side" writes (or updates) the translation in the side cell of `blockId` (bilingual mode).
    */
-  kind: 'replace' | 'insert' | 'side'
+  kind: 'replace' | 'insert' | 'delete' | 'move' | 'side'
   blockId: string
   /** Replace only: the list item or table cell of `blockId` it rewrites (absent = the whole paragraph). */
   partId?: string
-  /** Insert only: the block the new clause goes after ('' = at the end). */
+  /** Insert: the block the new clause goes after ('' = at the end). Move: the block it goes after ('' = first). */
   afterBlockId?: string
+  /** Insert only: a section heading instead of a paragraph. */
+  blockType?: 'paragraph' | 'heading'
   newText: string
   reason: string
   /** Block (or part) text when the assistant saw it; differs from now → edited since. */
@@ -108,6 +111,8 @@ export interface AssistantRequestInput {
   history: Array<{ role: 'user' | 'assistant'; text: string }>
   /** This client can apply new-clause (insert) proposals. */
   allowInsert?: boolean
+  /** This client can apply delete and move proposals, and new headings. */
+  allowStructure?: boolean
 }
 
 /** Why the AI was not reached, plus what the offline check found. */
@@ -121,10 +126,11 @@ export interface AssistantReply {
   reply: string
   questions: AssistantQuestion[]
   proposals: Array<{
-    kind?: 'replace' | 'insert' | 'side'
+    kind?: 'replace' | 'insert' | 'delete' | 'move' | 'side'
     blockId: string
     partId?: string
     afterBlockId?: string
+    blockType?: 'paragraph' | 'heading'
     newText: string
     reason: string
   }>

@@ -1084,19 +1084,33 @@ export function EditorWorkspace({
   // ── Dictation: the text goes in where the caret was when it started ──────
   const dictation = useDictation({ language: editor.language })
   const dictationTargetRef = useRef<{ element: HTMLElement; range: Range } | null>(null)
+  /** Where the checked text goes: the page (at the caret), or the assistant's message box. */
+  const [dictationFor, setDictationFor] = useState<'page' | 'assistant'>('page')
+  const [dictatedForAssistant, setDictatedForAssistant] = useState<{ id: number; text: string } | null>(null)
+
+  const handleDictateToAssistant = useCallback((): void => {
+    if (dictation.state.phase !== 'idle') {
+      dictation.cancel()
+      if (dictationFor === 'assistant') return
+    }
+    dictationTargetRef.current = null
+    setDictationFor('assistant')
+    void dictation.start()
+  }, [dictation, dictationFor])
 
   const handleDictate = useCallback((): void => {
     if (dictation.state.phase !== 'idle') {
       dictation.cancel()
-      return
+      if (dictationFor === 'page') return
     }
+    setDictationFor('page')
     const selection = document.getSelection()
     const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null
     const node = range?.startContainer ?? null
     const element = (node instanceof Element ? node : node?.parentElement)?.closest<HTMLElement>('[contenteditable="true"]') ?? null
     dictationTargetRef.current = range && element?.closest('.doc-paper') ? { element, range: range.cloneRange() } : null
     void dictation.start()
-  }, [dictation])
+  }, [dictation, dictationFor])
 
   const handleInsertDictation = useCallback(
     (text: string): void => {
@@ -1464,7 +1478,7 @@ export function EditorWorkspace({
         onSendToTelegram={() => void handleSendToTelegram()}
         onSendForReview={doc.isTemplate || doc.access === 'view' || doc.kind === 'design' ? undefined : () => setReviewOpen(true)}
         onDictate={pageLocked || previewMode || doc.access === 'view' ? undefined : handleDictate}
-        dictating={dictation.state.phase !== 'idle'}
+        dictating={dictation.state.phase !== 'idle' && dictationFor === 'page'}
         gaps={
           gapCount > 0
             ? {
@@ -1721,6 +1735,9 @@ export function EditorWorkspace({
               questionLabels={questionLabels}
               onShowBlock={handleShowBlock}
               bilingual={Boolean(model.page.bilingual)}
+              onDictate={handleDictateToAssistant}
+              dictating={dictation.state.phase !== 'idle' && dictationFor === 'assistant'}
+              dictatedText={dictatedForAssistant}
             />
           </div>
         ) : (
@@ -1877,6 +1894,12 @@ export function EditorWorkspace({
         onClose={() => setReviewOpen(false)}
         documentId={doc.id}
         beforeCreate={() => editor.flush()}
+        onWorkOn={(author, text) => {
+          setReviewOpen(false)
+          openAssistant()
+          // The whole document: the comment may be about any part of it. The message stays within the API's 2,000 characters.
+          void assistant.send(t('reviews.workOnMessage', { name: author, text: text.slice(0, 1600) }), { scope: 'document' })
+        }}
       />
 
       <DictationPanel
@@ -1888,7 +1911,16 @@ export function EditorWorkspace({
         }}
         onRetry={() => void dictation.start()}
         onTextChange={dictation.setText}
-        onInsert={handleInsertDictation}
+        onInsert={
+          dictationFor === 'assistant'
+            ? (text) => {
+                dictation.cancel()
+                const clean = text.trim()
+                if (clean) setDictatedForAssistant({ id: Date.now(), text: clean })
+              }
+            : handleInsertDictation
+        }
+        insertLabel={dictationFor === 'assistant' ? t('dictation.useInMessage') : undefined}
       />
 
       {gaps.active ? (

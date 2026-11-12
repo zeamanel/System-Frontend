@@ -1282,5 +1282,17 @@
   "review.expiredTitle": "This link has expired",
   "review.expiredBody": "Ask the sender for a new link.",
   "review.unreadableTitle": "The document cannot be shown",
-  "review.unreadableBody": "Ask the sender to send it again."
+  "review.unreadableBody": "Ask the sender to send it again.",
+  "assistant.proposal.headingTitle": "Proposed new heading",
+  "assistant.proposal.deleteTitle": "Proposed removal",
+  "assistant.proposal.moveTitle": "Proposed move",
+  "assistant.proposal.moveAfter": "Moves to after: “{text}”",
+  "assistant.proposal.moveToTop": "Moves to the start of the document",
+  "assistant.proposal.undoneDelete": "Undone — the text is back where it was.",
+  "assistant.proposal.undoneMove": "Undone — it is back where it was.",
+  "check.issue.SIDE_NUMBER_MISMATCH": "{number} appears in only one of the two columns: check the paragraph and its translation beside it.",
+  "reviews.workOn": "Work on this",
+  "reviews.workOnMessage": "{name} reviewed this document and wrote: “{text}” Propose the changes to the document that this asks for.",
+  "assistant.dictate": "Speak your message",
+  "dictation.useInMessage": "Use in message"
 }

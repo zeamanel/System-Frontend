@@ -1282,5 +1282,17 @@
   "review.expiredTitle": "Yeroon liinkii kanaa darbeera",
   "review.expiredBody": "Nama ergee liinkii haaraa gaafadhaa.",
   "review.unreadableTitle": "Sanadichi mul’achuu hin danda’u",
-  "review.unreadableBody": "Nama ergee akka irra deebi’ee ergu gaafadhaa."
+  "review.unreadableBody": "Nama ergee akka irra deebi’ee ergu gaafadhaa.",
+  "assistant.proposal.headingTitle": "Mata-duree haaraa yaadame",
+  "assistant.proposal.deleteTitle": "Haquun yaadame",
+  "assistant.proposal.moveTitle": "Sochoosuun yaadame",
+  "assistant.proposal.moveAfter": "Kana booda deema: “{text}”",
+  "assistant.proposal.moveToTop": "Jalqaba sanadaatti deema",
+  "assistant.proposal.undoneDelete": "Deebi’eera — barreeffamni bakka isaatti deebi’eera.",
+  "assistant.proposal.undoneMove": "Deebi’eera — bakka duraaniitti deebi’eera.",
+  "check.issue.SIDE_NUMBER_MISMATCH": "{number} utubaalee lamaan keessaa tokko qofa keessatti argama: keewwatichaa fi hiika cinaa isaa jiru mirkaneeffadhaa.",
+  "reviews.workOn": "Kanarratti hojjedhu",
+  "reviews.workOnMessage": "{name} sanada kana gamaaggamanii akkas barreessaniiru: “{text}” Jijjiirama sanadaa kun gaafatu yaadi.",
+  "assistant.dictate": "Ergaa keessan sagaleen dubbadhaa",
+  "dictation.useInMessage": "Ergaa keessatti fayyadami"
 }

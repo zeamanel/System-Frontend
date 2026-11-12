@@ -310,3 +310,22 @@
 .review-page__gone {
   padding: var(--space-10) var(--space-4);
 }
+
+.review-work-on {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.review-work-on:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}

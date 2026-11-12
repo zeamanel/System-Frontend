@@ -28,6 +28,8 @@ export interface DictationPanelProps {
   onRetry: () => void
   onTextChange: (text: string) => void
   onInsert: (text: string) => void
+  /** The insert button's label (default "Insert"). */
+  insertLabel?: string
 }
 
 /**
@@ -35,7 +37,7 @@ export interface DictationPanelProps {
  * and correct before it goes in at the caret. Names, amounts and dates may be
  * misheard, so nothing is inserted without the user's say.
  */
-export function DictationPanel({ state, onStop, onCancel, onRetry, onTextChange, onInsert }: DictationPanelProps) {
+export function DictationPanel({ state, onStop, onCancel, onRetry, onTextChange, onInsert, insertLabel }: DictationPanelProps) {
   const { t } = useI18n()
   const textRef = useRef<HTMLTextAreaElement>(null)
   const stopRef = useRef<HTMLButtonElement>(null)
@@ -129,7 +131,7 @@ export function DictationPanel({ state, onStop, onCancel, onRetry, onTextChange,
               onClick={() => onInsert(state.text)}
               data-testid="dictation-insert"
             >
-              {t('dictation.insert')}
+              {insertLabel ?? t('dictation.insert')}
             </Button>
           </div>
         </div>

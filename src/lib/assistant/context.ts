@@ -1,5 +1,5 @@
 import { escapePlainText, inlineHtmlToText, sanitizeInlineHtml } from '../editor/sanitize'
-import { createParagraph } from '../editor/model'
+import { createHeading, createParagraph } from '../editor/model'
 import type { Block, DocumentModel, TableBlock } from '../editor/types'
 import type { PageSlice } from '../editor/paginate'
 import type { AssistantContextBlock } from './types'
@@ -325,14 +325,40 @@ export function rewriteInlineText(html: string, newText: string): string {
   return inlineHtmlToText(result) === newText.replace(/\u00a0/g, ' ').trim() ? result : plain
 }
 
-/** Insert an accepted new-clause proposal as a paragraph after `afterBlockId` ('' → at the end). */
-export function insertTextProposal(model: DocumentModel, afterBlockId: string, newText: string): DocumentModel {
+/**
+ * Insert an accepted new-clause proposal as a paragraph (or a section heading)
+ * after `afterBlockId` ('' → at the end).
+ */
+export function insertTextProposal(
+  model: DocumentModel,
+  afterBlockId: string,
+  newText: string,
+  blockType: 'paragraph' | 'heading' = 'paragraph',
+): DocumentModel {
   const html = sanitizeInlineHtml(escapePlainText(newText))
-  const paragraph = createParagraph(html)
-  const index = afterBlockId ? model.blocks.findIndex((block) => block.id === afterBlockId) : model.blocks.length - 1
+  const block = blockType === 'heading' ? createHeading(html, 2) : createParagraph(html)
+  const index = afterBlockId ? model.blocks.findIndex((candidate) => candidate.id === afterBlockId) : model.blocks.length - 1
   const blocks = [...model.blocks]
-  blocks.splice(index + 1, 0, paragraph)
+  blocks.splice(index + 1, 0, block)
   return { ...model, blocks }
+}
+
+/** Remove an accepted "delete" proposal's block. */
+export function deleteBlockProposal(model: DocumentModel, blockId: string): DocumentModel {
+  return { ...model, blocks: model.blocks.filter((block) => block.id !== blockId) }
+}
+
+/**
+ * Move an accepted "move" proposal's block right after `afterBlockId`
+ * ('' → first in the document). Unchanged when either block is gone.
+ */
+export function moveBlockProposal(model: DocumentModel, blockId: string, afterBlockId: string): DocumentModel {
+  const moving = model.blocks.find((block) => block.id === blockId)
+  if (!moving || afterBlockId === blockId) return model
+  const rest = model.blocks.filter((block) => block.id !== blockId)
+  const index = afterBlockId ? rest.findIndex((block) => block.id === afterBlockId) : -1
+  if (afterBlockId && index < 0) return model
+  return { ...model, blocks: [...rest.slice(0, index + 1), moving, ...rest.slice(index + 1)] }
 }
 
 /** Bracketed placeholders ("[payment deadline]") or blank lines ("______"). */

@@ -318,6 +318,13 @@
   align-self: flex-end;
 }
 
+.assistant-composer__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .assistant-composer__context {
   display: flex;
   align-items: center;

@@ -11,6 +11,7 @@ import type {
   AssistantQuestion,
   AssistantScope,
 } from '../../lib/assistant/types'
+import { MicIcon } from '../icons'
 import { Button } from '../ui'
 import type { SaveStatus } from './useDocumentEditor'
 import type { AssistantController } from './useAssistant'
@@ -32,6 +33,12 @@ export interface AssistantPanelProps {
   onShowBlock: (blockId: string) => void
   /** Bilingual side-by-side is on: the side column can be translated by the assistant. */
   bilingual?: boolean
+  /** Speak the message instead of typing it (absent: no microphone button). */
+  onDictate?: () => void
+  /** Dictation for the message is under way. */
+  dictating?: boolean
+  /** Text spoken and checked: added to the message (a new `id` each time). */
+  dictatedText?: { id: number; text: string } | null
 }
 
 /**
@@ -51,10 +58,23 @@ export function AssistantPanel({
   questionLabels,
   onShowBlock,
   bilingual = false,
+  onDictate,
+  dictating = false,
+  dictatedText = null,
 }: AssistantPanelProps) {
   const { t } = useI18n()
   const [draft, setDraft] = useState('')
   const listRef = useRef<HTMLOListElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+
+  // Spoken text joins what is already typed, ready to edit or send.
+  const dictatedId = dictatedText?.id
+  useEffect(() => {
+    if (!dictatedText) return
+    setDraft((current) => (current.trim() ? `${current.trimEnd()} ${dictatedText.text}` : dictatedText.text).slice(0, 2000))
+    inputRef.current?.focus({ preventScroll: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per dictation
+  }, [dictatedId])
 
   useEffect(() => {
     const list = listRef.current
@@ -217,6 +237,7 @@ export function AssistantPanel({
           ) : null}
         </p>
         <textarea
+          ref={inputRef}
           className="assistant-composer__input"
           value={draft}
           rows={2}
@@ -227,16 +248,33 @@ export function AssistantPanel({
           onKeyDown={handleKeyDown}
           data-testid="assistant-input"
         />
-        <Button
-          type="submit"
-          variant="primary"
-          size="sm"
-          disabled={!draft.trim() || assistant.sending}
-          loading={assistant.sending}
-          data-testid="assistant-send"
-        >
-          {t('assistant.send')}
-        </Button>
+        <div className="assistant-composer__actions">
+          {onDictate ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={<MicIcon size={16} />}
+              onClick={onDictate}
+              disabled={assistant.sending}
+              aria-pressed={dictating}
+              aria-label={t('assistant.dictate')}
+              title={t('assistant.dictate')}
+              className="assistant-composer__mic"
+              data-testid="assistant-dictate"
+            />
+          ) : null}
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={!draft.trim() || assistant.sending}
+            loading={assistant.sending}
+            data-testid="assistant-send"
+          >
+            {t('assistant.send')}
+          </Button>
+        </div>
       </form>
     </section>
   )
@@ -512,7 +550,12 @@ function MessageView({ message, assistant, saveStatus, lastSavedAt, questionLabe
                     : ''
                   : proposal.kind === 'side'
                     ? assistant.currentSideText(proposal.blockId)
-                    : assistant.currentTargetText(proposal.blockId, proposal.partId)
+                    : proposal.kind === 'delete' || proposal.kind === 'move'
+                      ? assistant.currentBlockText(proposal.blockId)
+                      : assistant.currentTargetText(proposal.blockId, proposal.partId)
+              }
+              anchorText={
+                proposal.kind === 'move' && proposal.afterBlockId ? assistant.currentBlockText(proposal.afterBlockId) : null
               }
               sourceText={proposal.kind === 'side' ? assistant.currentBlockText(proposal.blockId) : null}
               partKind={proposal.partId ? assistant.blockType(proposal.blockId) : null}
@@ -702,6 +745,7 @@ function ProposalBulkActions({
 function ProposalCard({
   proposal,
   currentText,
+  anchorText = null,
   sourceText = null,
   partKind,
   waiting = false,
@@ -714,6 +758,8 @@ function ProposalCard({
 }: {
   proposal: AssistantProposal
   currentText: string | null
+  /** A move: the text of the block it goes after. */
+  anchorText?: string | null
   /** A side translation: the paragraph it translates. */
   sourceText?: string | null
   /** Set when the change rewrites one list item or table cell. */
@@ -730,18 +776,31 @@ function ProposalCard({
   const { t } = useI18n()
   const isSide = proposal.kind === 'side'
   const isInsert = proposal.kind === 'insert'
+  const isDelete = proposal.kind === 'delete'
+  const isMove = proposal.kind === 'move'
   // Written onto nothing: the text is shown as new (a first translation, or a new clause).
   const isNew = isInsert || (isSide && !proposal.baseText)
   // An insert has nothing to go stale: the anchor only says where it goes.
   const stale = !isInsert && proposal.status === 'pending' && currentText !== null && currentText !== proposal.baseText
-  const segments = isNew
-    ? [{ type: 'added' as const, text: proposal.newText }]
-    : diffWords(proposal.baseText, proposal.newText)
+  // A removal shows the text that goes; a move, the text that moves (shortened).
+  const segments = isDelete
+    ? [{ type: 'removed' as const, text: proposal.baseText }]
+    : isMove
+      ? [{ type: 'same' as const, text: truncate(proposal.baseText, 160) }]
+      : isNew
+        ? [{ type: 'added' as const, text: proposal.newText }]
+        : diffWords(proposal.baseText, proposal.newText)
   const titleKey = isInsert
-    ? 'assistant.proposal.insertTitle'
-    : isSide
-      ? 'assistant.side.proposalTitle'
-      : 'assistant.proposal.title'
+    ? proposal.blockType === 'heading'
+      ? 'assistant.proposal.headingTitle'
+      : 'assistant.proposal.insertTitle'
+    : isDelete
+      ? 'assistant.proposal.deleteTitle'
+      : isMove
+        ? 'assistant.proposal.moveTitle'
+        : isSide
+          ? 'assistant.side.proposalTitle'
+          : 'assistant.proposal.title'
 
   let appliedState: string | null = null
   if (proposal.status === 'accepted') {
@@ -778,8 +837,15 @@ function ProposalCard({
             : t('assistant.proposal.insertAtEnd')}
         </p>
       ) : null}
+      {isMove ? (
+        <p className="assistant-proposal__where" data-testid="assistant-proposal-where">
+          {proposal.afterBlockId
+            ? t('assistant.proposal.moveAfter', { text: truncate(anchorText ?? '', 60) })
+            : t('assistant.proposal.moveToTop')}
+        </p>
+      ) : null}
       <p
-        className={`assistant-diff${isNew ? ' assistant-diff--insert' : ''}`}
+        className={`assistant-diff${isNew ? ' assistant-diff--insert' : ''}${isDelete ? ' assistant-diff--delete' : ''}`}
         aria-label={t(titleKey)}
       >
         {segments.map((segment, index) =>
@@ -836,7 +902,11 @@ function ProposalCard({
         </p>
       ) : null}
       {proposal.status === 'rejected' ? <p className="assistant-proposal__state">{t('assistant.proposal.rejected')}</p> : null}
-      {proposal.status === 'undone' ? <p className="assistant-proposal__state">{t('assistant.proposal.undone')}</p> : null}
+      {proposal.status === 'undone' ? (
+        <p className="assistant-proposal__state">
+          {t(isDelete ? 'assistant.proposal.undoneDelete' : isMove ? 'assistant.proposal.undoneMove' : 'assistant.proposal.undone')}
+        </p>
+      ) : null}
     </div>
   )
 }

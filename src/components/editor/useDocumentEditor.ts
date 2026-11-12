@@ -46,7 +46,7 @@ function tidyNumbers(model: DocumentModel): DocumentModel {
   return isolateNumbersInModel(model, languageDirection(model.language), focusedBlockId())
 }
 import { contentHasOwnLook, keepLook } from '../../lib/editor/styles'
-import { diffBlocks, sameBlock, type TrackedChange, type RevertResult } from '../../lib/editor/tracked-change'
+import { diffBlocks, revertTrackedChange, type TrackedChange, type RevertResult } from '../../lib/editor/tracked-change'
 
 export type { TrackedChange, RevertResult }
 import type { DocumentDetailRecord } from '../../lib/repositories'
@@ -424,33 +424,9 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
    */
   const revertChange = useCallback(
     (change: TrackedChange): RevertResult => {
-      let reverted = 0
-      let skipped = 0
-      const current = modelRef.current
-      const added = new Set(change.added ?? [])
-      const blocks = current.blocks.flatMap((block) => {
-        const after = change.after[block.id]
-        if (!after) return [block]
-        if (added.has(block.id)) {
-          // An inserted block: remove it unless it was edited since.
-          if (sameBlock(block, after)) {
-            reverted += 1
-            return []
-          }
-          skipped += 1
-          return [block]
-        }
-        const before = change.before[block.id]
-        if (!before) return [block]
-        if (sameBlock(block, after)) {
-          reverted += 1
-          return [before]
-        }
-        skipped += 1
-        return [block]
-      })
+      const { model: next, reverted, skipped } = revertTrackedChange(modelRef.current, change)
       if (reverted > 0) {
-        commit({ ...current, blocks })
+        commit(next)
         markDirty()
       }
       return { reverted, skipped }

@@ -21,6 +21,8 @@ export interface SendForReviewDialogProps {
   documentId: string
   /** Saves what was typed, so the link shows it. False: the save failed. */
   beforeCreate: () => Promise<boolean>
+  /** Hands a reviewer's comment or change request to the assistant, to propose the edits. */
+  onWorkOn?: (author: string, text: string) => void
 }
 
 /**
@@ -28,7 +30,7 @@ export interface SendForReviewDialogProps {
  * other party, who comments and approves or asks for changes without an
  * account. The links already sent, and their answers, are listed below.
  */
-export function SendForReviewDialog({ open, onClose, documentId, beforeCreate }: SendForReviewDialogProps) {
+export function SendForReviewDialog({ open, onClose, documentId, beforeCreate, onWorkOn }: SendForReviewDialogProps) {
   const { t, locale } = useI18n()
   const toast = useToast()
   const reviews = useDocumentReviews(documentId, open)
@@ -175,6 +177,9 @@ export function SendForReviewDialog({ open, onClose, documentId, beforeCreate }:
                           name: review.decidedByName ?? '',
                         })}
                         {review.decisionNote ? <span className="review-list__note" dir="auto">{review.decisionNote}</span> : null}
+                        {review.decisionNote && review.status === 'changes_requested' && onWorkOn ? (
+                          <WorkOnButton onClick={() => onWorkOn(review.decidedByName ?? review.reviewerName, review.decisionNote ?? '')} />
+                        ) : null}
                       </p>
                     ) : null}
                     {review.comments.length > 0 ? (
@@ -187,6 +192,7 @@ export function SendForReviewDialog({ open, onClose, documentId, beforeCreate }:
                             <span className="review-comments__body" dir="auto">
                               {comment.body}
                             </span>
+                            {onWorkOn ? <WorkOnButton onClick={() => onWorkOn(comment.authorName, comment.body)} /> : null}
                           </li>
                         ))}
                       </ul>
@@ -232,5 +238,15 @@ export function SendForReviewDialog({ open, onClose, documentId, beforeCreate }:
         </section>
       </div>
     </Dialog>
+  )
+}
+
+/** "Work on this": the assistant proposes the edits a comment asks for. */
+function WorkOnButton({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n()
+  return (
+    <button type="button" className="review-work-on" onClick={onClick} data-testid="review-work-on">
+      {t('reviews.workOn')}
+    </button>
   )
 }

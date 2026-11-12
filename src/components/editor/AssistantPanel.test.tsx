@@ -7,6 +7,7 @@ import { getRepositories } from '../../lib/repositories'
 import type { DocumentDetailRecord, TemplateDetail } from '../../lib/repositories'
 import { stashPendingNotes } from '../../lib/assistant/pending-notes'
 import type { AssistantReply } from '../../lib/assistant/types'
+import { addReviewComment, createReview, decideReview } from '../../lib/reviews/client'
 import { EditorWorkspace } from './EditorWorkspace'
 
 // The real client answers offline in fixture mode; tests swap in AI replies.
@@ -202,6 +203,83 @@ describe('Assistant panel', () => {
 
     fireEvent.click(within(proposal).getByTestId('assistant-proposal-undo'))
     await waitFor(() => expect(blockIds()).toEqual(before))
+  })
+
+  it('removes and moves blocks on Apply all, and Undo puts each back', async () => {
+    const { doc, template } = await createRentalDocument('First clause.\n\nSecond clause.\n\nThird clause.')
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    const blockIds = () =>
+      [...document.querySelectorAll('[data-block-id]')]
+        .filter((el) => !el.parentElement?.closest('[data-block-id]'))
+        .map((el) => el.getAttribute('data-block-id') as string)
+    await waitFor(() => expect(blockIds()).toHaveLength(3))
+    const [first, second, third] = blockIds()
+
+    askAssistantMock.mockResolvedValueOnce({
+      reply: 'Clause two repeats; clause three belongs first.',
+      questions: [],
+      proposals: [
+        { kind: 'delete', blockId: second, newText: '', reason: 'It repeats clause one.' },
+        { kind: 'move', blockId: third, afterBlockId: '', newText: '', reason: 'It should come first.' },
+        { kind: 'insert', blockId: '', afterBlockId: first, blockType: 'heading', newText: 'Payment', reason: 'A heading.' },
+      ],
+      fieldUpdates: [],
+    } satisfies AssistantReply)
+    fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'Tidy the structure' } })
+    fireEvent.click(screen.getByTestId('assistant-send'))
+
+    const cards = await screen.findAllByTestId('assistant-proposal')
+    expect(cards[0]).toHaveTextContent('Proposed removal')
+    expect(cards[0]).toHaveTextContent('Second clause.')
+    expect(cards[1]).toHaveTextContent('Proposed move')
+    expect(within(cards[1]).getByTestId('assistant-proposal-where')).toHaveTextContent('Moves to the start of the document')
+    expect(cards[2]).toHaveTextContent('Proposed new heading')
+    expect(askAssistantMock.mock.calls.at(-1)?.[0]).toMatchObject({ allowStructure: true })
+    // Nothing changes before Apply.
+    expect(blockIds()).toEqual([first, second, third])
+
+    fireEvent.click(screen.getByTestId('assistant-accept-all'))
+    await waitFor(() => expect(blockIds()).toHaveLength(3))
+    const after = blockIds()
+    expect(after[0]).toBe(third)
+    expect(after[1]).toBe(first)
+    expect(after).not.toContain(second)
+    expect(document.querySelector(`[data-block-id="${after[2]}"]`)).toHaveTextContent('Payment')
+
+    // Undo the removal: the clause is back where it was when it went (after the new heading).
+    const heading = after[2]
+    fireEvent.click(within(cards[0]).getByTestId('assistant-proposal-undo'))
+    await waitFor(() => expect(blockIds()).toContain(second))
+    expect(blockIds().indexOf(second)).toBe(blockIds().indexOf(heading) + 1)
+    // Undo the move: the third clause goes back to its place.
+    fireEvent.click(within(cards[1]).getByTestId('assistant-proposal-undo'))
+    await waitFor(() => expect(blockIds()[0]).toBe(first))
+    expect(blockIds().at(-1)).toBe(third)
+  })
+
+  it('hands a reviewer’s comment to the assistant for the whole document', async () => {
+    const { doc, template } = await createRentalDocument('The tenant will pay rent.')
+    const { token } = await createReview(doc.id, { reviewerName: 'Dawit Haile', expiresInDays: 14 })
+    await addReviewComment(token, { name: 'Dawit Haile', body: 'Please add the plate number.' })
+    await decideReview(token, { name: 'Dawit Haile', decision: 'request_changes', note: 'The rent is 30,000, not 35,000.' })
+    renderWorkspace(doc, template)
+    askAssistantMock.mockResolvedValue({ reply: 'Here is the change.', questions: [], proposals: [], fieldUpdates: [] } satisfies AssistantReply)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Export/ }))
+    fireEvent.click(await screen.findByTestId('editor-send-review'))
+    const buttons = await screen.findAllByTestId('review-work-on')
+    // The change request, then the comment.
+    expect(buttons).toHaveLength(2)
+    fireEvent.click(buttons[0])
+
+    await waitFor(() => expect(askAssistantMock).toHaveBeenCalled())
+    const request = askAssistantMock.mock.calls.at(-1)?.[0]
+    expect(request).toMatchObject({ scope: 'document' })
+    expect(request.message).toBe('Dawit Haile reviewed this document and wrote: “The rent is 30,000, not 35,000.” Propose the changes to the document that this asks for.')
+    // The dialog closed and the assistant shows the request.
+    expect(screen.getByTestId('send-for-review').closest('dialog')).not.toHaveAttribute('open')
+    expect(await screen.findByText('Here is the change.')).toBeInTheDocument()
   })
 
   it('asks for confirmation when the paragraph changed after the suggestion', async () => {
