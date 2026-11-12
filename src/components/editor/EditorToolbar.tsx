@@ -27,6 +27,7 @@ import {
   EditIcon,
   CopyIcon,
   SmartphoneIcon,
+  MicIcon,
   RedoIcon,
   SlidersIcon,
   UndoIcon,
@@ -56,6 +57,10 @@ export interface EditorToolbarProps {
   onSaveAsTemplate?: () => void
   /** Sends the PDF to the user's Telegram (absent: no menu item). */
   onSendToTelegram?: () => void
+  /** Dictate at the caret (absent: no button). */
+  onDictate?: () => void
+  /** Dictation is open (the button shows as pressed). */
+  dictating?: boolean
   /** Places still to fill in ("[payment deadline]"): a counter beside Print that goes to the next one. */
   gaps?: ToolbarGaps
   onExportServerPdf: () => void
@@ -141,6 +146,8 @@ export function EditorToolbar({
   onPrint,
   onSaveAsTemplate,
   onSendToTelegram,
+  onDictate,
+  dictating,
   gaps,
   onExportServerPdf,
   onExportServerDocx,
@@ -254,6 +261,8 @@ export function EditorToolbar({
         onPrint,
         onSaveAsTemplate,
         onSendToTelegram,
+        onDictate,
+        dictating,
         gaps,
         onExportServerPdf,
         onExportServerDocx,
@@ -292,6 +301,8 @@ function renderToolbarEnd(props: {
   onPrint: () => void
   onSaveAsTemplate?: () => void
   onSendToTelegram?: () => void
+  onDictate?: () => void
+  dictating?: boolean
   gaps?: ToolbarGaps
   onExportServerPdf: () => void
   onExportServerDocx: () => void
@@ -517,6 +528,22 @@ function renderToolbarEnd(props: {
           </div>
         )}
       </Popover>
+
+      {props.onDictate ? (
+        <Button
+          variant="secondary"
+          icon={<MicIcon size={16} />}
+          // Keep the caret in the page: the text goes in where it is.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={props.onDictate}
+          aria-pressed={props.dictating ? true : false}
+          className="editor-toolbar__dictate"
+          title={t('dictation.buttonTitle')}
+          data-testid="toolbar-dictate"
+        >
+          {t('dictation.button')}
+        </Button>
+      ) : null}
 
       {props.gaps && props.gaps.count > 0 ? (
         <Button

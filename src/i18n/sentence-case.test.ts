@@ -12,6 +12,8 @@ const NAMES = new Set([
   'Organization', 'Download', 'Save', 'Allow', 'Service', 'Policy', 'The',
   // Keyboard keys.
   'Enter', 'Tab', 'Esc', 'Arabic',
+  // Browsers.
+  'Chrome', 'Edge', 'Firefox', 'Safari',
 ])
 
 describe('English labels', () => {

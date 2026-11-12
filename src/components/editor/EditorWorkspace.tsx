@@ -56,7 +56,8 @@ import {
 } from '../../lib/editor/model'
 import { execInlineCommand, type InlineCommand } from '../../lib/editor/commands'
 import { compressImageDataUrl } from '../../lib/editor/image'
-import { isSafeUrl } from '../../lib/editor/sanitize'
+import { escapePlainText, isSafeUrl } from '../../lib/editor/sanitize'
+import { insertPlainText } from '../../lib/editor/commands'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
 import { triggerPrint } from '../../lib/editor/a4'
 import { downloadExport, ExportDownloadError, exportDownloadUrl, exportFileName } from '../../lib/export/download'
@@ -101,6 +102,8 @@ import { TIP_KEYS } from '../../lib/tips'
 import { countGap, countGaps, fillGap } from '../../lib/editor/gaps'
 import { useGaps } from './useGaps'
 import { GapFillBox } from './GapFillBox'
+import { DictationPanel } from './DictationPanel'
+import { useDictation } from './useDictation'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
 
 /** Loaded only when "Send to my Telegram" is used. */
@@ -1076,6 +1079,52 @@ export function EditorWorkspace({
     [updateModel, toast, t],
   )
 
+  // ── Dictation: the text goes in where the caret was when it started ──────
+  const dictation = useDictation({ language: editor.language })
+  const dictationTargetRef = useRef<{ element: HTMLElement; range: Range } | null>(null)
+
+  const handleDictate = useCallback((): void => {
+    if (dictation.state.phase !== 'idle') {
+      dictation.cancel()
+      return
+    }
+    const selection = document.getSelection()
+    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null
+    const node = range?.startContainer ?? null
+    const element = (node instanceof Element ? node : node?.parentElement)?.closest<HTMLElement>('[contenteditable="true"]') ?? null
+    dictationTargetRef.current = range && element?.closest('.doc-paper') ? { element, range: range.cloneRange() } : null
+    void dictation.start()
+  }, [dictation])
+
+  const handleInsertDictation = useCallback(
+    (text: string): void => {
+      const clean = text.replace(/\s*\n+\s*/g, ' ').trim()
+      const target = dictationTargetRef.current
+      dictationTargetRef.current = null
+      dictation.cancel()
+      if (!clean) return
+      editor.breakUndoGroup()
+      if (target && target.element.isConnected) {
+        target.element.focus({ preventScroll: true })
+        const selection = document.getSelection()
+        selection?.removeAllRanges()
+        selection?.addRange(target.range)
+        // A space between the words already there and the dictated ones.
+        const { startContainer, startOffset } = target.range
+        const before = startContainer.nodeType === Node.TEXT_NODE && startOffset > 0 ? (startContainer.textContent ?? '')[startOffset - 1] : ''
+        const spaced = before && !/\s/.test(before) && !/^[.,;:!?።፣፤)]/.test(clean) ? ` ${clean}` : clean
+        if (insertPlainText(spaced)) {
+          editor.breakUndoGroup()
+          return
+        }
+      }
+      // No caret in the page (or it is gone): a new paragraph after the active block.
+      insertAfterActive(() => createParagraph(escapePlainText(clean)))
+      editor.breakUndoGroup()
+    },
+    [dictation, editor, insertAfterActive],
+  )
+
   const handleAppendToPrompt = useCallback(
     (text: string) => {
       if (!text.trim()) return
@@ -1411,6 +1460,8 @@ export function EditorWorkspace({
         onPrint={() => void handlePrint()}
         onSaveAsTemplate={doc.isTemplate || doc.access === 'view' ? undefined : () => setTemplateName(editor.title)}
         onSendToTelegram={() => void handleSendToTelegram()}
+        onDictate={pageLocked || previewMode || doc.access === 'view' ? undefined : handleDictate}
+        dictating={dictation.state.phase !== 'idle'}
         gaps={
           gapCount > 0
             ? {
@@ -1817,6 +1868,18 @@ export function EditorWorkspace({
           </div>
         ) : null}
       </Dialog>
+
+      <DictationPanel
+        state={dictation.state}
+        onStop={dictation.stop}
+        onCancel={() => {
+          dictationTargetRef.current = null
+          dictation.cancel()
+        }}
+        onRetry={() => void dictation.start()}
+        onTextChange={dictation.setText}
+        onInsert={handleInsertDictation}
+      />
 
       {gaps.active ? (
         <GapFillBox
