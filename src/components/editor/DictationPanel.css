@@ -1,0 +1,86 @@
+.dictation {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 32px));
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgb(0 0 0 / 18%));
+}
+
+.dictation__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dictation__status {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.dictation__status--error {
+  color: var(--color-error);
+}
+
+.dictation__dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--color-text-disabled);
+}
+
+.dictation__dot--live {
+  background-color: var(--color-error);
+  animation: dictation-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes dictation-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dictation__dot--live {
+    animation: none;
+  }
+}
+
+.dictation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+.dictation__review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dictation__label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.dictation__text {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+}

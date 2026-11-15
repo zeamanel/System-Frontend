@@ -43,6 +43,8 @@ export interface TemplatePreviewInfo {
 export interface TemplateQuestion {
   id: string
   label: string
+  /** The Arabic label, shown for documents written in Arabic (templates that have one). */
+  labelAr?: string
   required: boolean
   /** 'text', 'textarea', 'select' (pick one of `options`), or 'file' (attach a file whose text goes into the field named by `fills`). */
   type?: string
@@ -107,6 +109,8 @@ export interface DocumentRecord {
   access?: 'owner' | 'view'
   /** Owner's name, on documents shared by a colleague. */
   ownerName?: string
+  /** One of the user's own templates: kept to start new documents from (each start makes a copy). */
+  isTemplate?: boolean
 }
 
 export interface DocumentDetailRecord extends DocumentRecord {
@@ -119,6 +123,11 @@ export interface DocumentVersionSnapshot {
   version: number
   title: string
   createdAt: string
+}
+
+/** One saved version with its content (to compare it with the current text). */
+export interface DocumentVersionContent extends DocumentVersionSnapshot {
+  content: string | null
 }
 
 export interface CreateDocumentPayload {
@@ -342,6 +351,8 @@ export interface DocumentsRepository {
   restore(id: string): Promise<DocumentDetailRecord>
   /** Version snapshots, newest first. */
   versions(id: string): Promise<DocumentVersionSnapshot[]>
+  /** One saved version with its content; null when it does not exist. */
+  versionContent(id: string, version: number): Promise<DocumentVersionContent | null>
   /** Restore title/content/answers from a snapshot (bumps the version). */
   restoreVersion(id: string, version: number): Promise<DocumentDetailRecord>
   delete(id: string): Promise<void>
@@ -349,6 +360,10 @@ export interface DocumentsRepository {
   listShared(options?: { search?: string }): Promise<DocumentRecord[]>
   /** Owner only: share with the organization, or make private again. */
   setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord>
+  /** The user's own templates, and those colleagues shared with their organization. */
+  listTemplates(): Promise<DocumentRecord[]>
+  /** Keeps a copy of a document as one of the user's templates (the document is unchanged). */
+  saveAsTemplate(id: string, title?: string): Promise<DocumentDetailRecord>
 }
 
 export interface GenerationRepository {

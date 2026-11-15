@@ -134,6 +134,8 @@ export type ExportFormat = 'pdf' | 'docx'
 export interface ExportRequestInput {
   documentId: string
   format: ExportFormat
+  /** `telegram`: a one-time link that opens the bot, which sends the file to that chat. */
+  delivery?: 'download' | 'telegram'
 }
 
 export interface ExportRequest {
@@ -145,6 +147,8 @@ export interface ExportRequest {
   path?: string
   expiresAt?: string
   error?: string
+  /** Telegram delivery: opens the bot, which sends the file (once). */
+  deepLink?: string
 }
 
 // ---------- Service ----------

@@ -112,6 +112,10 @@
   }
 
   /* Print, Save, Style and History first: the most-used actions never scroll out of view. */
+  .editor-toolbar__group--end > .editor-toolbar__gaps {
+    order: -4;
+  }
+
   .editor-toolbar__group--end > .editor-toolbar__print {
     order: -3;
   }

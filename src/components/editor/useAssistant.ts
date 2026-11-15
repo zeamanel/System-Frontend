@@ -5,12 +5,16 @@ import {
   applySideProposal,
   applyTextProposal,
   blockPlainText,
+  deleteBlockProposal,
   insertTextProposal,
+  moveBlockProposal,
   findPlaceholders,
   proposalTargetText,
   restrictToPage,
+  SIDE_LANGUAGES,
   sideTargetLanguage,
   sideTargetText,
+  type SideLanguage,
   sideTranslationBlocks,
   toAssistantBlocks,
 } from '../../lib/assistant/context'
@@ -106,7 +110,7 @@ export interface UseAssistantParams {
     side: {
       nothing: string
       /** The reply that carries the translation proposals. */
-      reply: (count: number, language: 'am' | 'en') => string
+      reply: (count: number, language: SideLanguage) => string
       replyMissing: (count: number) => string
       unavailable: (reason: AssistantOfflineInfo['reason']) => string
     }
@@ -131,6 +135,9 @@ export function useAssistant({
   const editorRef = useRef(editor)
   editorRef.current = editor
   const abortRef = useRef<AbortController | null>(null)
+  // The side column's language: the usual one for the document, until the user picks another.
+  const [sideChoice, setSideChoice] = useState<SideLanguage | null>(null)
+  const sideLanguage: SideLanguage = sideChoice && sideChoice !== documentLanguage ? sideChoice : sideTargetLanguage(documentLanguage)
 
   useEffect(() => {
     writeThread(documentId, messages)
@@ -205,9 +212,11 @@ export function useAssistant({
   }, [])
 
   const send = useCallback(
-    async (text: string): Promise<void> => {
+    /** `override.scope`: work on this instead of the panel's choice (review feedback: the whole document). */
+    async (text: string, override?: { scope?: AssistantScope }): Promise<void> => {
       const message = text.trim()
       if (!message || sending) return
+      const wantedScope = override?.scope ?? scope
       const history = messages
         .filter(
           (m): m is Extract<AssistantMessage, { kind: 'text' | 'reply' }> =>
@@ -225,7 +234,7 @@ export function useAssistant({
       const { model, answers } = editorRef.current
       let blocks = toAssistantBlocks(model)
       let scopeBlockIds: string[] | undefined
-      let sentScope: AssistantScope = scope === 'block' && !selectedBlockId ? 'document' : scope
+      let sentScope: AssistantScope = wantedScope === 'block' && !selectedBlockId ? 'document' : wantedScope
       if (sentScope === 'page') {
         const page = getPage?.()
         if (page?.length) ({ blocks, scopeBlockIds } = restrictToPage(blocks, model, page))
@@ -235,10 +244,11 @@ export function useAssistant({
       for (const block of blocks) for (const part of block.parts ?? []) textById.set(`${block.id}/${part.id}`, part.text)
       const toProposals = (list: AssistantReply['proposals']): AssistantProposal[] =>
         list.map((p) => {
-          const kind = p.kind === 'insert' ? ('insert' as const) : ('replace' as const)
+          const kind = p.kind === 'insert' || p.kind === 'delete' || p.kind === 'move' ? p.kind : ('replace' as const)
           return {
             ...p,
             kind,
+            // What a change was made against: for a removal or a move, the block's whole text.
             baseText: kind === 'insert' ? '' : (textById.get(p.partId ? `${p.blockId}/${p.partId}` : p.blockId) ?? ''),
             status: 'pending' as const,
           }
@@ -278,6 +288,7 @@ export function useAssistant({
             answers,
             history,
             allowInsert: true,
+            allowStructure: true,
           },
           { model, questions, signal: controller.signal, onPartial },
         )
@@ -325,7 +336,7 @@ export function useAssistant({
   const runSideTranslation = useCallback(
     async (blocks: Array<{ id: string; text: string }>): Promise<boolean> => {
       if (blocks.length === 0) return false
-      const target = sideTargetLanguage(documentLanguage)
+      const target = sideLanguage
       const { model } = editorRef.current
       const baseById = new Map(blocks.map((block) => [block.id, sideTargetText(model, block.id) ?? '']))
       setSending(true)
@@ -398,7 +409,7 @@ export function useAssistant({
         setSending(false)
       }
     },
-    [append, documentId, documentLanguage, labels, notice, update],
+    [append, documentId, sideLanguage, labels, notice, update],
   )
 
   /** How many paragraphs "Translate the side column" would translate now (empty side cells only). */
@@ -476,18 +487,30 @@ export function useAssistant({
       )
       return { change: change ?? undefined, appliedAt: Date.now() }
     }
-    if (proposal.kind === 'insert') {
+    if (proposal.kind === 'insert' || proposal.kind === 'move') {
       const after = proposal.afterBlockId ?? ''
       if (after && !blocks.some((b) => b.id === after)) return null
-    } else if (proposalTargetText(editorRef.current.model, proposal.blockId, proposal.partId) === null) {
+    }
+    if (proposal.kind === 'delete' || proposal.kind === 'move') {
+      if (!blocks.some((b) => b.id === proposal.blockId)) return null
+    } else if (proposal.kind === 'replace' && proposalTargetText(editorRef.current.model, proposal.blockId, proposal.partId) === null) {
       return null
     }
-    const change = editorRef.current.applyTrackedChange((current) =>
-      proposal.kind === 'insert'
-        ? insertTextProposal(current, proposal.afterBlockId ?? '', proposal.newText)
-        : applyTextProposal(current, proposal.blockId, proposal.newText, proposal.partId),
-    )
-    return { change: change ?? undefined, appliedAt: Date.now() }
+    const change = editorRef.current.applyTrackedChange((current) => {
+      switch (proposal.kind) {
+        case 'insert':
+          return insertTextProposal(current, proposal.afterBlockId ?? '', proposal.newText, proposal.blockType)
+        case 'delete':
+          return deleteBlockProposal(current, proposal.blockId)
+        case 'move':
+          return moveBlockProposal(current, proposal.blockId, proposal.afterBlockId ?? '')
+        default:
+          return applyTextProposal(current, proposal.blockId, proposal.newText, proposal.partId)
+      }
+    })
+    // Nothing happened (a move to where the block already is): not applied.
+    if (!change) return null
+    return { change, appliedAt: Date.now() }
   }, [])
 
   const acceptProposal = useCallback(
@@ -528,12 +551,20 @@ export function useAssistant({
           if (proposal.status !== 'pending') return false
           if (proposal.kind === 'insert') return true
           if (proposal.kind === 'side') return sideTargetText(model, proposal.blockId) === proposal.baseText
+          if (proposal.kind === 'delete' || proposal.kind === 'move') {
+            const block = model.blocks.find((b) => b.id === proposal.blockId)
+            return block !== undefined && blockPlainText(block) === proposal.baseText
+          }
           return proposalTargetText(model, proposal.blockId, proposal.partId) === proposal.baseText
         })
-      // Replacements first, then new clauses back to front, so several after one block keep their order.
+      // Rewrites first; then new clauses back to front, so several after one block keep their
+      // order; then moves; removals last, so nothing is anchored to a block already gone.
+      const byKind = (...kinds: AssistantProposal['kind'][]) => ready.filter(({ proposal }) => kinds.includes(proposal.kind))
       const order = [
-        ...ready.filter(({ proposal }) => proposal.kind !== 'insert'),
-        ...ready.filter(({ proposal }) => proposal.kind === 'insert').reverse(),
+        ...byKind('replace', 'side'),
+        ...byKind('insert').reverse(),
+        ...byKind('move'),
+        ...byKind('delete'),
       ]
       const results = new Map<number, NonNullable<ReturnType<typeof applyProposal>>>()
       for (const { proposal, index } of order) {
@@ -713,6 +744,11 @@ export function useAssistant({
     clearThread,
     translateSideColumn,
     sideTranslationCount,
+    /** The language "Translate the side column" translates into, and a way to choose another. */
+    sideLanguage,
+    setSideLanguage: setSideChoice,
+    /** The languages the side column can be translated into (not the document's own). */
+    sideLanguageOptions: SIDE_LANGUAGES.filter((language) => language !== documentLanguage),
     updateStaleTranslations,
     dismissStaleTranslations,
     /** Current text of a paragraph's side cell (null when gone or it holds a picture). */

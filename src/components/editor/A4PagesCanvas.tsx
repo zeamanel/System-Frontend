@@ -8,6 +8,8 @@ import { PAGINATION_SAFETY_FACTOR, paginateBlocks, type PageSlice, type Splittab
 import { fragmentWindow, lineItemHeights, lineStartsFromRects, textOffsetOf, textPositionAt, type TextGeometry } from '../../lib/editor/fragments'
 import { fitWidthZoom } from '../../lib/editor/a4'
 import { fontStack } from '../../lib/editor/fonts'
+import { textDirection } from '../../lib/editor/direction'
+import { languageDirection } from '../../lib/languages'
 import { documentStyleId } from '../../lib/editor/styles'
 import { useMediaUrls } from '../../hooks/use-media'
 import { cssEscape, findEditable, focusEditable, type EditableRef } from './caret'
@@ -26,6 +28,8 @@ export interface A4PagesCanvasProps {
   blockLabels: BlockLabels
   /** e.g. `"Page {current} of {total}"`; `total` is null when the first page has a custom number (then `"Page {current}"`). */
   formatPageLabel: (current: number, total: number | null) => string
+  /** The word drawn faintly across every page of a draft ("DRAFT", in the document's language); absent: no mark. */
+  draftMark?: string
   /** The "Page numbers" checkbox and "Start at" field in the bar under the pages (editing only). */
   pageNumbers?: {
     onUpdatePageSetup: (patch: Partial<PageSetup>) => void
@@ -77,6 +81,7 @@ export function A4PagesCanvas({
   api,
   blockLabels,
   formatPageLabel,
+  draftMark,
   pageNumbers,
   pageAriaLabel,
   zoomLabel,
@@ -108,6 +113,7 @@ export function A4PagesCanvas({
   }, [model.blocks])
 
   const isLandscape = model.page.orientation === 'landscape'
+  const direction = languageDirection(model.language)
   const styleId = documentStyleId(model)
   const isLetterhead = styleId === 'executive-letterhead'
   const { urls: media } = useMediaUrls({ logo: isLetterhead ? model.style?.logoMediaId : null })
@@ -462,6 +468,8 @@ export function A4PagesCanvas({
         {pages.map((pageBlockIds, pageIndex) => (
           <article
             key={pageIndex}
+            // An Arabic document's page runs right to left: tables, side cells, signatures, header and footer start on the right.
+            dir={direction === 'rtl' ? 'rtl' : undefined}
             className={[
               'doc-paper',
               'a4-sheet',
@@ -480,6 +488,7 @@ export function A4PagesCanvas({
                 {model.page.headerEnabled ? (
                   <div
                     className="doc-paper__header-text"
+                    dir={textDirection(model.page.headerHtml, direction)}
                     dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(model.page.headerHtml) }}
                   />
                 ) : null}
@@ -487,6 +496,7 @@ export function A4PagesCanvas({
             ) : showHeader ? (
               <header
                 className="doc-paper__header"
+                dir={textDirection(model.page.headerHtml, direction)}
                 dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(model.page.headerHtml) }}
               />
             ) : null}
@@ -525,6 +535,7 @@ export function A4PagesCanvas({
                           labels={blockLabels}
                           onImageLoad={onImageLoad}
                           bilingual={Boolean(model.page.bilingual)}
+                          direction={direction}
                           tone={blockTones?.get(block.id) ?? (tip?.highlightBlockId === block.id ? 'hint' : undefined)}
                         />
                       </div>
@@ -542,16 +553,24 @@ export function A4PagesCanvas({
                     labels={blockLabels}
                     onImageLoad={onImageLoad}
                     bilingual={Boolean(model.page.bilingual)}
+                    direction={direction}
                     tone={blockTones?.get(block.id) ?? (tip?.highlightBlockId === block.id ? 'hint' : undefined)}
                   />
                 )
               })}
             </div>
 
+            {draftMark ? (
+              <div className="doc-paper__draft" aria-hidden="true" data-testid="draft-mark">
+                <span>{draftMark}</span>
+              </div>
+            ) : null}
+
             <footer className="doc-paper__footer">
               {model.page.footerEnabled ? (
                 <div
                   className="doc-paper__footer-text"
+                  dir={textDirection(model.page.footerHtml, direction)}
                   dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(model.page.footerHtml) }}
                 />
               ) : null}

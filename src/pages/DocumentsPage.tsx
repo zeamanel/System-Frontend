@@ -8,6 +8,7 @@ import {
   useDeleteDocument,
   useDocumentsList,
   useDuplicateDocument,
+  useMyTemplates,
   useSetDocumentSharing,
   useSharedDocuments,
 } from '../hooks/use-documents'
@@ -16,7 +17,7 @@ import type { DocumentRecord } from '../lib/repositories'
 import { DocumentListItem } from '../components/documents/DocumentListItem'
 import { OpenLocalFileButton } from '../components/documents/OpenLocalFileButton'
 import { TelegramBridgeButton } from '../components/documents/TelegramBridgeButton'
-import { DocumentIcon, UsersIcon } from '../components/icons'
+import { CopyIcon, DocumentIcon, UsersIcon } from '../components/icons'
 import {
   Button,
   EmptyState,
@@ -27,7 +28,7 @@ import {
   useToast,
 } from '../components/ui'
 
-type Tab = 'mine' | 'shared'
+type Tab = 'mine' | 'templates' | 'shared'
 
 export default function DocumentsPage() {
   const { t } = useI18n()
@@ -40,14 +41,19 @@ export default function DocumentsPage() {
   const hasOrganization = Boolean(useOrganization().data)
   const [tab, setTab] = useState<Tab>('mine')
   const showShared = hasOrganization && tab === 'shared'
+  const showTemplates = tab === 'templates'
 
   const mine = useDocumentsList(debouncedSearch.trim() || undefined)
   const shared = useSharedDocuments(debouncedSearch.trim() || undefined, showShared)
-  const documents = showShared ? shared : mine
+  const templates = useMyTemplates(showTemplates)
+  const documents = showTemplates ? templates : showShared ? shared : mine
   const duplicateMutation = useDuplicateDocument()
   const deleteMutation = useDeleteDocument()
   const sharingMutation = useSetDocumentSharing()
-  const items = documents.data ?? []
+  const needle = debouncedSearch.trim().toLowerCase()
+  // Templates are few: the search filters them here.
+  const items = (documents.data ?? []).filter((document) => !showTemplates || !needle || document.title.toLowerCase().includes(needle))
+  const tabs: Tab[] = hasOrganization ? ['mine', 'templates', 'shared'] : ['mine', 'templates']
 
   const handleToggleShare = async (document: DocumentRecord) => {
     try {
@@ -104,9 +110,9 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      {hasOrganization ? (
+      {tabs.length > 1 ? (
         <div className="category-pills" role="tablist" aria-label={t('documents.tabsLabel')}>
-          {(['mine', 'shared'] as const).map((value) => (
+          {tabs.map((value) => (
             <button
               key={value}
               type="button"
@@ -116,7 +122,7 @@ export default function DocumentsPage() {
               onClick={() => setTab(value)}
               data-testid={`documents-tab-${value}`}
             >
-              {t(value === 'mine' ? 'documents.tabs.mine' : 'documents.tabs.shared')}
+              {t(value === 'mine' ? 'documents.tabs.mine' : value === 'templates' ? 'documents.tabs.templates' : 'documents.tabs.shared')}
             </button>
           ))}
         </div>
@@ -136,6 +142,12 @@ export default function DocumentsPage() {
                 {t('search.clear')}
               </Button>
             }
+          />
+        ) : showTemplates ? (
+          <EmptyState
+            icon={<CopyIcon size={22} />}
+            title={t('documents.templatesEmptyTitle')}
+            description={t('documents.templatesEmptyBody')}
           />
         ) : showShared ? (
           <EmptyState
@@ -161,7 +173,9 @@ export default function DocumentsPage() {
             <li key={document.id}>
               <DocumentListItem
                 document={document}
-                onDuplicate={handleDuplicate}
+                // A template is used, not copied: "Use" starts a new document from it.
+                onDuplicate={showTemplates ? undefined : handleDuplicate}
+                onUse={showTemplates ? handleDuplicate : undefined}
                 onDelete={handleDelete}
                 onToggleShare={hasOrganization ? handleToggleShare : undefined}
               />

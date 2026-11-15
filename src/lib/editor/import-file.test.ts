@@ -24,6 +24,9 @@ describe('import-file', () => {
   describe('detectTextLanguage', () => {
     it('detects Amharic when Ethiopic characters are present', () => {
       expect(detectTextLanguage('ሰላም ዓለም')).toBe('am')
+      // Arabic: mostly Arabic letters; a few Arabic words in an English text do not count.
+      expect(detectTextLanguage('عقد عمل بين الطرفين')).toBe('ar')
+      expect(detectTextLanguage('The agreement between ABC Trading and the employee (عقد)')).toBe('en')
       expect(detectTextLanguage('Hello ሰላም World')).toBe('am')
     })
 

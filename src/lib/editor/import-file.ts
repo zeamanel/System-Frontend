@@ -17,12 +17,12 @@ import {
 import { escapePlainText, htmlToBlocks, sanitizeInlineHtml } from './sanitize'
 import type { Block, DocumentModel, HeadingLevel } from './types'
 
-export type SupportedLanguage = 'en' | 'am' | 'om'
+export type SupportedLanguage = 'en' | 'am' | 'om' | 'ar'
 
 /**
  * Detect content language: if Ethiopic script characters ([\u1200-\u137F])
- * are present, detect Amharic ('am'); otherwise fall back to the provided
- * language or 'en'.
+ * are present, detect Amharic ('am'); Arabic letters make it Arabic ('ar');
+ * otherwise fall back to the provided language or 'en'.
  */
 export function detectTextLanguage(
   text: string,
@@ -31,6 +31,10 @@ export function detectTextLanguage(
   if (/[\u1200-\u137F]/.test(text)) {
     return 'am'
   }
+  // Mostly Arabic letters (a few Arabic words in an English file do not count).
+  const arabic = text.match(/[\u0620-\u064A\u0671-\u06D3]/g)?.length ?? 0
+  const latin = text.match(/[A-Za-z]/g)?.length ?? 0
+  if (arabic > 0 && arabic >= latin) return 'ar'
   return fallback
 }
 

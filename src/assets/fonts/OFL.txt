@@ -19,6 +19,11 @@ by themselves. This file travels with them, as the licence requires.
   backend: the @expo-google-fonts npm packages, which carry the licence)
   Copyright 2022 The Noto Project Authors (https://github.com/notofonts/ethiopic)
 
+- Noto Sans Arabic and Noto Naskh Arabic, Regular and SemiBold
+  (NotoSansArabic-*.woff2, NotoNaskhArabic-*.woff2): the Arabic-script
+  subsets published by Fontsource (no Reserved Font Names)
+  Copyright 2022 The Noto Project Authors (https://github.com/notofonts/arabic)
+
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
 -----------------------------------------------------------
 

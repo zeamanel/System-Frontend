@@ -14,6 +14,8 @@ import { DESIGN_CATALOG } from '../../designs/catalog'
 import { useFeatures } from '../../hooks/use-features'
 import { useCreateDesign } from '../../hooks/use-create-design'
 import { splitCustomTemplate } from '../../lib/templates/custom'
+import { useDuplicateDocument, useMyTemplates } from '../../hooks/use-documents'
+import { CopyIcon } from '../icons'
 
 export interface CreateDocumentDialogProps {
   open: boolean
@@ -31,11 +33,14 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
   const { startTemplateDocument } = useStartTemplateDocument()
   const [filter, setFilter] = useState('')
   // Documents are the main view; designs sit one tap away (and show up in a search).
-  const [view, setView] = useState<'documents' | 'designs'>('documents')
+  const [view, setView] = useState<'documents' | 'designs' | 'mine'>('documents')
 
   const templates = useTemplatesList()
   const features = useFeatures()
   const { start: startDesign, pendingId } = useCreateDesign()
+  // The user's own templates: each start is a new document copied from one.
+  const myTemplates = useMyTemplates(open)
+  const duplicate = useDuplicateDocument()
 
   useEffect(() => {
     if (open) {
@@ -65,6 +70,40 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
       template.description.toLowerCase().includes(needle),
   )
   const CustomIcon = custom ? templateIcon(custom.iconKey) : null
+  const allMine = myTemplates.data ?? []
+  const mine = allMine.filter((template) => !needle || template.title.toLowerCase().includes(needle))
+  const hasMine = allMine.length > 0
+
+  const mineList = (
+    <ul className="create-dialog__list" data-testid="create-dialog-mine-list">
+      {mine.map((template) => (
+        <li key={template.id}>
+          <button
+            type="button"
+            className="create-dialog__item"
+            disabled={duplicate.isPending}
+            onClick={() => {
+              void duplicate.mutateAsync(template.id).then((started) => {
+                onClose()
+                navigate(`/documents/${encodeURIComponent(started.id)}`)
+              })
+            }}
+          >
+            <span className="create-dialog__item-icon">
+              <CopyIcon size={17} />
+            </span>
+            <span className="create-dialog__item-text">
+              <span className="create-dialog__item-title">{template.title}</span>
+              <span className="create-dialog__item-description">
+                {template.access === 'view' && template.ownerName ? t('documents.sharedBy', { name: template.ownerName }) : t('documents.templateBadge')}
+              </span>
+            </span>
+            <ArrowRightIcon size={15} className="create-dialog__item-arrow" />
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
 
   const designList = (
     <ul className="create-dialog__list" data-testid="create-dialog-design-list">
@@ -99,7 +138,7 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
     <PanelError onRetry={() => void templates.refetch()} />
   ) : items.length === 0 ? (
     // With a search, a design that matches is a result too.
-    designs.length > 0 && searching ? null : <p className="create-dialog__hint">{t('createDialog.empty')}</p>
+    (designs.length > 0 || mine.length > 0) && searching ? null : <p className="create-dialog__hint">{t('createDialog.empty')}</p>
   ) : (
     <ul className="create-dialog__list" data-testid="create-dialog-document-list">
       {items.map((template) => {
@@ -179,7 +218,7 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
           </button>
         ) : null}
 
-        {hasDesigns && !searching ? (
+        {(hasDesigns || hasMine) && !searching ? (
           <div className="create-dialog__tabs" role="tablist" aria-label={t('createDialog.title')}>
             <button
               type="button"
@@ -191,23 +230,43 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
             >
               {t('createDialog.tabDocuments')}
             </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === 'designs'}
-              className="create-dialog__tab"
-              data-testid="create-dialog-tab-designs"
-              onClick={() => setView('designs')}
-            >
-              {t('createDialog.tabDesigns', { count: String(DESIGN_CATALOG.length) })}
-            </button>
+            {hasMine ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'mine'}
+                className="create-dialog__tab"
+                data-testid="create-dialog-tab-mine"
+                onClick={() => setView('mine')}
+              >
+                {t('createDialog.tabMine', { count: String(allMine.length) })}
+              </button>
+            ) : null}
+            {hasDesigns ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'designs'}
+                className="create-dialog__tab"
+                data-testid="create-dialog-tab-designs"
+                onClick={() => setView('designs')}
+              >
+                {t('createDialog.tabDesigns', { count: String(DESIGN_CATALOG.length) })}
+              </button>
+            ) : null}
           </div>
         ) : null}
 
         {searching ? (
-          // A search covers both: documents first, then the designs that match.
+          // A search covers everything: the user's own templates, documents, then the designs that match.
           <>
-            {designs.length > 0 && items.length > 0 ? (
+            {mine.length > 0 ? (
+              <div className="create-dialog__group" data-testid="create-dialog-mine">
+                <p className="create-dialog__group-title">{t('documents.tabs.templates')}</p>
+                {mineList}
+              </div>
+            ) : null}
+            {(designs.length > 0 || mine.length > 0) && items.length > 0 ? (
               <p className="create-dialog__group-title">{t('designs.textDocumentsTitle')}</p>
             ) : null}
             {documentList}
@@ -218,6 +277,18 @@ export function CreateDocumentDialog({ open, onClose }: CreateDocumentDialogProp
               </div>
             ) : null}
           </>
+        ) : hasMine && view === 'mine' ? (
+          <div className="create-dialog__group" data-testid="create-dialog-mine">
+            <button
+              type="button"
+              className="create-dialog__back"
+              onClick={() => setView('documents')}
+            >
+              <ArrowLeftIcon size={14} />
+              {t('createDialog.backToDocuments')}
+            </button>
+            {mineList}
+          </div>
         ) : hasDesigns && view === 'designs' ? (
           <div className="create-dialog__group" data-testid="create-dialog-designs">
             <button

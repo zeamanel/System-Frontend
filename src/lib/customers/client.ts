@@ -1,6 +1,7 @@
 import { env } from '../../config/env'
-import { apiClient } from '../api'
-import type { Customer, CustomerInput } from './types'
+import { ApiError, apiClient } from '../api'
+import { getRepositories } from '../repositories'
+import type { Customer, CustomerDocument, CustomerInput } from './types'
 
 /**
  * Saved customers over /customers. Demo mode keeps them in localStorage
@@ -8,6 +9,8 @@ import type { Customer, CustomerInput } from './types'
  */
 
 const DEMO_KEY = 'docuA4.fixture.customers'
+/** Demo links between customers and documents: { customerId: { documentId: linkedAt } }. */
+const DEMO_LINKS_KEY = 'docuA4.fixture.customerLinks'
 const RETENTION_MS = 365 * 24 * 60 * 60_000
 
 const isHttp = (): boolean => env.dataSource === 'http'
@@ -29,13 +32,40 @@ function writeDemo(list: Customer[]): void {
   }
 }
 
+type DemoLinks = Record<string, Record<string, string>>
+
+function readDemoLinks(): DemoLinks {
+  try {
+    const parsed = JSON.parse(globalThis.localStorage?.getItem(DEMO_LINKS_KEY) ?? '{}') as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as DemoLinks) : {}
+  } catch {
+    return {}
+  }
+}
+
+function linkDemo(customerId: string, documentId: string | undefined): void {
+  if (!documentId) return
+  const links = readDemoLinks()
+  links[customerId] = { ...links[customerId], [documentId]: new Date().toISOString() }
+  try {
+    globalThis.localStorage?.setItem(DEMO_LINKS_KEY, JSON.stringify(links))
+  } catch {
+    // Storage full or unavailable: the demo link simply is not kept.
+  }
+}
+
 const tidy = (name: string): string => name.replace(/\s+/g, ' ').trim()
 const keyOf = (name: string): string => tidy(name).toLowerCase()
 
-export async function listCustomers(query = '', signal?: AbortSignal): Promise<Customer[]> {
+/** Saved customers matching `query`, newest-used first (the server's default count, or `limit`, at most 100). */
+export async function listCustomers(query = '', signal?: AbortSignal, limit?: number): Promise<Customer[]> {
   if (isHttp()) {
+    const params = new URLSearchParams()
     const q = query.trim()
-    return apiClient.get<Customer[]>(`/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`, {
+    if (q) params.set('q', q)
+    if (limit) params.set('limit', String(limit))
+    const search = params.toString()
+    return apiClient.get<Customer[]>(`/customers${search ? `?${search}` : ''}`, {
       signal,
       auth: 'required',
     })
@@ -78,14 +108,21 @@ export async function saveCustomer(input: CustomerInput): Promise<Customer> {
         expiresAt: new Date(now.getTime() + RETENTION_MS).toISOString(),
       }
   writeDemo(existing ? list.map((c) => (c.id === saved.id ? saved : c)) : [saved, ...list])
+  linkDemo(saved.id, input.documentId)
   return saved
 }
 
-export async function markCustomerUsed(id: string): Promise<void> {
+/** Marks a customer used; with `documentId`, links them to that document. */
+export async function markCustomerUsed(id: string, documentId?: string): Promise<void> {
   if (isHttp()) {
-    await apiClient.post<Customer>(`/customers/${encodeURIComponent(id)}/use`, undefined, { auth: 'required' })
+    await apiClient.post<Customer>(
+      `/customers/${encodeURIComponent(id)}/use`,
+      documentId ? { documentId } : undefined,
+      { auth: 'required' },
+    )
     return
   }
+  linkDemo(id, documentId)
   const now = new Date()
   writeDemo(
     readDemo().map((c) =>
@@ -98,6 +135,45 @@ export async function markCustomerUsed(id: string): Promise<void> {
         : c,
     ),
   )
+}
+
+/** One saved customer; null when it is gone (forgotten, or never visible). */
+export async function getCustomer(id: string, signal?: AbortSignal): Promise<Customer | null> {
+  if (isHttp()) {
+    try {
+      return await apiClient.get<Customer>(`/customers/${encodeURIComponent(id)}`, { signal, auth: 'required' })
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null
+      throw error
+    }
+  }
+  return readDemo().find((c) => c.id === id) ?? null
+}
+
+/** The documents made for a customer, newest first. */
+export async function listCustomerDocuments(id: string, signal?: AbortSignal): Promise<CustomerDocument[]> {
+  if (isHttp()) {
+    return apiClient.get<CustomerDocument[]>(`/customers/${encodeURIComponent(id)}/documents`, { signal, auth: 'required' })
+  }
+  const linked = readDemoLinks()[id] ?? {}
+  const documents = await getRepositories().documents.list()
+  return documents
+    .filter((document) => linked[document.id] && !document.isTemplate)
+    .map((document) => ({
+      id: document.id,
+      title: document.title,
+      status: document.status,
+      kind: document.kind,
+      language: document.language,
+      templateId: document.templateId,
+      templateTitle: document.templateTitle,
+      version: document.version,
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt,
+      access: 'owner' as const,
+      linkedAt: linked[document.id],
+    }))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 
 export async function deleteCustomer(id: string): Promise<void> {

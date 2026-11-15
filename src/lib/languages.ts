@@ -23,7 +23,14 @@ export interface LanguageInfo {
   direction: 'ltr' | 'rtl'
 }
 
-export const LANGUAGES: Record<LanguageCode, LanguageInfo> = {
+/** Interface languages and document languages (Arabic is a document language only, for now). */
+export type KnownLanguage = LanguageCode | DocumentLanguage
+
+export interface LanguageEntry extends Omit<LanguageInfo, 'code'> {
+  code: KnownLanguage
+}
+
+export const LANGUAGES: Record<KnownLanguage, LanguageEntry> = {
   en: {
     code: 'en',
     nativeName: 'English',
@@ -48,10 +55,18 @@ export const LANGUAGES: Record<LanguageCode, LanguageInfo> = {
     uiTranslated: false,
     direction: 'ltr',
   },
+  ar: {
+    code: 'ar',
+    nativeName: 'العربية',
+    englishName: 'Arabic',
+    // Documents can be written in Arabic (right to left); the interface stays in the chosen interface language.
+    uiTranslated: false,
+    direction: 'rtl',
+  },
 }
 
 /** Languages that documents can be authored/generated in. */
-export const DOCUMENT_LANGUAGES = ['en', 'am', 'om'] as const
+export const DOCUMENT_LANGUAGES = ['en', 'am', 'om', 'ar'] as const
 
 export type DocumentLanguage = (typeof DOCUMENT_LANGUAGES)[number]
 
@@ -71,7 +86,12 @@ export function isDocumentLanguage(value: unknown): value is DocumentLanguage {
 
 /** Native display name with a safe fallback for unknown codes. */
 export function languageNativeName(code: string): string {
-  return isLanguageCode(code) ? LANGUAGES[code].nativeName : code
+  return isLanguageCode(code) || isDocumentLanguage(code) ? LANGUAGES[code].nativeName : code
+}
+
+/** Writing direction of a document language: Arabic is right to left. */
+export function languageDirection(code: string): 'ltr' | 'rtl' {
+  return isDocumentLanguage(code) || isLanguageCode(code) ? LANGUAGES[code].direction : 'ltr'
 }
 
 /**

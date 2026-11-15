@@ -25,6 +25,12 @@
  * faces, so print matches the screen. Nyala stays a name-only fallback (it is
  * proprietary to Microsoft and is never shipped).
  *
+ * Arabic: every stack starts with a bundled Arabic face (Noto Sans Arabic
+ * beside the sans fonts, Noto Naskh Arabic beside the serif ones, as in the
+ * exports), declared in `styles/fonts.css` with an Arabic-only unicode-range,
+ * so it never changes Latin or Ethiopic text and is only downloaded for a
+ * page that shows Arabic.
+ *
  * `probeEthiopicSupport` reports which stacks demonstrably resolve Ethiopic
  * glyphs via `document.fonts.check`, so the UI can tell the truth about
  * availability instead of guessing.
@@ -46,7 +52,7 @@ export const FONT_OPTIONS: readonly FontOption[] = [
   {
     key: 'sans',
     stack:
-      "'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, " +
+      "'SenedDesk Arabic Sans', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, " +
       "'Noto Sans Ethiopic', 'Nyala', 'Abyssinica SIL', sans-serif",
     ethiopicFamilies: ['Noto Sans Ethiopic', 'Nyala', 'Abyssinica SIL'],
     bundled: true,
@@ -54,7 +60,7 @@ export const FONT_OPTIONS: readonly FontOption[] = [
   {
     key: 'serif',
     stack:
-      "Georgia, 'Times New Roman', 'Noto Serif Ethiopic', 'Abyssinica SIL', " +
+      "'SenedDesk Arabic Naskh', Georgia, 'Times New Roman', 'Noto Serif Ethiopic', 'Abyssinica SIL', " +
       "'Nyala', serif",
     ethiopicFamilies: ['Noto Serif Ethiopic', 'Abyssinica SIL', 'Nyala'],
     bundled: true,
@@ -62,20 +68,20 @@ export const FONT_OPTIONS: readonly FontOption[] = [
   {
     key: 'mono',
     stack:
-      "ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, 'Noto Sans Ethiopic', " +
+      "'SenedDesk Arabic Sans', ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, 'Noto Sans Ethiopic', " +
       "'Nyala', monospace",
     ethiopicFamilies: ['Noto Sans Ethiopic', 'Nyala'],
     bundled: true,
   },
   {
     key: 'abyssinica',
-    stack: "Georgia, 'Times New Roman', 'Abyssinica SIL', 'Noto Serif Ethiopic', 'Nyala', serif",
+    stack: "'SenedDesk Arabic Naskh', Georgia, 'Times New Roman', 'Abyssinica SIL', 'Noto Serif Ethiopic', 'Nyala', serif",
     ethiopicFamilies: ['Abyssinica SIL'],
     bundled: true,
   },
   {
     key: 'washra',
-    stack: "'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, 'Ethiopic WashRa', 'Noto Sans Ethiopic', sans-serif",
+    stack: "'SenedDesk Arabic Sans', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, 'Ethiopic WashRa', 'Noto Sans Ethiopic', sans-serif",
     ethiopicFamilies: ['Ethiopic WashRa'],
     bundled: true,
   },

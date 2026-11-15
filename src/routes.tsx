@@ -11,6 +11,8 @@ const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const TemplateDetailPage = lazy(() => import('./pages/TemplateDetailPage'))
 const CreateDocumentFlowPage = lazy(() => import('./pages/CreateDocumentFlowPage'))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'))
+const CustomersPage = lazy(() => import('./pages/CustomersPage'))
+const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'))
 const TelegramFilesPage = lazy(() => import('./pages/TelegramFilesPage'))
 const EditorPage = lazy(() => import('./pages/EditorPage'))
 const FavoritesPage = lazy(() => import('./pages/FavoritesPage'))
@@ -19,6 +21,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const BillingPage = lazy(() => import('./pages/BillingPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
+const ReviewPage = lazy(() => import('./pages/ReviewPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const AboutPage = lazy(() => import('./pages/info/AboutPage'))
 const FaqPage = lazy(() => import('./pages/info/FaqPage'))
@@ -35,6 +38,7 @@ export function AppRoutes() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         {/* Public: the sign-in page, Google and the Telegram bot link here, so no sign-in is needed. */}
+        <Route path="/review/:token" element={<ReviewPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/terms" element={<TermsPage />} />
@@ -54,6 +58,8 @@ export function AppRoutes() {
           <Route path="templates/:templateId" element={<TemplateDetailPage />} />
           <Route path="templates/:templateId/create" element={<CreateDocumentFlowPage />} />
           <Route path="documents" element={<DocumentsPage />} />
+          <Route path="customers" element={<CustomersPage />} />
+          <Route path="customers/:customerId" element={<CustomerDetailPage />} />
           <Route path="telegram-files" element={<TelegramFilesPage />} />
           <Route path="documents/:documentId" element={<EditorPage />} />
           <Route path="favorites" element={<FavoritesPage />} />

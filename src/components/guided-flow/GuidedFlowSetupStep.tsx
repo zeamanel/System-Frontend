@@ -46,7 +46,10 @@ export function GuidedFlowSetupStep({
 
   const availableRegions = country === 'ET' ? regionsForCountry('ET') : []
 
-  const langOptions = DOCUMENT_LANGUAGES.map((lang) => {
+  // Arabic only for the templates that can be written in it.
+  const langOptions = DOCUMENT_LANGUAGES.filter(
+    (lang) => lang !== 'ar' || template.supportedLanguages?.includes('ar'),
+  ).map((lang) => {
     const info = LANGUAGES[lang]
     return {
       value: lang,

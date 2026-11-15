@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { QuestionLabel } from './QuestionLabel'
 import { useI18n } from '../../i18n'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
 import { getSavedSuggestionsForField } from '../../lib/saved-answers/party-memory'
@@ -79,7 +80,7 @@ export function GuidedFlowQuickFillStep({
                     id={`quickfill-${question.id}`}
                     label={
                       <>
-                        {question.label}
+                        <QuestionLabel question={question} language={language} />
                         {question.required ? <Badge variant="neutral">{t('flow.required')}</Badge> : null}
                       </>
                     }
@@ -97,7 +98,7 @@ export function GuidedFlowQuickFillStep({
                     question={question}
                     label={
                       <>
-                        {question.label}
+                        <QuestionLabel question={question} language={language} />
                         {question.required ? (
                           <Badge variant="neutral">{t('flow.required')}</Badge>
                         ) : null}
@@ -113,7 +114,7 @@ export function GuidedFlowQuickFillStep({
                     rows={3}
                     label={
                       <>
-                        {question.label}
+                        <QuestionLabel question={question} language={language} />
                         {question.required ? (
                           <Badge variant="neutral">{t('flow.required')}</Badge>
                         ) : null}
@@ -129,7 +130,7 @@ export function GuidedFlowQuickFillStep({
                     id={`quickfill-${question.id}`}
                     label={
                       <>
-                        {question.label}
+                        <QuestionLabel question={question} language={language} />
                         {question.required ? (
                           <Badge variant="neutral">{t('flow.required')}</Badge>
                         ) : null}

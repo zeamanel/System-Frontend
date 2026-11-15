@@ -1,4 +1,5 @@
 import { useI18n } from '../../i18n'
+import { QuestionLabel } from './QuestionLabel'
 import { LANGUAGES, type DocumentLanguage } from '../../lib/languages'
 import { regionDisplayName } from '../../lib/geo'
 import type { TemplateDetail } from '../../lib/repositories'
@@ -66,7 +67,7 @@ export function GuidedFlowReviewStep({
           {questions.map((q, idx) => (
             <div key={q.id} className="guided-flow__review-item">
               <div className="guided-flow__review-label">
-                {idx + 1}. {q.label}
+                {idx + 1}. <QuestionLabel question={q} language={language} />
               </div>
               <div className="guided-flow__review-value">
                 {answers[q.id]?.trim() ? (

@@ -236,3 +236,67 @@ export function formatEthiopianLegalDate(raw: string, locale: string): LegalDate
     hint: `${formatted} (${ETHIOPIAN_MONTHS_AM[ec.month - 1]} ${ec.day} ቀን ${ec.year} ዓ.ም.)`,
   }
 }
+
+// ---------- Date picker ----------
+
+/** Days in an Ethiopian month: 30, and 5 or 6 for ጳጉሜን (6 in the year before a Julian-style leap year). */
+export function ethiopianMonthDays(year: number, month: number): number {
+  if (month < 13) return 30
+  return year % 4 === 3 ? 6 : 5
+}
+
+/** Day of the week of a Gregorian date: 0 = Monday … 6 = Sunday. */
+export function weekdayMondayFirst(g: DateParts): number {
+  return (new Date(Date.UTC(g.year, g.month - 1, g.day)).getUTCDay() + 6) % 7
+}
+
+export type PickerCalendar = 'ethiopian' | 'gregorian'
+
+export interface PickerDay {
+  /** The day in the calendar being shown. */
+  day: number
+  /** The same day in the Gregorian calendar (what is stored and formatted). */
+  gregorian: DateParts
+}
+
+/**
+ * One month of the picker: its days and how many empty cells come before
+ * the first one (weeks start on Monday). `month` is 1–13 for Ethiopian.
+ */
+export function pickerMonth(calendar: PickerCalendar, year: number, month: number): { leading: number; days: PickerDay[] } {
+  const count = calendar === 'ethiopian' ? ethiopianMonthDays(year, month) : gregorianMonthDays(year, month)
+  const days: PickerDay[] = []
+  for (let day = 1; day <= count; day++) {
+    days.push({ day, gregorian: calendar === 'ethiopian' ? ethiopianToGregorian({ year, month, day }) : { year, month, day } })
+  }
+  return { leading: weekdayMondayFirst(days[0].gregorian), days }
+}
+
+/** The month before or after (`step` -1 or 1), across the year boundary. */
+export function stepPickerMonth(calendar: PickerCalendar, year: number, month: number, step: 1 | -1): { year: number; month: number } {
+  const months = calendar === 'ethiopian' ? 13 : 12
+  const next = month + step
+  if (next < 1) return { year: year - 1, month: months }
+  if (next > months) return { year: year + 1, month: 1 }
+  return { year, month: next }
+}
+
+const GREGORIAN_MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'] as const
+
+/** A Gregorian month's name in the document's language (Afaan Oromoo, Arabic or English). */
+export function gregorianMonthName(month: number, locale: string): string {
+  if (locale === 'om') return GREGORIAN_MONTHS_OM[month - 1]
+  if (locale === 'ar') return GREGORIAN_MONTHS_AR[month - 1]
+  return GREGORIAN_MONTHS_EN[month - 1]
+}
+
+/**
+ * A picked date written for the document: the legal form of its language
+ * (Ethiopian calendar for Amharic, both for Afaan Oromoo, the Gregorian date
+ * for English and Arabic).
+ */
+export function formatPickedDate(g: DateParts, locale: string): string {
+  if (locale === 'ar') return `${g.day} ${GREGORIAN_MONTHS_AR[g.month - 1]} ${g.year}م`
+  const iso = `${g.year}-${pad2(g.month)}-${pad2(g.day)}`
+  return formatEthiopianLegalDate(iso, locale)?.formatted ?? iso
+}

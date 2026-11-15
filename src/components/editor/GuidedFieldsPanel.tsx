@@ -1,12 +1,13 @@
 import './GuidedFieldsPanel.css'
+import { QuestionLabel } from '../guided-flow/QuestionLabel'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useI18n } from '../../i18n'
 import { DOCUMENT_LANGUAGES, LANGUAGES } from '../../lib/languages'
-import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
+import { detectSmartFieldKind, getSmartSuggestion } from '../../lib/ethiopian/smart-field'
 import { clearSavedAnswers, getSavedSuggestionsForField } from '../../lib/saved-answers/party-memory'
 import { listTelegramMediaVault, type TelegramVaultProfile } from '../../lib/api'
-import { SmartSuggestionChip } from '../smart-fields'
+import { DatePicker, SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
 import { useOrganization } from '../../hooks/use-organization'
 import { SavedCustomers, SaveCustomerButton } from '../customers'
@@ -43,6 +44,8 @@ export interface GuidedFieldsPanelProps {
    * The open document is never modified (its saved answers stay intact).
    */
   onNewCustomer?: () => void
+  /** The open document (links a customer used or saved here to it). */
+  documentId?: string
   children?: React.ReactNode
 }
 
@@ -159,6 +162,7 @@ export function GuidedFieldsPanel({
   generationFailed,
   onGenerate,
   onNewCustomer,
+  documentId,
   children,
 }: GuidedFieldsPanelProps) {
   const { t } = useI18n()
@@ -655,6 +659,7 @@ export function GuidedFieldsPanel({
             answers={answers}
             onFill={(fills) => handleCustomerFill(fills, fills[0]?.questionId ?? '')}
             onAppendInstructions={handleAppendInstructions}
+            documentId={documentId}
           />
           {questions.map((question) => {
             if (question.type === 'file_upload') {
@@ -664,7 +669,7 @@ export function GuidedFieldsPanel({
                     id={`field-${question.id}`}
                     label={
                       <>
-                        {question.label}
+                        <QuestionLabel question={question} language={language} />
                         {question.required ? <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge> : null}
                       </>
                     }
@@ -686,7 +691,7 @@ export function GuidedFieldsPanel({
               return (
                 <div key={question.id} className="editor-panel__field guided-file-field" data-testid={`file-field-${question.id}`}>
                   <span className="field__label">
-                    {question.label}
+                    <QuestionLabel question={question} language={language} />
                     {question.required ? <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge> : null}
                   </span>
                   {attached ? (
@@ -758,7 +763,7 @@ export function GuidedFieldsPanel({
                   <div className="field">
                     <div className="guided-fields-panel__field-header-row">
                       <label className="field__label" htmlFor={`field-${question.id}`}>
-                        {question.label}
+                        <QuestionLabel question={question} language={language} />
                         {question.required ? (
                           <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                         ) : null}
@@ -842,7 +847,7 @@ export function GuidedFieldsPanel({
                         question={question}
                         label={
                           <>
-                            {question.label}
+                            <QuestionLabel question={question} language={language} />
                             {question.required ? (
                               <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                             ) : null}
@@ -857,7 +862,7 @@ export function GuidedFieldsPanel({
                         id={`field-${question.id}`}
                         label={
                           <>
-                            {question.label}
+                            <QuestionLabel question={question} language={language} />
                             {question.required ? (
                               <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                             ) : null}
@@ -889,7 +894,7 @@ export function GuidedFieldsPanel({
                         id={`field-${question.id}`}
                         label={
                           <>
-                            {question.label}
+                            <QuestionLabel question={question} language={language} />
                             {question.required ? (
                               <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge>
                             ) : null}
@@ -1040,17 +1045,24 @@ export function GuidedFieldsPanel({
                   })}
 
 
-                {suggestion ? (
-                  <SmartSuggestionChip
-                    suggestion={suggestion}
-                    onApply={(formatted) => {
-                      if (isParty) {
-                        handlePrimaryChange(fieldKey, formatted, question.label, currentValue)
-                      } else {
-                        onAnswerChange(question.id, formatted)
-                      }
-                    }}
-                  />
+                {suggestion || detectSmartFieldKind(question) === 'date' ? (
+                  <div className="guided-smart-row">
+                    {detectSmartFieldKind(question) === 'date' ? (
+                      <DatePicker value={currentValue} language={language} onPick={pick} />
+                    ) : null}
+                    {suggestion ? (
+                      <SmartSuggestionChip
+                        suggestion={suggestion}
+                        onApply={(formatted) => {
+                          if (isParty) {
+                            handlePrimaryChange(fieldKey, formatted, question.label, currentValue)
+                          } else {
+                            onAnswerChange(question.id, formatted)
+                          }
+                        }}
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
                 <RecentAnswerChips
                   suggestions={fromOrganization}
@@ -1060,7 +1072,7 @@ export function GuidedFieldsPanel({
                 />
                 <RecentAnswerChips suggestions={recents} onPick={pick} />
                 {customerTargets(questions).some((target) => target.id === question.id) ? (
-                  <SaveCustomerButton questions={questions} answers={answers} fieldId={question.id} />
+                  <SaveCustomerButton questions={questions} answers={answers} fieldId={question.id} documentId={documentId} />
                 ) : null}
               </div>
             )

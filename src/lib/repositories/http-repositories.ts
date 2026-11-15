@@ -6,8 +6,10 @@ import {
   createDocument as createDocumentEndpoint,
   deleteDocument as deleteDocumentEndpoint,
   duplicateDocument as duplicateDocumentEndpoint,
+  saveDocumentAsTemplate as saveDocumentAsTemplateEndpoint,
   getDocument as fetchDocumentEndpoint,
   listDocumentVersions as fetchDocumentVersionsEndpoint,
+  getDocumentVersion as getDocumentVersionEndpoint,
   listDocuments as fetchDocumentsEndpoint,
   setDocumentSharing,
   renameDocument as renameDocumentEndpoint,
@@ -44,6 +46,7 @@ import type {
   CreateDocumentPayload,
   DocumentDetailRecord,
   DocumentRecord,
+  DocumentVersionContent,
   DocumentVersionSnapshot,
   DocumentsRepository,
   ExportsRepository,
@@ -168,6 +171,7 @@ interface TemplateDetailApiRecord extends TemplateApiRecord {
   questions?: {
     id: string
     label: string
+    labelAr?: string
     required?: boolean
     type?: string
     fills?: string
@@ -202,6 +206,7 @@ function mapDocument(record: DocumentApiRecord): DocumentRecord {
     shared: record.shared === true,
     access: record.access === 'view' ? 'view' : 'owner',
     ...(record.access === 'view' ? { ownerName: record.ownerName ?? '' } : {}),
+    ...(record.isTemplate ? { isTemplate: true } : {}),
   }
 }
 
@@ -494,6 +499,7 @@ class HttpTemplatesRepository implements TemplatesRepository {
           questions: (record.questions ?? []).map((question) => ({
             id: question.id,
             label: question.label,
+            ...(question.labelAr ? { labelAr: question.labelAr } : {}),
             required: question.required ?? false,
             type: question.type,
             ...(question.fills ? { fills: question.fills } : {}),
@@ -613,6 +619,10 @@ class HttpDocumentsRepository implements DocumentsRepository {
     return fetchDocumentVersionsEndpoint(id)
   }
 
+  async versionContent(id: string, version: number): Promise<DocumentVersionContent | null> {
+    return nullOnNotFound(() => getDocumentVersionEndpoint(id, version))
+  }
+
   async restoreVersion(id: string, version: number): Promise<DocumentDetailRecord> {
     try {
       const record = await restoreDocumentVersionEndpoint(id, version)
@@ -636,6 +646,16 @@ class HttpDocumentsRepository implements DocumentsRepository {
   async setSharing(id: string, shared: boolean): Promise<DocumentDetailRecord> {
     return mapDocumentDetail(await setDocumentSharing(id, shared))
   }
+
+  async listTemplates(): Promise<DocumentRecord[]> {
+    // An older backend ignores `scope` and returns ordinary documents: only records marked as templates count.
+    const records = await nullOnNotFound(() => fetchDocumentsEndpoint({ limit: 200, scope: 'templates' }))
+    return (records ?? []).filter((record) => record.isTemplate === true).map(mapDocument)
+  }
+
+  async saveAsTemplate(id: string, title?: string): Promise<DocumentDetailRecord> {
+    return mapDocumentDetail(await saveDocumentAsTemplateEndpoint(id, title))
+  }
 }
 
 /**
@@ -651,6 +671,8 @@ class HttpExportsRepository implements ExportsRepository {
     } catch (error) {
       // 422: format not offered. A 404 for the route itself: no export service on this backend.
       if (error instanceof ApiError && error.status === 422) throw new ExportUnavailableError(error.message)
+      // 503: this server cannot send to Telegram (no bot configured).
+      if (error instanceof ApiError && error.status === 503 && input.delivery === 'telegram') throw new ExportUnavailableError(error.message)
       if (error instanceof ApiError && error.status === 404 && error.message.startsWith('Route ')) {
         throw new ExportUnavailableError()
       }

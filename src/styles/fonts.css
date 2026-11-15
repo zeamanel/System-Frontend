@@ -31,3 +31,45 @@
   unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F;
   src: url('../assets/fonts/EthiopicWashRa-Bold.ttf') format('truetype');
 }
+
+/*
+ * Arabic (Noto Sans Arabic and Noto Naskh Arabic, the faces the PDF and Word
+ * exports use). Their own family names and an Arabic-only unicode-range:
+ * they are listed first in every document font stack but never touch Latin
+ * or Ethiopic text, and are downloaded only when a page shows Arabic.
+ */
+@font-face {
+  font-family: 'SenedDesk Arabic Sans';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFC;
+  src: url('../assets/fonts/NotoSansArabic-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'SenedDesk Arabic Sans';
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFC;
+  src: url('../assets/fonts/NotoSansArabic-SemiBold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'SenedDesk Arabic Naskh';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFC;
+  src: url('../assets/fonts/NotoNaskhArabic-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'SenedDesk Arabic Naskh';
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFC;
+  src: url('../assets/fonts/NotoNaskhArabic-SemiBold.woff2') format('woff2');
+}

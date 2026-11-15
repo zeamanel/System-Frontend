@@ -5,6 +5,14 @@ import { Badge, Button, Popover } from '../ui'
 import { OpenLocalFileButton } from '../documents/OpenLocalFileButton'
 import { TelegramBridgeButton, type TelegramBridgeTransferPayload } from '../documents/TelegramBridgeButton'
 import { EditorTelegramVaultDrawer } from './EditorTelegramVaultDrawer'
+
+export interface ToolbarGaps {
+  count: number
+  /** "3 to fill". */
+  label: string
+  title: string
+  onNext: () => void
+}
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -16,6 +24,11 @@ import {
   ChatIcon,
   PanelLeftIcon,
   PrinterIcon,
+  EditIcon,
+  CopyIcon,
+  SmartphoneIcon,
+  MicIcon,
+  UsersIcon,
   RedoIcon,
   SlidersIcon,
   UndoIcon,
@@ -41,6 +54,18 @@ export interface EditorToolbarProps {
   onReloadLatest: () => void
   onOverwrite: () => void
   onPrint: () => void
+  /** Keeps a copy of the document as one of the user's templates (absent: no menu item). */
+  onSaveAsTemplate?: () => void
+  /** Sends the PDF to the user's Telegram (absent: no menu item). */
+  onSendToTelegram?: () => void
+  /** Sends a read-only copy to the other party to comment and approve (absent: no menu item). */
+  onSendForReview?: () => void
+  /** Dictate at the caret (absent: no button). */
+  onDictate?: () => void
+  /** Dictation is open (the button shows as pressed). */
+  dictating?: boolean
+  /** Places still to fill in ("[payment deadline]"): a counter beside Print that goes to the next one. */
+  gaps?: ToolbarGaps
   onExportServerPdf: () => void
   onExportServerDocx: () => void
   exportPending: boolean
@@ -122,6 +147,12 @@ export function EditorToolbar({
   onReloadLatest,
   onOverwrite,
   onPrint,
+  onSaveAsTemplate,
+  onSendToTelegram,
+  onSendForReview,
+  onDictate,
+  dictating,
+  gaps,
   onExportServerPdf,
   onExportServerDocx,
   exportPending,
@@ -232,6 +263,12 @@ export function EditorToolbar({
         onShowHistory,
         onChooseStyle,
         onPrint,
+        onSaveAsTemplate,
+        onSendToTelegram,
+        onSendForReview,
+        onDictate,
+        dictating,
+        gaps,
         onExportServerPdf,
         onExportServerDocx,
         exportPending,
@@ -267,6 +304,12 @@ function renderToolbarEnd(props: {
   onShowHistory?: () => void
   onChooseStyle?: () => void
   onPrint: () => void
+  onSaveAsTemplate?: () => void
+  onSendToTelegram?: () => void
+  onSendForReview?: () => void
+  onDictate?: () => void
+  dictating?: boolean
+  gaps?: ToolbarGaps
   onExportServerPdf: () => void
   onExportServerDocx: () => void
   exportPending: boolean
@@ -445,6 +488,49 @@ function renderToolbarEnd(props: {
                 <small>{t('editor.exportDocxHint')}</small>
               </span>
             </button>
+            {props.onSendToTelegram ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={props.onSendToTelegram}
+                disabled={props.exportPending}
+                data-testid="editor-send-telegram"
+              >
+                <SmartphoneIcon size={16} />
+                <span>
+                  <strong>{t('editor.sendTelegram')}</strong>
+                  <small>{t('editor.sendTelegramHint')}</small>
+                </span>
+              </button>
+            ) : null}
+            {props.onSendForReview ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={props.onSendForReview}
+                data-testid="editor-send-review"
+              >
+                <UsersIcon size={16} />
+                <span>
+                  <strong>{t('reviews.menu')}</strong>
+                  <small>{t('reviews.menuHint')}</small>
+                </span>
+              </button>
+            ) : null}
+            {props.onSaveAsTemplate ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={props.onSaveAsTemplate}
+                data-testid="editor-save-as-template"
+              >
+                <CopyIcon size={16} />
+                <span>
+                  <strong>{t('editor.saveAsTemplate')}</strong>
+                  <small>{t('editor.saveAsTemplateHint')}</small>
+                </span>
+              </button>
+            ) : null}
             {props.exportPending ? (
               <p className="editor-export-menu__status" data-testid="export-pending">
                 {t('editor.exportStarted')}
@@ -462,6 +548,35 @@ function renderToolbarEnd(props: {
           </div>
         )}
       </Popover>
+
+      {props.onDictate ? (
+        <Button
+          variant="secondary"
+          icon={<MicIcon size={16} />}
+          // Keep the caret in the page: the text goes in where it is.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={props.onDictate}
+          aria-pressed={props.dictating ? true : false}
+          className="editor-toolbar__dictate"
+          title={t('dictation.buttonTitle')}
+          data-testid="toolbar-dictate"
+        >
+          {t('dictation.button')}
+        </Button>
+      ) : null}
+
+      {props.gaps && props.gaps.count > 0 ? (
+        <Button
+          variant="secondary"
+          icon={<EditIcon size={16} />}
+          onClick={props.gaps.onNext}
+          className="editor-toolbar__gaps"
+          title={props.gaps.title}
+          data-testid="toolbar-gaps"
+        >
+          {props.gaps.label}
+        </Button>
+      ) : null}
 
       <Button
         variant="primary"

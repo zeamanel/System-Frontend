@@ -22,6 +22,25 @@ export function useSharedDocuments(search?: string, enabled = true) {
   })
 }
 
+/** The user's own templates (and those shared with their organization). */
+export function useMyTemplates(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.documents.templates,
+    queryFn: () => getRepositories().documents.listTemplates(),
+    enabled,
+  })
+}
+
+export function useSaveAsTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, title }: { id: string; title?: string }) => getRepositories().documents.saveAsTemplate(id, title),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
+    },
+  })
+}
+
 export function useSetDocumentSharing() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -75,10 +94,11 @@ export function useUpdateDocument() {
 /** Server-side export boundary (PDF/DOCX). See `endpoints/exports.ts`. */
 export function useCreateExportRequest() {
   return useMutation({
-    mutationFn: (input: { documentId: string; format: ExportFormat }) =>
+    mutationFn: (input: { documentId: string; format: ExportFormat; delivery?: 'download' | 'telegram' }) =>
       getRepositories().exports.createRequest({
         documentId: input.documentId,
         format: input.format,
+        ...(input.delivery ? { delivery: input.delivery } : {}),
       }),
   })
 }

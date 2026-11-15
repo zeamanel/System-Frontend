@@ -18,6 +18,7 @@ export const queryKeys = {
     all: ['documents'] as const,
     list: (search?: string) => ['documents', 'list', search ?? null] as const,
     shared: (search?: string) => ['documents', 'shared', search ?? null] as const,
+    templates: ['documents', 'templates'] as const,
     recent: (limit: number) => ['documents', 'recent', limit] as const,
     detail: (id: string) => ['documents', 'detail', id] as const,
     versions: (id: string) => ['documents', 'versions', id] as const,
@@ -36,9 +37,16 @@ export const queryKeys = {
     all: ['notifications'] as const,
   },
   features: ['features'] as const,
+  reviews: {
+    all: ['reviews'] as const,
+    forDocument: (documentId: string) => ['reviews', 'document', documentId] as const,
+    public: (token: string) => ['reviews', 'public', token] as const,
+  },
   customers: {
     all: ['customers'] as const,
     list: (query: string) => ['customers', 'list', query] as const,
+    detail: (id: string) => ['customers', 'detail', id] as const,
+    documents: (id: string) => ['customers', 'documents', id] as const,
   },
   organization: {
     all: ['organization'] as const,

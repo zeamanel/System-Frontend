@@ -229,10 +229,11 @@ describe('side column translation helpers', () => {
     })),
   })
 
-  it('writes the side column in the other language: Amharic beside English or Afaan Oromoo, English beside Amharic', () => {
+  it('writes the side column in the other language: Amharic beside English or Afaan Oromoo, English beside Amharic or Arabic', () => {
     expect(sideTargetLanguage('en')).toBe('am')
     expect(sideTargetLanguage('om')).toBe('am')
     expect(sideTargetLanguage('am')).toBe('en')
+    expect(sideTargetLanguage('ar')).toBe('en')
   })
 
   it('lists the paragraphs to translate: text, no picture, optionally only those without a translation', () => {

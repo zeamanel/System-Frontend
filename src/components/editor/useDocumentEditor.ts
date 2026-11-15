@@ -32,8 +32,21 @@ import {
   serializeModel,
 } from '../../lib/editor/model'
 import type { DocumentModel } from '../../lib/editor/types'
+import { isolateNumbersInModel } from '../../lib/editor/number-isolation'
+import { languageDirection } from '../../lib/languages'
+
+/** The block the caret is in (its text is not rewritten while it is typed). */
+function focusedBlockId(): string | null {
+  const active = typeof document === 'undefined' ? null : document.activeElement
+  return active instanceof HTMLElement ? (active.closest('[data-block-id]')?.getAttribute('data-block-id') ?? null) : null
+}
+
+/** Numbers in Arabic text keep their typed order (see number-isolation.ts); the block being typed in waits. */
+function tidyNumbers(model: DocumentModel): DocumentModel {
+  return isolateNumbersInModel(model, languageDirection(model.language), focusedBlockId())
+}
 import { contentHasOwnLook, keepLook } from '../../lib/editor/styles'
-import { diffBlocks, sameBlock, type TrackedChange, type RevertResult } from '../../lib/editor/tracked-change'
+import { diffBlocks, revertTrackedChange, type TrackedChange, type RevertResult } from '../../lib/editor/tracked-change'
 
 export type { TrackedChange, RevertResult }
 import type { DocumentDetailRecord } from '../../lib/repositories'
@@ -178,7 +191,8 @@ function firstChangedBlockId(from: DocumentModel, to: DocumentModel): string | n
  */
 export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLockedEdit }: UseDocumentEditorOptions) {
   const [model, setModelState] = useState<DocumentModel>(
-    () => parseDocumentContent(doc.content, doc.language) ?? createEmptyDocument(doc.language),
+    // Numbers in Arabic text show in typed order from the start (saved with the next edit).
+    () => tidyNumbers(parseDocumentContent(doc.content, doc.language) ?? createEmptyDocument(doc.language)),
   )
   const [title, setTitleState] = useState(doc.title)
   const [answers, setAnswersState] = useState<Record<string, string>>(doc.answers ?? {})
@@ -234,8 +248,9 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
   }, [])
 
   /** The only way the model changes: keeps the ref current and records an undo step. */
-  const commit = useCallback((after: DocumentModel, options?: CommitOptions & { record?: boolean; force?: boolean }): boolean => {
+  const commit = useCallback((proposed: DocumentModel, options?: CommitOptions & { record?: boolean; force?: boolean }): boolean => {
     const before = modelRef.current
+    const after = tidyNumbers(proposed)
     if (sameModel(before, after)) return false
     if (blocksLockedRef.current && !options?.force && after.blocks !== before.blocks) {
       onLockedEditRef.current?.()
@@ -263,6 +278,16 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
     },
     [commit, markDirty],
   )
+
+  /**
+   * When the caret leaves a block: its numbers in Arabic text are put in typed
+   * order (not an undo step of its own: it only fixes how they display).
+   */
+  const tidyAfterTyping = useCallback((): void => {
+    const current = modelRef.current
+    const tidied = tidyNumbers(current)
+    if (tidied !== current && commit(tidied, { record: false })) markDirty()
+  }, [commit, markDirty])
 
   /** The next edit starts a new undo step even if it continues the same typing. */
   const breakUndoGroup = useCallback((): void => {
@@ -399,33 +424,9 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
    */
   const revertChange = useCallback(
     (change: TrackedChange): RevertResult => {
-      let reverted = 0
-      let skipped = 0
-      const current = modelRef.current
-      const added = new Set(change.added ?? [])
-      const blocks = current.blocks.flatMap((block) => {
-        const after = change.after[block.id]
-        if (!after) return [block]
-        if (added.has(block.id)) {
-          // An inserted block: remove it unless it was edited since.
-          if (sameBlock(block, after)) {
-            reverted += 1
-            return []
-          }
-          skipped += 1
-          return [block]
-        }
-        const before = change.before[block.id]
-        if (!before) return [block]
-        if (sameBlock(block, after)) {
-          reverted += 1
-          return [before]
-        }
-        skipped += 1
-        return [block]
-      })
+      const { model: next, reverted, skipped } = revertTrackedChange(modelRef.current, change)
       if (reverted > 0) {
-        commit({ ...current, blocks })
+        commit(next)
         markDirty()
       }
       return { reverted, skipped }
@@ -459,7 +460,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
       createEmptyDocument(snapshot.language)
     // Generated text arrives without a look: keep the style and page set-up the user chose.
     const current = modelRef.current
-    const next = options?.keepLook && !contentHasOwnLook(snapshot.content) ? keepLook(fresh, current) : fresh
+    const next = tidyNumbers(options?.keepLook && !contentHasOwnLook(snapshot.content) ? keepLook(fresh, current) : fresh)
     if (options?.undoable) {
       commit(next, { force: true })
     } else {
@@ -674,6 +675,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
     canUndo: pastRef.current.length > 0,
     canRedo: futureRef.current.length > 0,
     breakUndoGroup,
+    tidyAfterTyping,
     setBlocksLocked,
     setTitle,
     setAnswer,

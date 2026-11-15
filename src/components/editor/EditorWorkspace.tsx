@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useI18n, tForLocale } from '../../i18n'
 import type { MessageKey, MessageVars } from '../../i18n'
-import { useCreateExportRequest } from '../../hooks/use-documents'
+import { useCreateExportRequest, useDuplicateDocument, useSaveAsTemplate } from '../../hooks/use-documents'
 import { useCreateGenerationRequest, useGenerationJob } from '../../hooks/use-generation'
 import { generateKey } from '../../lib/api/idempotency'
 import type { TelegramBridgeTransferPayload } from '../documents/TelegramBridgeButton'
@@ -32,6 +32,7 @@ import {
   setAlignment,
   setBilingualMode,
   setDocumentFont,
+  removeEmptySideBoxes,
   setDocumentFontSize,
   setIndent,
   setMargins,
@@ -55,7 +56,8 @@ import {
 } from '../../lib/editor/model'
 import { execInlineCommand, type InlineCommand } from '../../lib/editor/commands'
 import { compressImageDataUrl } from '../../lib/editor/image'
-import { isSafeUrl } from '../../lib/editor/sanitize'
+import { escapePlainText, isSafeUrl } from '../../lib/editor/sanitize'
+import { insertPlainText } from '../../lib/editor/commands'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
 import { triggerPrint } from '../../lib/editor/a4'
 import { downloadExport, ExportDownloadError, exportDownloadUrl, exportFileName } from '../../lib/export/download'
@@ -63,7 +65,7 @@ import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { newId } from '../../lib/editor/ids'
 import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
 import { LANGUAGES } from '../../lib/languages'
-import { Button, Dialog, useToast } from '../ui'
+import { Button, Dialog, Input, useToast } from '../ui'
 import { ApiError } from '../../lib/api'
 import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
@@ -97,6 +99,16 @@ import { ChatIcon, DocumentIcon, PanelLeftIcon, SlidersIcon, XIcon } from '../ic
 import './editor.css'
 import './editor-responsive.css'
 import { TIP_KEYS } from '../../lib/tips'
+import { countGap, countGaps, fillGap } from '../../lib/editor/gaps'
+import { useGaps } from './useGaps'
+import { GapFillBox } from './GapFillBox'
+import { DictationPanel } from './DictationPanel'
+import { SendForReviewDialog } from '../reviews/SendForReviewDialog'
+import { useDictation } from './useDictation'
+import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
+
+/** Loaded only when "Send to my Telegram" is used. */
+const TelegramQrCode = lazy(() => import('../telegram/QrCode').then((module) => ({ default: module.QrCode })))
 
 /** Printing goes ahead without the check if it takes longer than this. */
 const PRINT_CHECK_TIMEOUT_MS = 4000
@@ -117,6 +129,8 @@ export interface EditorWorkspaceProps {
    * (the route owns navigation). The open document is never modified.
    */
   onNewCustomer?: (input: NewCustomerDocumentInput) => Promise<void>
+  /** Opens another document (the route owns navigation): a document just started from this template. */
+  onOpenDocument?: (documentId: string) => void
 }
 
 export interface NewCustomerDocumentInput {
@@ -157,6 +171,7 @@ export function EditorWorkspace({
   onBack,
   refresh,
   onNewCustomer,
+  onOpenDocument,
 }: EditorWorkspaceProps) {
   const { t } = useI18n()
   const toast = useToast()
@@ -334,6 +349,35 @@ export function EditorWorkspace({
 
   // ---- export ----
   const exportMutation = useCreateExportRequest()
+
+  // ---- My templates ----
+  const saveTemplateMutation = useSaveAsTemplate()
+  const duplicateMutation = useDuplicateDocument()
+  const [templateName, setTemplateName] = useState<string | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const saveAsTemplate = async (): Promise<void> => {
+    const title = templateName?.trim()
+    if (!title) return
+    try {
+      // The template is a copy of what is saved: save the latest edits first.
+      if (!(await editor.saveAll())) throw new Error('unsaved')
+      await saveTemplateMutation.mutateAsync({ id: doc.id, title })
+      setTemplateName(null)
+      toast.push(t('editor.saveTemplate.saved'), { variant: 'success' })
+    } catch {
+      toast.push(t('editor.saveTemplate.failed'), { variant: 'error' })
+    }
+  }
+  /** On a template: a new document from it (a copy), opened in its place. */
+  const startFromTemplate = async (): Promise<void> => {
+    try {
+      if (!(await editor.saveAll())) throw new Error('unsaved')
+      const started = await duplicateMutation.mutateAsync(doc.id)
+      onOpenDocument?.(started.id)
+    } catch {
+      toast.push(t('editor.saveTemplate.failed'), { variant: 'error' })
+    }
+  }
   const [exportError, setExportError] = useState<string | null>(null)
 
   const activeBlock = useMemo<Block | null>(
@@ -386,7 +430,7 @@ export function EditorWorkspace({
         reply: (count, language) =>
           t(count === 1 ? 'assistant.side.replyOne' : 'assistant.side.reply', {
             count: String(count),
-            language: t(language === 'am' ? 'assistant.side.lang.am' : 'assistant.side.lang.en'),
+            language: t(`assistant.side.lang.${language}`),
           }),
         replyMissing: (count) => t('assistant.side.replyMissing', { count: String(count) }),
         unavailable: (reason) =>
@@ -1037,6 +1081,66 @@ export function EditorWorkspace({
     [updateModel, toast, t],
   )
 
+  // ── Dictation: the text goes in where the caret was when it started ──────
+  const dictation = useDictation({ language: editor.language })
+  const dictationTargetRef = useRef<{ element: HTMLElement; range: Range } | null>(null)
+  /** Where the checked text goes: the page (at the caret), or the assistant's message box. */
+  const [dictationFor, setDictationFor] = useState<'page' | 'assistant'>('page')
+  const [dictatedForAssistant, setDictatedForAssistant] = useState<{ id: number; text: string } | null>(null)
+
+  const handleDictateToAssistant = useCallback((): void => {
+    if (dictation.state.phase !== 'idle') {
+      dictation.cancel()
+      if (dictationFor === 'assistant') return
+    }
+    dictationTargetRef.current = null
+    setDictationFor('assistant')
+    void dictation.start()
+  }, [dictation, dictationFor])
+
+  const handleDictate = useCallback((): void => {
+    if (dictation.state.phase !== 'idle') {
+      dictation.cancel()
+      if (dictationFor === 'page') return
+    }
+    setDictationFor('page')
+    const selection = document.getSelection()
+    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null
+    const node = range?.startContainer ?? null
+    const element = (node instanceof Element ? node : node?.parentElement)?.closest<HTMLElement>('[contenteditable="true"]') ?? null
+    dictationTargetRef.current = range && element?.closest('.doc-paper') ? { element, range: range.cloneRange() } : null
+    void dictation.start()
+  }, [dictation, dictationFor])
+
+  const handleInsertDictation = useCallback(
+    (text: string): void => {
+      const clean = text.replace(/\s*\n+\s*/g, ' ').trim()
+      const target = dictationTargetRef.current
+      dictationTargetRef.current = null
+      dictation.cancel()
+      if (!clean) return
+      editor.breakUndoGroup()
+      if (target && target.element.isConnected) {
+        target.element.focus({ preventScroll: true })
+        const selection = document.getSelection()
+        selection?.removeAllRanges()
+        selection?.addRange(target.range)
+        // A space between the words already there and the dictated ones.
+        const { startContainer, startOffset } = target.range
+        const before = startContainer.nodeType === Node.TEXT_NODE && startOffset > 0 ? (startContainer.textContent ?? '')[startOffset - 1] : ''
+        const spaced = before && !/\s/.test(before) && !/^[.,;:!?።፣፤)]/.test(clean) ? ` ${clean}` : clean
+        if (insertPlainText(spaced)) {
+          editor.breakUndoGroup()
+          return
+        }
+      }
+      // No caret in the page (or it is gone): a new paragraph after the active block.
+      insertAfterActive(() => createParagraph(escapePlainText(clean)))
+      editor.breakUndoGroup()
+    },
+    [dictation, editor, insertAfterActive],
+  )
+
   const handleAppendToPrompt = useCallback(
     (text: string) => {
       if (!text.trim()) return
@@ -1122,6 +1226,24 @@ export function EditorWorkspace({
       )
     }
   }, [doc.id, editor, exportMutation, t, toast])
+
+  // ---- Send to my Telegram: a one-time link to the bot, shown with a QR code for a phone ----
+  const [telegramLink, setTelegramLink] = useState<string | null>(null)
+  const handleSendToTelegram = useCallback(async (): Promise<void> => {
+    setExportError(null)
+    // The bot sends the saved document: save the latest edits first.
+    if (!(await editor.flush())) {
+      setExportError(t('editor.exportNeedsSave'))
+      return
+    }
+    try {
+      const result = await exportMutation.mutateAsync({ documentId: doc.id, format: 'pdf', delivery: 'telegram' })
+      if (!result.deepLink) throw new Error('missing link')
+      setTelegramLink(result.deepLink)
+    } catch (error) {
+      setExportError(error instanceof ExportUnavailableError ? t('editor.sendTelegramUnavailable') : t('editor.exportFailed'))
+    }
+  }, [doc.id, editor, exportMutation, t])
 
   const handleOutlineSelect = useCallback((blockId: string): void => {
     document
@@ -1263,6 +1385,7 @@ export function EditorWorkspace({
         ),
       onToggleBilingual: () =>
         updateModel((current) => setBilingualMode(current, !current.page.bilingual)),
+      onRemoveEmptySideBoxes: () => updateModel((current) => removeEmptySideBoxes(current)),
       onUpdateSecondaryHtml: (blockId, html) =>
         updateModel((current) => updateSecondaryText(current, blockId, html)),
     }),
@@ -1280,6 +1403,47 @@ export function EditorWorkspace({
     ],
   )
 
+  // ---- Gaps still to fill ("[payment deadline]") ----
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  // When the caret leaves a paragraph: numbers in its Arabic text go back to typed order.
+  const { tidyAfterTyping } = editor
+  useEffect(() => {
+    const root = workspaceRef.current
+    if (!root) return
+    let timer = 0
+    const onFocusOut = (event: FocusEvent): void => {
+      if (!(event.target instanceof HTMLElement) || !event.target.isContentEditable) return
+      window.clearTimeout(timer)
+      // After the focus has moved, so the block the caret went to is the one left alone.
+      timer = window.setTimeout(tidyAfterTyping, 0)
+    }
+    root.addEventListener('focusout', onFocusOut)
+    return () => {
+      window.clearTimeout(timer)
+      root.removeEventListener('focusout', onFocusOut)
+    }
+  }, [tidyAfterTyping])
+
+  const gapsEnabled = !previewMode && !pageLocked
+  const gaps = useGaps(workspaceRef, gapsEnabled)
+  const gapCount = useMemo(() => (gapsEnabled ? countGaps(model) : 0), [gapsEnabled, model])
+  const handleFillGap = useCallback(
+    (value: string, all: boolean): void => {
+      const gap = gaps.active
+      if (!gap) return
+      const before = countGaps(model)
+      const next = fillGap(model, gap.gap, value, all ? undefined : gap.target)
+      if (next === model) return
+      gaps.filled(gap)
+      updateModel(() => next)
+      if (countGaps(next) === 0 && before > 0) {
+        gaps.close()
+        toast.push(t('editor.gaps.done'), { variant: 'success' })
+      }
+    },
+    [gaps, model, t, toast, updateModel],
+  )
+
   const workspaceClass = [
     'editor-workspace',
     leftOpen ? 'editor-workspace--left-open' : null,
@@ -1289,7 +1453,7 @@ export function EditorWorkspace({
     .join(' ')
 
   return (
-    <div className={workspaceClass}>
+    <div className={workspaceClass} ref={workspaceRef}>
       <EditorToolbar
         title={editor.title}
         onTitleChange={editor.setTitle}
@@ -1310,6 +1474,21 @@ export function EditorWorkspace({
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
+        onSaveAsTemplate={doc.isTemplate || doc.access === 'view' ? undefined : () => setTemplateName(editor.title)}
+        onSendToTelegram={() => void handleSendToTelegram()}
+        onSendForReview={doc.isTemplate || doc.access === 'view' || doc.kind === 'design' ? undefined : () => setReviewOpen(true)}
+        onDictate={pageLocked || previewMode || doc.access === 'view' ? undefined : handleDictate}
+        dictating={dictation.state.phase !== 'idle' && dictationFor === 'page'}
+        gaps={
+          gapCount > 0
+            ? {
+                count: gapCount,
+                label: gapCount === 1 ? t('editor.gaps.countOne') : t('editor.gaps.count', { count: String(gapCount) }),
+                title: t('editor.gaps.countTitle'),
+                onNext: gaps.next,
+              }
+            : undefined
+        }
         onExportServerPdf={() => void handleExportServer('pdf')}
         onExportServerDocx={() => void handleExportServer('docx')}
         exportPending={exportMutation.isPending}
@@ -1332,6 +1511,13 @@ export function EditorWorkspace({
       {editor.recovered ? (
         <div className="editor-recovered" role="status">
           {t('editor.recovered')}
+        </div>
+      ) : doc.isTemplate && onOpenDocument ? (
+        <div className="editor-recovered editor-template-banner" role="status" data-testid="editor-template-banner">
+          <span>{t('editor.templateBanner')}</span>
+          <Button variant="secondary" size="sm" loading={duplicateMutation.isPending} onClick={() => void startFromTemplate()} data-testid="editor-template-start">
+            {t('editor.templateBannerStart')}
+          </Button>
         </div>
       ) : null}
 
@@ -1356,6 +1542,7 @@ export function EditorWorkspace({
           outline={outline}
           onOutlineSelect={handleOutlineSelect}
           onNewCustomer={onNewCustomer ? () => void handleNewCustomer() : undefined}
+          documentId={doc.id}
         >
         {telegramMedia ? (
           <div className="telegram-media-tray" data-testid="telegram-media-tray">
@@ -1438,6 +1625,7 @@ export function EditorWorkspace({
         onClose={() => setHistoryOpen(false)}
         documentId={doc.id}
         currentVersion={editor.savedVersion}
+        currentModel={model}
         beforeRestore={async () => {
           if (!(await editor.saveAll())) throw new Error('unsaved')
         }}
@@ -1456,6 +1644,7 @@ export function EditorWorkspace({
         activeBlockId={activeRef?.blockId ?? null}
         api={api}
         blockLabels={blockLabels}
+        draftMark={model.page.draft ? tDoc('editor.draftMark') : undefined}
         formatPageLabel={(current, total) =>
           total === null
             ? tDoc('editor.pageOnly', { current: String(current) })
@@ -1546,6 +1735,9 @@ export function EditorWorkspace({
               questionLabels={questionLabels}
               onShowBlock={handleShowBlock}
               bilingual={Boolean(model.page.bilingual)}
+              onDictate={handleDictateToAssistant}
+              dictating={dictation.state.phase !== 'idle' && dictationFor === 'assistant'}
+              dictatedText={dictatedForAssistant}
             />
           </div>
         ) : (
@@ -1608,6 +1800,62 @@ export function EditorWorkspace({
       </nav>
 
       <Dialog
+        open={telegramLink !== null}
+        onClose={() => setTelegramLink(null)}
+        title={t('editor.sendTelegramTitle')}
+        closeLabel={t('common.close')}
+        width="sm"
+      >
+        <p className="editor-dialog__text">{t('editor.sendTelegramBody')}</p>
+        {telegramLink ? (
+          <div className="editor-telegram-send" data-testid="send-telegram-dialog">
+            <Suspense fallback={null}>
+              <TelegramQrCode value={telegramLink} label={t('editor.sendTelegramQr')} />
+            </Suspense>
+            <a className="btn btn--primary btn--md" href={telegramLink} target="_blank" rel="noopener noreferrer" data-testid="send-telegram-open">
+              {t('editor.sendTelegramOpen')}
+            </a>
+          </div>
+        ) : null}
+      </Dialog>
+
+      <Dialog
+        open={templateName !== null}
+        onClose={() => setTemplateName(null)}
+        title={t('editor.saveAsTemplate')}
+        closeLabel={t('common.close')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setTemplateName(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              loading={saveTemplateMutation.isPending}
+              disabled={!templateName?.trim()}
+              onClick={() => void saveAsTemplate()}
+              data-testid="save-template-confirm"
+            >
+              {t('editor.saveTemplate.save')}
+            </Button>
+          </>
+        }
+      >
+        <p className="editor-dialog__text">{t('editor.saveTemplate.body')}</p>
+        <Input
+          id="save-template-name"
+          label={t('editor.saveTemplate.name')}
+          value={templateName ?? ''}
+          maxLength={200}
+          onChange={(event) => setTemplateName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') void saveAsTemplate()
+          }}
+          data-testid="save-template-name"
+        />
+      </Dialog>
+
+      <Dialog
         open={printCheck !== null}
         onClose={() => setPrintCheck(null)}
         title={t('check.print.title')}
@@ -1640,6 +1888,60 @@ export function EditorWorkspace({
           </div>
         ) : null}
       </Dialog>
+
+      <SendForReviewDialog
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        documentId={doc.id}
+        beforeCreate={() => editor.flush()}
+        onWorkOn={(author, text) => {
+          setReviewOpen(false)
+          openAssistant()
+          // The whole document: the comment may be about any part of it. The message stays within the API's 2,000 characters.
+          void assistant.send(t('reviews.workOnMessage', { name: author, text: text.slice(0, 1600) }), { scope: 'document' })
+        }}
+      />
+
+      <DictationPanel
+        state={dictation.state}
+        onStop={dictation.stop}
+        onCancel={() => {
+          dictationTargetRef.current = null
+          dictation.cancel()
+        }}
+        onRetry={() => void dictation.start()}
+        onTextChange={dictation.setText}
+        onInsert={
+          dictationFor === 'assistant'
+            ? (text) => {
+                dictation.cancel()
+                const clean = text.trim()
+                if (clean) setDictatedForAssistant({ id: Date.now(), text: clean })
+              }
+            : handleInsertDictation
+        }
+        insertLabel={dictationFor === 'assistant' ? t('dictation.useInMessage') : undefined}
+      />
+
+      {gaps.active ? (
+        <GapFillBox
+          gap={gaps.active}
+          count={countGap(model, gaps.active.gap)}
+          labels={{
+            title: t('editor.gaps.title'),
+            allPlaces: (count) => t('editor.gaps.allPlaces', { count: String(count) }),
+            fill: t('editor.gaps.fill'),
+            skip: t('editor.gaps.skip'),
+            close: t('editor.gaps.close'),
+            hint: t('editor.gaps.hint'),
+            useSuggestion: t('editor.gaps.useSuggestion'),
+          }}
+          suggest={(label, value) => getSmartSuggestion({ label }, value, editor.language)?.formatted ?? null}
+          onFill={handleFillGap}
+          onSkip={(step) => (step === 1 ? gaps.next() : gaps.previous())}
+          onClose={gaps.close}
+        />
+      ) : null}
     </div>
   )
 }

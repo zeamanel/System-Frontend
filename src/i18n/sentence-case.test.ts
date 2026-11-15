@@ -10,6 +10,12 @@ const NAMES = new Set([
   'SenedDesk', 'Telegram', 'Qal', 'Chapa', 'Google', 'Word', 'Amharic', 'English', 'Oromoo', 'WebP', 'FAQs',
   // Names of pages and buttons quoted inside a sentence.
   'Organization', 'Download', 'Save', 'Allow', 'Service', 'Policy', 'The',
+  // Keyboard keys.
+  'Enter', 'Tab', 'Esc', 'Arabic',
+  // Browsers.
+  'Chrome', 'Edge', 'Firefox', 'Safari',
+  // Example names of people.
+  'Haile',
 ])
 
 describe('English labels', () => {
@@ -17,6 +23,8 @@ describe('English labels', () => {
     const offenders: string[] = []
     for (const [key, value] of Object.entries(en as Record<string, string>)) {
       if (value.length > 60) continue
+      // A comma-separated list of names (weekday abbreviations), not a sentence.
+      if (key === 'datePicker.weekdays') continue
       for (const part of value.split(/[.!?:]\s+|\(|\s[—–-]\s|\//)) {
         const words = part.match(/[A-Za-z][A-Za-z']*/g) ?? []
         for (const word of words.slice(1)) {

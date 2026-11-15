@@ -127,3 +127,30 @@ describe('CreateDocumentDialog: designs', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
   })
 })
+
+describe('CreateDocumentDialog: my templates', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+
+  it('offers the user\'s own templates behind a tab with a count, and in a search', async () => {
+    const { getRepositories } = await import('../../lib/repositories')
+    await getRepositories().documents.saveAsTemplate('doc-fixture-1', 'Monthly receipt')
+    const user = userEvent.setup()
+    renderDialog()
+    const tab = await screen.findByTestId('create-dialog-tab-mine')
+    expect(tab).toHaveTextContent('My templates (1)')
+    await user.click(tab)
+    expect(within(screen.getByTestId('create-dialog-mine-list')).getByText('Monthly receipt')).toBeInTheDocument()
+    await user.click(screen.getByText('Back to documents'))
+    await user.type(screen.getByRole('searchbox'), 'monthly')
+    expect(within(await screen.findByTestId('create-dialog-mine')).getByText('Monthly receipt')).toBeInTheDocument()
+  })
+
+  it('has no such tab before the first template', async () => {
+    renderDialog()
+    await screen.findByTestId('create-dialog-custom')
+    expect(screen.queryByTestId('create-dialog-tab-mine')).toBeNull()
+  })
+})

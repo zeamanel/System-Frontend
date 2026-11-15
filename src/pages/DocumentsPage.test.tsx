@@ -83,3 +83,29 @@ describe('DocumentsPage sharing', () => {
     expect(screen.queryByTestId('share-doc-theirs')).toBeNull()
   })
 })
+
+describe('DocumentsPage: my templates', () => {
+  it('keeps a document as a template, lists it apart, and starts a new document from it with Use', async () => {
+    const repo = getRepositories().documents
+    const template = await repo.saveAsTemplate('doc-fixture-1', 'House lease')
+    expect(template).toMatchObject({ title: 'House lease', isTemplate: true })
+    // Not an ordinary document: the main list leaves it out.
+    expect((await repo.list()).map((d) => d.id)).not.toContain(template.id)
+    expect((await repo.listTemplates()).map((d) => d.id)).toEqual([template.id])
+
+    renderPage()
+    fireEvent.click(await screen.findByTestId('documents-tab-templates'))
+    expect(await screen.findByText('House lease')).toBeInTheDocument()
+    expect(screen.getByText('Template')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId(`use-template-${template.id}`))
+    await waitFor(async () => expect((await repo.list()).filter((d) => d.title === 'House lease')).toHaveLength(1))
+    // The template itself stays.
+    expect((await repo.listTemplates()).map((d) => d.id)).toEqual([template.id])
+  })
+
+  it('says how to make one when there is none', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByTestId('documents-tab-templates'))
+    expect(await screen.findByText('No templates yet')).toBeInTheDocument()
+  })
+})

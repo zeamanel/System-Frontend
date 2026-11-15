@@ -25,6 +25,7 @@ import type {
   CreateDocumentPayload,
   DocumentDetailRecord,
   DocumentRecord,
+  DocumentVersionContent,
   DocumentVersionSnapshot,
   DocumentsRepository,
   ExportsRepository,
@@ -165,6 +166,7 @@ interface CustomDocumentRecord {
   version?: number
   content?: string | null
   answers?: Record<string, string>
+  isTemplate?: boolean
 }
 
 interface FixtureVersion {
@@ -242,6 +244,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         version: doc.version ?? 1,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
+        ...(doc.isTemplate ? { isTemplate: true } : {}),
       }))
 
     const defaultDocs: DocumentRecord[] = DOCUMENT_FIXTURES.filter(
@@ -277,10 +280,36 @@ class FixtureDocumentsRepository implements DocumentsRepository {
     return { ...doc, shared, access: 'owner' }
   }
 
+  async listTemplates(): Promise<DocumentRecord[]> {
+    return (await this.all(readCurrentLocale())).filter((doc) => doc.isTemplate)
+  }
+
+  async saveAsTemplate(id: string, title?: string): Promise<DocumentDetailRecord> {
+    const source = await this.get(id)
+    if (!source) throw new Error(`Document ${id} not found.`)
+    const nowIso = new Date().toISOString()
+    const template: CustomDocumentRecord = {
+      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      title: title?.trim() || source.title,
+      templateId: source.templateId ?? '',
+      status: 'ready',
+      language: source.language,
+      version: 1,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      content: source.content ?? null,
+      answers: {},
+      isTemplate: true,
+    }
+    this.saveCustomDocs([template, ...this.getCustomDocs()])
+    return { ...source, id: template.id, title: template.title, version: 1, createdAt: nowIso, updatedAt: nowIso, answers: {}, isTemplate: true, shared: false }
+  }
+
   async list(options?: { search?: string }): Promise<DocumentRecord[]> {
     const locale = readCurrentLocale()
     const needle = options?.search?.trim().toLowerCase()
-    const all = await this.all(locale)
+    // Templates are listed apart (listTemplates), as on the backend.
+    const all = (await this.all(locale)).filter((doc) => !doc.isTemplate)
     if (!needle) return all
     return all.filter(
       (doc) =>
@@ -325,6 +354,7 @@ class FixtureDocumentsRepository implements DocumentsRepository {
         updatedAt: custom.updatedAt,
         content: custom.content ?? null,
         answers: custom.answers,
+        ...(custom.isTemplate ? { isTemplate: true } : {}),
       }
     }
 
@@ -485,7 +515,8 @@ class FixtureDocumentsRepository implements DocumentsRepository {
     const nowIso = new Date().toISOString()
     const copy: CustomDocumentRecord = {
       id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      title: `${source.title} (copy)`,
+      // A copy of a template is a new document with the template's name.
+      title: source.isTemplate ? source.title : `${source.title} (copy)`,
       templateId: source.templateId ?? '',
       status: source.status,
       language: source.language,
@@ -520,6 +551,16 @@ class FixtureDocumentsRepository implements DocumentsRepository {
       { version: detail.version ?? 1, title: detail.title, createdAt: detail.updatedAt },
       ...this.storedVersions(id).map(({ version, title, createdAt }) => ({ version, title, createdAt })),
     ]
+  }
+
+  async versionContent(id: string, version: number): Promise<DocumentVersionContent | null> {
+    const detail = await this.get(id)
+    if (!detail) return null
+    if (version === (detail.version ?? 1)) {
+      return { version, title: detail.title, createdAt: detail.updatedAt, content: detail.content ?? null }
+    }
+    const stored = this.storedVersions(id).find((entry) => entry.version === version)
+    return stored ? { version, title: stored.title, createdAt: stored.createdAt, content: stored.content ?? null } : null
   }
 
   async restoreVersion(id: string, version: number): Promise<DocumentDetailRecord> {

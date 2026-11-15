@@ -101,3 +101,30 @@ describe('formatEthiopianLegalDate', () => {
     expect(formatEthiopianLegalDate('', 'en')).toBeNull()
   })
 })
+
+describe('date picker helpers', () => {
+  it('lays out an Ethiopian month from its first weekday, and ጳጉሜን with 5 or 6 days', async () => {
+    const { pickerMonth, ethiopianMonthDays, ethiopianToGregorian } = await import('./calendar')
+    // 1 መስከረም 2019 ዓ.ም. is Friday 11 September 2026.
+    const meskerem = pickerMonth('ethiopian', 2019, 1)
+    expect(meskerem.days).toHaveLength(30)
+    expect(meskerem.days[0].gregorian).toEqual({ year: 2026, month: 9, day: 11 })
+    expect(meskerem.leading).toBe(4)
+    expect(ethiopianToGregorian({ year: 2019, month: 1, day: 1 })).toEqual({ year: 2026, month: 9, day: 11 })
+    // Leap years (6 days of ጳጉሜን) are those before a Gregorian leap year: 2015 and 2019 ዓ.ም.
+    expect(ethiopianMonthDays(2018, 13)).toBe(5)
+    expect(ethiopianMonthDays(2019, 13)).toBe(6)
+    expect(ethiopianMonthDays(2015, 13)).toBe(6)
+    expect(pickerMonth('gregorian', 2026, 2).days).toHaveLength(28)
+  })
+
+  it('steps across the year, and writes the date in the document language', async () => {
+    const { stepPickerMonth, formatPickedDate } = await import('./calendar')
+    expect(stepPickerMonth('ethiopian', 2018, 13, 1)).toEqual({ year: 2019, month: 1 })
+    expect(stepPickerMonth('gregorian', 2026, 1, -1)).toEqual({ year: 2025, month: 12 })
+    const day = { year: 2026, month: 10, day: 16 }
+    expect(formatPickedDate(day, 'am')).toBe('ጥቅምት 6 ቀን 2019 ዓ.ም.')
+    expect(formatPickedDate(day, 'en')).toBe('16 October 2026')
+    expect(formatPickedDate(day, 'ar')).toBe('16 أكتوبر 2026م')
+  })
+})

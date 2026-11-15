@@ -680,6 +680,30 @@ export function setSideMode(model: DocumentModel, blockId: string, mode: 'text' 
   })
 }
 
+/** A side box that holds nothing: shown (side-by-side mode, not removed), no picture, no text. */
+function emptySideBox(block: Block): boolean {
+  if (block.type !== 'paragraph' && block.type !== 'heading') return false
+  if (block.sideHidden || block.secondaryImage) return false
+  return inlineHtmlToText(block.secondaryHtml ?? '').trim() === ''
+}
+
+/** How many side boxes are empty (side-by-side mode only). */
+export function countEmptySideBoxes(model: DocumentModel): number {
+  return model.page.bilingual ? model.blocks.filter(emptySideBox).length : 0
+}
+
+/**
+ * Removes every empty side box at once: those paragraphs and headings use the
+ * full width (as if "Remove side box" was chosen on each). One undo step.
+ */
+export function removeEmptySideBoxes(model: DocumentModel): DocumentModel {
+  if (!model.page.bilingual || !model.blocks.some(emptySideBox)) return model
+  return {
+    ...model,
+    blocks: model.blocks.map((block) => (emptySideBox(block) ? ({ ...block, sideHidden: true } as Block) : block)),
+  }
+}
+
 /** Brings back a removed side box, with whatever it held. */
 export function showSideBox(model: DocumentModel, blockId: string): DocumentModel {
   return updateBlock(model, blockId, (block) => {
@@ -1120,7 +1144,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
 
   const style = sanitizeDocumentStyle(input.style)
   const { style: _unchecked, ...rest } = input
-  const { showPageNumbers: _show, pageNumberStart: _start, ...pageRest } = (input.page ?? {}) as Partial<PageSetup>
+  const { showPageNumbers: _show, pageNumberStart: _start, draft: _draft, ...pageRest } = (input.page ?? {}) as Partial<PageSetup>
   return {
     ...rest,
     ...(style ? { style } : {}),
@@ -1138,6 +1162,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
       ...(input.page?.orientation === 'landscape' || input.page?.orientation === 'portrait'
         ? { orientation: input.page.orientation }
         : {}),
+      ...(input.page?.draft === true ? { draft: true } : {}),
     },
     blocks,
   }
@@ -1694,6 +1719,15 @@ const DRAFT_L10N: Record<string, DraftL10n> = {
     amount: 'Baay’ina',
     signatory: 'Nam-tartiib',
   },
+  ar: {
+    date: 'التاريخ',
+    to: 'إلى',
+    subject: 'الموضوع',
+    signatures: 'التوقيعات',
+    description: 'الوصف',
+    amount: 'المبلغ',
+    signatory: 'الموقّع',
+  },
 }
 
 function draftL10n(language: string): DraftL10n {
@@ -1701,7 +1735,8 @@ function draftL10n(language: string): DraftL10n {
 }
 
 function localizedDate(language: string): string {
-  const locale = language === 'am' ? 'am-ET' : language === 'om' ? 'om-ET' : 'en-US'
+  // Arabic: Arabic month names with Western digits (as the documents use).
+  const locale = language === 'am' ? 'am-ET' : language === 'om' ? 'om-ET' : language === 'ar' ? 'ar-u-nu-latn' : 'en-US'
   return new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
@@ -1794,7 +1829,9 @@ export function draftFromTemplate(
         ? ['አዘጋጅ / ፈራሚ ወገን', 'ተቀባይ / ምስክር']
         : language === 'om'
           ? ['Qopheessaa / Mallatteessaa', 'Fudhataa / Ragaa']
-          : ['First Party / Signatory', 'Second Party / Witness']
+          : language === 'ar'
+            ? ['الطرف الأول / الموقّع', 'الطرف الثاني / الشاهد']
+            : ['First Party / Signatory', 'Second Party / Witness']
     blocks.push(createSignature(sigParties))
 
     return { ...createEmptyDocument(language), blocks }
@@ -1863,7 +1900,9 @@ export function draftFromTemplate(
         ? 'ተጨማሪ መረጃ እና ልዩ ውሎች'
         : language === 'om'
           ? 'Odeeffannoo fi Haalawwan Dabalataa'
-          : 'Additional Details & Terms'
+          : language === 'ar'
+            ? 'تفاصيل وشروط إضافية'
+            : 'Additional Details & Terms'
     blocks.push(createHeading(escapePlainText(additionalHeading), 2))
     blocks.push(...answerToBlocks(additionalInstructions))
   }

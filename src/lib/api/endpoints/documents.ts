@@ -28,6 +28,7 @@ export interface DocumentApiRecord {
   shared?: boolean
   access?: 'owner' | 'view'
   ownerName?: string
+  isTemplate?: boolean
   /** Present on detail responses: serialized structured content. */
   content?: string | null
   answers?: Record<string, string>
@@ -40,8 +41,8 @@ export interface ListDocumentsApiQuery {
   /** Page size (backend default 50, max 200). */
   limit?: number
   offset?: number
-  /** `shared`: documents shared with the caller's organization. */
-  scope?: 'shared'
+  /** `shared`: documents shared with the caller's organization; `templates`: the caller's templates. */
+  scope?: 'shared' | 'templates'
 }
 
 export function listDocuments(
@@ -141,6 +142,14 @@ export function duplicateDocument(id: string): Promise<DocumentApiRecord> {
   )
 }
 
+export function saveDocumentAsTemplate(id: string, title?: string): Promise<DocumentApiRecord> {
+  return apiClient.post<DocumentApiRecord>(
+    `/documents/${encodeURIComponent(id)}/save-as-template`,
+    title ? { title } : {},
+    { auth: 'required' },
+  )
+}
+
 export async function deleteDocument(id: string): Promise<void> {
   await apiClient.delete(`/documents/${encodeURIComponent(id)}`, { auth: 'required' })
 }
@@ -180,3 +189,11 @@ export function restoreDocumentVersion(
   )
 }
 
+
+/** One saved version with its content (GET /documents/:id/versions/:version). */
+export function getDocumentVersion(
+  id: string,
+  version: number,
+): Promise<{ version: number; title: string; createdAt: string; content: string | null }> {
+  return apiClient.get(`/documents/${encodeURIComponent(id)}/versions/${encodeURIComponent(String(version))}`, { auth: 'required' })
+}
