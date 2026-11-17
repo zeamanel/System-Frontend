@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { askAssistant, translateSide, type AssistantPartial } from '../../lib/assistant/client'
+import { loadAssistantThread, saveAssistantThread, toStoredThread } from '../../lib/assistant/thread'
 import { runDocumentCheck, type DocumentCheckResult } from '../../lib/document-check/check'
 import {
   applySideProposal,
@@ -35,8 +36,10 @@ import type { FieldSyncEvent } from './useDocumentEditor'
 /**
  * State and actions of the editor's assistant panel.
  *
- * The thread is per document and per browser tab (sessionStorage under the
- * `docuA4.` prefix, so sign-out wipes it). The assistant only proposes;
+ * The thread is kept with the document (the server, owner only), so it is
+ * there after closing the tab and on another device; this tab also keeps a
+ * copy in sessionStorage (under the `docuA4.` prefix, so sign-out wipes it)
+ * with the undo data of changes applied in this session. The assistant only proposes;
  * every accepted proposal goes through the editor's tracked changes so it
  * can be undone, and a proposal for a paragraph that changed since it was
  * suggested must be confirmed again before it is applied.
@@ -45,6 +48,8 @@ import type { FieldSyncEvent } from './useDocumentEditor'
 const THREAD_PREFIX = 'docuA4.assistant.thread.'
 const MAX_MESSAGES = 40
 const HISTORY_TURNS = 8
+/** The conversation is saved with the document this long after it last changed. */
+export const THREAD_SAVE_DELAY_MS = 1500
 /** Paragraphs sent to be translated per request (the API takes up to 60). */
 const SIDE_BATCH = 40
 
@@ -141,6 +146,47 @@ export function useAssistant({
 
   useEffect(() => {
     writeThread(documentId, messages)
+  }, [documentId, messages])
+
+  // The conversation kept with the document: loaded when this tab has none of its own,
+  // saved shortly after it changes. Nothing is saved before loading has finished,
+  // so an empty start never overwrites what was kept.
+  const loadedRef = useRef(false)
+  const savedJsonRef = useRef<string | null>(null)
+  useEffect(() => {
+    loadedRef.current = false
+    const controller = new AbortController()
+    const hasOwn = readThread(documentId).length > 0
+    if (hasOwn) {
+      loadedRef.current = true
+      return () => controller.abort()
+    }
+    loadAssistantThread(documentId, controller.signal)
+      .then((kept) => {
+        if (controller.signal.aborted) return
+        savedJsonRef.current = JSON.stringify(toStoredThread(kept))
+        if (kept.length > 0) setMessages((current) => (current.length === 0 ? kept.slice(-MAX_MESSAGES) : current))
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!controller.signal.aborted) loadedRef.current = true
+      })
+    return () => controller.abort()
+  }, [documentId])
+
+  useEffect(() => {
+    if (!loadedRef.current) return
+    if (messages.some((m) => m.kind === 'reply' && m.streaming)) return
+    const json = JSON.stringify(toStoredThread(messages))
+    if (json === savedJsonRef.current) return
+    const timer = window.setTimeout(() => {
+      saveAssistantThread(documentId, messages)
+        .then(() => {
+          savedJsonRef.current = json
+        })
+        .catch(() => undefined)
+    }, THREAD_SAVE_DELAY_MS)
+    return () => window.clearTimeout(timer)
   }, [documentId, messages])
 
   useEffect(() => () => abortRef.current?.abort(), [])

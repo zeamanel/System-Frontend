@@ -282,6 +282,55 @@ describe('Assistant panel', () => {
     expect(await screen.findByText('Here is the change.')).toBeInTheDocument()
   })
 
+  it('keeps the conversation with the document: it is back after reopening, without stale undo', async () => {
+    const { doc, template } = await createRentalDocument('The tenant will pay rent.')
+    const first = renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    const blockId = firstParagraphId()
+    askAssistantMock.mockResolvedValueOnce({
+      reply: 'A shorter clause.',
+      questions: [],
+      proposals: [{ kind: 'replace', blockId, newText: 'Tenant pays rent.', reason: 'Shorter.' }],
+      fieldUpdates: [],
+    } satisfies AssistantReply)
+    fireEvent.click(screen.getByTestId('assistant-shorten'))
+    const proposal = await screen.findByTestId('assistant-proposal')
+    expect(askAssistantMock.mock.calls.at(-1)?.[0].message).toContain('shorter')
+    fireEvent.click(within(proposal).getByTestId('assistant-proposal-accept'))
+    expect(await within(proposal).findByTestId('assistant-proposal-undo')).toBeInTheDocument()
+    // Saved with the document shortly after.
+    await waitFor(() => expect(window.localStorage.getItem('docuA4.fixture.assistantThreads')).toContain('A shorter clause.'), { timeout: 4000 })
+    first.unmount()
+
+    // A new tab (no copy of its own): the conversation comes back from the document.
+    window.sessionStorage.clear()
+    const reopened = await repos.documents.get(doc.id)
+    renderWorkspace(reopened!, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    expect(await screen.findByText('A shorter clause.')).toBeInTheDocument()
+    const again = screen.getByTestId('assistant-proposal')
+    // Applied in the earlier session: no undo here, and it reads as saved.
+    expect(within(again).queryByTestId('assistant-proposal-undo')).toBeNull()
+    expect(within(again).getByTestId('assistant-proposal-state')).toHaveTextContent('Applied and saved.')
+  })
+
+  it('offers clause actions on contracts, and shows what is left of today’s AI allowance', async () => {
+    const usage = vi.spyOn(repos.usage, 'get').mockResolvedValue({ documentsThisMonth: 1, dailyQuotaLimit: 50, creditsUsedToday: 40 })
+    const { doc, template } = await createRentalDocument('The tenant will pay rent.')
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    expect(await screen.findByTestId('assistant-allowance')).toHaveTextContent('AI today: 20% left')
+    expect(screen.getByTestId('assistant-termination')).toBeInTheDocument()
+    expect(screen.getByTestId('assistant-dispute')).toBeInTheDocument()
+
+    askAssistantMock.mockResolvedValueOnce({ reply: 'Added.', questions: [], proposals: [], fieldUpdates: [] } satisfies AssistantReply)
+    fireEvent.click(screen.getByTestId('assistant-dispute'))
+    await waitFor(() => expect(askAssistantMock.mock.calls.at(-1)?.[0].message).toContain('dispute resolution clause'))
+    // The meter is refreshed after the request.
+    await waitFor(() => expect(usage.mock.calls.length).toBeGreaterThan(1))
+    usage.mockRestore()
+  })
+
   it('asks for confirmation when the paragraph changed after the suggestion', async () => {
     const { doc, template } = await createRentalDocument('Original clause text.')
     renderWorkspace(doc, template)

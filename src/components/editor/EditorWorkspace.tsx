@@ -106,6 +106,7 @@ import { DictationPanel } from './DictationPanel'
 import { SendForReviewDialog } from '../reviews/SendForReviewDialog'
 import { useDictation } from './useDictation'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
+import { useUsage } from '../../hooks/use-usage'
 
 /** Loaded only when "Send to my Telegram" is used. */
 const TelegramQrCode = lazy(() => import('../telegram/QrCode').then((module) => ({ default: module.QrCode })))
@@ -449,6 +450,15 @@ export function EditorWorkspace({
   fieldSyncHandlerRef.current = assistant.postFieldSync
 
   const openAssistant = useCallback((): void => showRightTab('assistant'), [showRightTab])
+
+  // Today's AI allowance, shown in the assistant panel and refreshed after each request.
+  const usage = useUsage()
+  const assistantBusy = assistant.sending || assistant.checking
+  const wasBusyRef = useRef(false)
+  useEffect(() => {
+    if (wasBusyRef.current && !assistantBusy) void queryClient.invalidateQueries({ queryKey: queryKeys.usage.all })
+    wasBusyRef.current = assistantBusy
+  }, [assistantBusy, queryClient])
 
   const { postGenerationNotes } = assistant
   // ---- first-time guidance: "click a paragraph to edit it, or Ask AI next to it" ----
@@ -1738,6 +1748,12 @@ export function EditorWorkspace({
               onDictate={handleDictateToAssistant}
               dictating={dictation.state.phase !== 'idle' && dictationFor === 'assistant'}
               dictatedText={dictatedForAssistant}
+              documentType={template?.documentTypeId ?? template?.id ?? doc.templateId}
+              allowance={
+                usage.data?.dailyQuotaLimit !== undefined && usage.data?.creditsUsedToday !== undefined
+                  ? { used: usage.data.creditsUsedToday, limit: usage.data.dailyQuotaLimit }
+                  : null
+              }
             />
           </div>
         ) : (

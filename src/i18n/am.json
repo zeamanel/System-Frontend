@@ -1302,5 +1302,17 @@
   "editor.moreLabel": "ተጨማሪ ተግባራት፦ ቅድመ እይታ፣ ስታይል፣ ታሪክ",
   "editor.previewHint": "ገጾቹ ሲታተሙ እንዴት እንደሚታዩ ይመልከቱ",
   "editor.styleHint": "ፊደላት፣ ቀለሞችና የገጽ ገጽታ",
-  "editor.historyHint": "የተቀመጡ ስሪቶች፦ ያወዳድሩ ወይም ይመልሱ"
+  "editor.historyHint": "የተቀመጡ ስሪቶች፦ ያወዳድሩ ወይም ይመልሱ",
+  "assistant.quick.shorten": "አሳጥር",
+  "assistant.quick.shortenPrompt": "ጽሑፉን አጭርና ግልጽ አድርግ። እያንዳንዱን ግዴታ፣ ስም፣ መጠንና ቀን እንዳለ ጠብቅ።",
+  "assistant.quick.simplify": "አቅልል",
+  "assistant.quick.simplifyPrompt": "ጽሑፉን ማንም ሊረዳው በሚችል ቀላል ቋንቋ እንደገና ጻፍ። እያንዳንዱን ስም፣ መጠንና ቀን እንዳለ ጠብቅ።",
+  "assistant.quick.termination": "የማቋረጫ አንቀጽ ጨምር",
+  "assistant.quick.terminationPrompt": "ለዚህ ሰነድ የሚስማማ የውል ማቋረጫ አንቀጽ ጨምር፦ ማንኛውም ወገን እንዴትና መቼ ሊያቋርጥ እንደሚችል፣ የማስጠንቀቂያ ጊዜውንና ሲቋረጥ የሚሆነውን። ያልሰጠሁትን መረጃ በ[ቦታ ያዥ] ተካ።",
+  "assistant.quick.dispute": "የክርክር አንቀጽ ጨምር",
+  "assistant.quick.disputePrompt": "ከኢትዮጵያ ሕግ ጋር የሚስማማ የክርክር መፍቻ አንቀጽ ጨምር፦ መጀመሪያ በድርድር፣ ከዚያ ሥልጣን ባለው ፍርድ ቤት ወይም በግልግል። ያልሰጠሁትን መረጃ በ[ቦታ ያዥ] ተካ።",
+  "assistant.allowance": "የዛሬ AI፦ {percent}% ቀርቷል",
+  "assistant.allowanceUsedUp": "የዛሬው የAI አቅም ተጠናቋል። ነገ ይታደሳል።",
+  "assistant.allowanceTitle": "ዛሬ ከ{limit} የAI ክሬዲቶች {used} ጥቅም ላይ ውለዋል",
+  "assistant.allowanceLabel": "የቀረው የዛሬ AI አቅም"
 }

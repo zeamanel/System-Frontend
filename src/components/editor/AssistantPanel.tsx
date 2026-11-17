@@ -39,6 +39,42 @@ export interface AssistantPanelProps {
   dictating?: boolean
   /** Text spoken and checked: added to the message (a new `id` each time). */
   dictatedText?: { id: number; text: string } | null
+  /** The document's template (its id or type): contracts get clause actions. */
+  documentType?: string | null
+  /** Today's AI credits, used and allowed (absent when unknown). */
+  allowance?: { used: number; limit: number } | null
+}
+
+/** Contracts and agreements: they get "add a termination / dispute clause" actions. */
+const CONTRACT_TYPE = /contract|agreement|lease|rental|sale|service|employment|loan|partnership/i
+
+/** Today's AI allowance: what is left, in a word and a thin bar. */
+function AllowanceMeter({ used, limit }: { used: number; limit: number }) {
+  const { t } = useI18n()
+  const left = Math.max(0, Math.min(100, Math.round(((limit - used) / limit) * 100)))
+  const low = left <= 15
+  return (
+    <div
+      className={`assistant-allowance${low ? ' assistant-allowance--low' : ''}`}
+      title={t('assistant.allowanceTitle', { used: String(Math.min(used, limit)), limit: String(limit) })}
+      data-testid="assistant-allowance"
+    >
+      <span className="assistant-allowance__text">
+        {left === 0 ? t('assistant.allowanceUsedUp') : t('assistant.allowance', { percent: String(left) })}
+      </span>
+      <span
+        className="assistant-allowance__bar"
+        role="meter"
+        aria-label={t('assistant.allowanceLabel')}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={left}
+        aria-valuetext={t('assistant.allowance', { percent: String(left) })}
+      >
+        <span style={{ width: `${left}%` }} />
+      </span>
+    </div>
+  )
 }
 
 /**
@@ -61,6 +97,8 @@ export function AssistantPanel({
   onDictate,
   dictating = false,
   dictatedText = null,
+  documentType = null,
+  allowance = null,
 }: AssistantPanelProps) {
   const { t } = useI18n()
   const [draft, setDraft] = useState('')
@@ -114,6 +152,7 @@ export function AssistantPanel({
         ) : null}
       </header>
       <p className="assistant-panel__disclaimer">{t('assistant.disclaimer')}</p>
+      {allowance && allowance.limit > 0 ? <AllowanceMeter used={allowance.used} limit={allowance.limit} /> : null}
 
       <ol className="assistant-thread" ref={listRef} aria-live="polite" data-testid="assistant-thread">
         {assistant.messages.length === 0 ? (
@@ -179,6 +218,46 @@ export function AssistantPanel({
         >
           {t('assistant.quick.improve')}
         </button>
+        <button
+          type="button"
+          className="assistant-chip"
+          disabled={assistant.sending}
+          onClick={() => submit(t('assistant.quick.shortenPrompt'))}
+          data-testid="assistant-shorten"
+        >
+          {t('assistant.quick.shorten')}
+        </button>
+        <button
+          type="button"
+          className="assistant-chip"
+          disabled={assistant.sending}
+          onClick={() => submit(t('assistant.quick.simplifyPrompt'))}
+          data-testid="assistant-simplify"
+        >
+          {t('assistant.quick.simplify')}
+        </button>
+        {documentType && CONTRACT_TYPE.test(documentType) ? (
+          <>
+            <button
+              type="button"
+              className="assistant-chip"
+              disabled={assistant.sending}
+              onClick={() => submit(t('assistant.quick.terminationPrompt'))}
+              data-testid="assistant-termination"
+            >
+              {t('assistant.quick.termination')}
+            </button>
+            <button
+              type="button"
+              className="assistant-chip"
+              disabled={assistant.sending}
+              onClick={() => submit(t('assistant.quick.disputePrompt'))}
+              data-testid="assistant-dispute"
+            >
+              {t('assistant.quick.dispute')}
+            </button>
+          </>
+        ) : null}
       </div>
 
       {bilingual ? <SideColumnSection assistant={assistant} /> : null}
@@ -804,11 +883,13 @@ function ProposalCard({
 
   let appliedState: string | null = null
   if (proposal.status === 'accepted') {
+    // Applied in an earlier session (a conversation reopened later): saved since.
     const saved =
-      lastSavedAt !== null &&
+      proposal.appliedAt === undefined ||
+      (lastSavedAt !== null &&
       proposal.appliedAt !== undefined &&
       lastSavedAt >= proposal.appliedAt &&
-      (saveStatus === 'saved' || saveStatus === 'idle')
+      (saveStatus === 'saved' || saveStatus === 'idle'))
     appliedState = saved
       ? t('assistant.proposal.saved')
       : saveStatus === 'error' || saveStatus === 'conflict' || saveStatus === 'offline'
@@ -885,7 +966,8 @@ function ProposalCard({
             </Button>
           </>
         ) : null}
-        {proposal.status === 'accepted' ? (
+        {/* Undo works in the session that applied the change (a conversation reopened later has no undo data). */}
+        {proposal.status === 'accepted' && proposal.change ? (
           <Button variant="ghost" size="sm" onClick={onUndo} data-testid="assistant-proposal-undo">
             {t('assistant.proposal.undo')}
           </Button>

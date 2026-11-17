@@ -1302,5 +1302,17 @@
   "editor.moreLabel": "More actions: preview, style, history",
   "editor.previewHint": "See the pages as they will print",
   "editor.styleHint": "Fonts, colours and page look",
-  "editor.historyHint": "Saved versions: compare or restore"
+  "editor.historyHint": "Saved versions: compare or restore",
+  "assistant.quick.shorten": "Shorten",
+  "assistant.quick.shortenPrompt": "Make the text shorter and clearer. Keep every obligation, name, amount and date exactly as it is.",
+  "assistant.quick.simplify": "Simplify",
+  "assistant.quick.simplifyPrompt": "Rewrite the text in plain language anyone can understand. Keep every name, amount and date exactly as it is.",
+  "assistant.quick.termination": "Add a termination clause",
+  "assistant.quick.terminationPrompt": "Add a termination clause that fits this document: how and when either party can end it, the notice period, and what happens on termination. Use [placeholders] for facts I have not given.",
+  "assistant.quick.dispute": "Add a dispute clause",
+  "assistant.quick.disputePrompt": "Add a dispute resolution clause that fits Ethiopian law: settle by negotiation first, then before the competent court or by arbitration. Use [placeholders] for facts I have not given.",
+  "assistant.allowance": "AI today: {percent}% left",
+  "assistant.allowanceUsedUp": "Today’s AI allowance is used up. It renews tomorrow.",
+  "assistant.allowanceTitle": "{used} of {limit} AI credits used today",
+  "assistant.allowanceLabel": "Today’s AI allowance left"
 }

@@ -1302,5 +1302,17 @@
   "editor.moreLabel": "Gochaalee dabalataa: dursa ilaaluu, akkaataa, seenaa",
   "editor.previewHint": "Fuulota akka maxxanfamanitti ilaali",
   "editor.styleHint": "Qubee, halluu fi bifa fuulaa",
-  "editor.historyHint": "Fooyya’iinsota olkaa’aman: wal bira qabi ykn deebisi"
+  "editor.historyHint": "Fooyya’iinsota olkaa’aman: wal bira qabi ykn deebisi",
+  "assistant.quick.shorten": "Gabaabsi",
+  "assistant.quick.shortenPrompt": "Barreeffamicha gabaabaa fi ifa godhi. Dirqama, maqaa, maallaqaa fi guyyaa hunda akkuma jirutti eegi.",
+  "assistant.quick.simplify": "Salphisi",
+  "assistant.quick.simplifyPrompt": "Barreeffamicha afaan salphaa namni kamiyyuu hubachuu danda’uun irra deebi’ii barreessi. Maqaa, maallaqaa fi guyyaa hunda akkuma jirutti eegi.",
+  "assistant.quick.termination": "Keewwata addaan kutuu dabali",
+  "assistant.quick.terminationPrompt": "Keewwata addaan kutuu sanada kanaaf ta’u dabali: gareen kamiyyuu akkamii fi yoom addaan kutuu akka danda’u, yeroo beeksisaa, fi yeroo addaan citu maaltu akka ta’u. Odeeffannoo ani hin kennine [bakka buusaa] godhi.",
+  "assistant.quick.dispute": "Keewwata waldhabdee dabali",
+  "assistant.quick.disputePrompt": "Keewwata furmaata waldhabdee seera Itoophiyaa wajjin walsimu dabali: jalqaba marii, achiis mana murtii aangoo qabu ykn araaraan. Odeeffannoo ani hin kennine [bakka buusaa] godhi.",
+  "assistant.allowance": "AI har’aa: {percent}% hafe",
+  "assistant.allowanceUsedUp": "Hanga AI har’aa fixateera. Boru ni haaromfama.",
+  "assistant.allowanceTitle": "Kireeditii AI {limit} keessaa {used} har’a itti fayyadameera",
+  "assistant.allowanceLabel": "Hanga AI har’aa hafe"
 }
