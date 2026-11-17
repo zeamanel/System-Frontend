@@ -28,4 +28,6 @@ const CHECK_ISSUE_KEYS: Record<string, true> = {
   'check.issue.DATE_INVALID': true,
   'check.issue.PARTY_NAME_VARIANT': true,
   'check.issue.PARTY_WITHOUT_SIGNATURE': true,
+  'check.issue.SIDE_NUMBER_MISMATCH': true,
+  'check.issue.TERM_SPELLING_VARIANT': true,
 }

@@ -1338,5 +1338,17 @@
   "clauses.saved": "Keewwanni olkaa'ameera",
   "clauses.deleted": "Keewwanni haqameera",
   "clauses.inserted": "\"{title}\" galeera",
-  "clauses.failed": "Keewwanni olkaa'amuu hin dandeenye. Walqunnamtii keessan mirkaneessaa irra deebi'aa yaalaa."
+  "clauses.failed": "Keewwanni olkaa'amuu hin dandeenye. Walqunnamtii keessan mirkaneessaa irra deebi'aa yaalaa.",
+  "assistant.side.check": "Hiikkaa mirkaneessi",
+  "assistant.side.checkHint": "Maqaawwanii fi jechoota karaa lamaan hiikaman, akkasumas hiikkaa keewwata isaa irraa adda ta’e argata. Humna AI fayyadama.",
+  "assistant.side.checkNone": "Hanga ammaatti keewwanni hiikkaa cinaa mirkanaa’u qabu hin jiru.",
+  "assistant.side.checkNothing": "Wanti mirkanaa’u hin jiru: keewwanni hiikkaa cinaa qabu hin jiru.",
+  "assistant.side.checkClean": "Hiikkaa mirkaneesseera: maqaawwanii fi jechoonni sanada guutuu keessatti akkuma tokkootti barreeffamaniiru, hiikkaan hundi waan keewwanni isaa jedhu jedha.",
+  "assistant.side.checkReplyOne": "Keewwata hiikkaan isaa jijjiiramuu qabu 1 argadheera. Sirreeffama fudhadhaa ykn dhiisaa.",
+  "assistant.side.checkReply": "Keewwatoota hiikkaan isaanii jijjiiramuu qabu {count} argadheera. Tokko tokkoon ykn hunda al tokkoon fudhadhaa.",
+  "assistant.side.checkTruncated": "Sanadni dheeraa dha: keewwatoota isaa {count} jalqabaa mirkaneesseera.",
+  "assistant.side.checkTerm": "“{source}” bakka biraatti “{preferred}” jedhamee barreeffameera, “{variant}” miti.",
+  "assistant.side.checkUnavailable.demo": "Hiikkaa mirkaneessuuf sarvarri SenedDesk barbaachisa. Wanti jijjiirame hin jiru.",
+  "assistant.side.checkUnavailable.failed": "Hiikkaan mirkanaa’uu hin dandeenye. Wanti jijjiirame hin jiru.",
+  "check.issue.TERM_SPELLING_VARIANT": "“{variant}” sanada kana keessatti “{usual}” jedhamees barreeffameera. Barreeffama tokko fayyadamaa."
 }

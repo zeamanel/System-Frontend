@@ -177,7 +177,7 @@ export function EditorWorkspace({
   onNewCustomer,
   onOpenDocument,
 }: EditorWorkspaceProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const toast = useToast()
 
   // Field-sync reports go to the assistant thread (created below).
@@ -447,8 +447,25 @@ export function EditorWorkspace({
                   ? 'assistant.side.unavailable.rateLimit'
                   : 'assistant.side.unavailable.failed',
           ),
+        checkNothing: t('assistant.side.checkNothing'),
+        checkClean: t('assistant.side.checkClean'),
+        checkReply: (count) =>
+          t(count === 1 ? 'assistant.side.checkReplyOne' : 'assistant.side.checkReply', { count: String(count) }),
+        checkTruncated: (count) => t('assistant.side.checkTruncated', { count: String(count) }),
+        checkTerm: (source, variant, preferred) => t('assistant.side.checkTerm', { source, variant, preferred }),
+        checkUnavailable: (reason) =>
+          t(
+            reason === 'demo'
+              ? 'assistant.side.checkUnavailable.demo'
+              : reason === 'quota'
+                ? 'assistant.side.unavailable.quota'
+                : reason === 'rate-limit'
+                  ? 'assistant.side.unavailable.rateLimit'
+                  : 'assistant.side.checkUnavailable.failed',
+          ),
       },
     },
+    interfaceLanguage: locale,
   })
   fieldSyncHandlerRef.current = assistant.postFieldSync
 
@@ -758,8 +775,19 @@ export function EditorWorkspace({
             ),
           { coalesce: `text:${blockId}` },
         ),
+      // Like the main text: what the cell holds goes into the model as it is (it is cleaned when
+      // loaded and saved). Cleaning on every keystroke changed a trailing space, which rewrote the
+      // cell and sent the caret back to the start ("abc def" came out "fedabc").
       updateSecondaryText: (blockId, html) =>
-        updateModel((current) => updateSecondaryText(current, blockId, html), { coalesce: `secondary:${blockId}` }),
+        updateModel(
+          (current) =>
+            updateBlock(current, blockId, (block) =>
+              (block.type === 'paragraph' || block.type === 'heading') && block.secondaryHtml !== html
+                ? { ...block, secondaryHtml: html }
+                : block,
+            ),
+          { coalesce: `secondary:${blockId}` },
+        ),
       setSideImage: (blockId, file) => handleSideImage(blockId, file),
       setSideColumnPct: (blockId, pct) => updateModel((current) => setSideColumnPct(current, blockId, pct)),
       setSideMode: (blockId, mode) => updateModel((current) => setSideMode(current, blockId, mode)),

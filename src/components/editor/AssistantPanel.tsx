@@ -398,12 +398,14 @@ function truncate(text: string, max: number): string {
 
 /**
  * Bilingual mode only: the assistant writes the side column. One button translates every
- * paragraph in the chosen scope that has no side translation yet; each translation comes
- * back as a proposal to accept or reject.
+ * paragraph in the chosen scope that has no side translation yet; another checks the whole
+ * document's translations (terms translated two ways, translations that say something else).
+ * Each result comes back as a proposal to accept or reject.
  */
 function SideColumnSection({ assistant }: { assistant: AssistantController }) {
   const { t } = useI18n()
   const count = assistant.sideTranslationCount()
+  const checkCount = assistant.translationCheckCount()
   return (
     <section className="assistant-side" aria-label={t('assistant.side.title')} data-testid="assistant-side">
       <p className="assistant-notes__label">{t('assistant.side.title')}</p>
@@ -437,6 +439,16 @@ function SideColumnSection({ assistant }: { assistant: AssistantController }) {
           ? t('assistant.side.none')
           : `${t(count === 1 ? 'assistant.side.countOne' : 'assistant.side.count', { count: String(count) })} ${t('assistant.side.hint')}`}
       </p>
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={assistant.sending || checkCount === 0}
+        onClick={() => void assistant.checkSideTranslation()}
+        data-testid="assistant-side-check"
+      >
+        {t('assistant.side.check')}
+      </Button>
+      <p className="assistant-side__hint">{checkCount === 0 ? t('assistant.side.checkNone') : t('assistant.side.checkHint')}</p>
     </section>
   )
 }

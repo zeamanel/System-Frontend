@@ -1338,5 +1338,17 @@
   "clauses.saved": "Clause saved",
   "clauses.deleted": "Clause deleted",
   "clauses.inserted": "Inserted \"{title}\"",
-  "clauses.failed": "The clause could not be saved. Check your connection and try again."
+  "clauses.failed": "The clause could not be saved. Check your connection and try again.",
+  "assistant.side.check": "Check the translation",
+  "assistant.side.checkHint": "Finds names and terms translated two ways, and translations that say something different. Uses AI credits.",
+  "assistant.side.checkNone": "No paragraph has a side translation to check yet.",
+  "assistant.side.checkNothing": "Nothing to check: no paragraph has a side translation yet.",
+  "assistant.side.checkClean": "I checked the translation: names and terms are written the same way throughout, and every translation says what its paragraph says.",
+  "assistant.side.checkReplyOne": "I found 1 paragraph whose translation should change. Accept the fix or leave it.",
+  "assistant.side.checkReply": "I found {count} paragraphs whose translation should change. Accept them one by one or all at once.",
+  "assistant.side.checkTruncated": "The document is long: I checked its first {count} paragraphs.",
+  "assistant.side.checkTerm": "“{source}” is written “{preferred}” elsewhere, not “{variant}”.",
+  "assistant.side.checkUnavailable.demo": "Checking the translation needs the SenedDesk server. Nothing was changed.",
+  "assistant.side.checkUnavailable.failed": "The translation could not be checked. Nothing was changed.",
+  "check.issue.TERM_SPELLING_VARIANT": "“{variant}” is also written “{usual}” in this document. Use one spelling."
 }

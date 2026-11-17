@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { askAssistant, translateSide, type AssistantPartial } from '../../lib/assistant/client'
+import { askAssistant, checkTranslation, translateSide, type AssistantPartial } from '../../lib/assistant/client'
+import { translationCheckBlocks, translationCheckProposals } from '../../lib/assistant/translation-check'
 import { loadAssistantThread, saveAssistantThread, toStoredThread } from '../../lib/assistant/thread'
 import { runDocumentCheck, type DocumentCheckResult } from '../../lib/document-check/check'
 import {
@@ -118,8 +119,21 @@ export interface UseAssistantParams {
       reply: (count: number, language: SideLanguage) => string
       replyMissing: (count: number) => string
       unavailable: (reason: AssistantOfflineInfo['reason']) => string
+      /** Translation check: nothing to check (no paragraph has both texts). */
+      checkNothing: string
+      /** Translation check: everything is consistent. */
+      checkClean: string
+      /** Translation check: the reply that carries its fixes. */
+      checkReply: (count: number) => string
+      /** Translation check: only the first part of a long document was checked. */
+      checkTruncated: (count: number) => string
+      /** Why a term was changed in a paragraph. */
+      checkTerm: (source: string, variant: string, preferred: string) => string
+      checkUnavailable: (reason: AssistantOfflineInfo['reason']) => string
     }
   }
+  /** The interface language: the translation check explains problems in it. */
+  interfaceLanguage?: string
 }
 
 export function useAssistant({
@@ -132,6 +146,7 @@ export function useAssistant({
   onNotice,
   documentLanguage,
   labels,
+  interfaceLanguage = 'en',
 }: UseAssistantParams) {
   const [messages, setMessages] = useState<AssistantMessage[]>(() => readThread(documentId))
   const [sending, setSending] = useState(false)
@@ -473,6 +488,61 @@ export function useAssistant({
     await runSideTranslation(blocks)
   }, [labels.side.nothing, notice, runSideTranslation, sending, sideScopeIds])
 
+  /** How many paragraphs have both a text and a side translation (what the translation check reads). */
+  const translationCheckCount = (): number => translationCheckBlocks(editorRef.current.model).blocks.length
+
+  /**
+   * "Check the translation": the whole document's paragraphs with their side translations go to
+   * the check; terms translated two ways and translations that say something else come back as
+   * side proposals to accept or reject (nothing is written until then).
+   */
+  const checkSideTranslation = useCallback(async (): Promise<void> => {
+    if (sending || !editorRef.current.model.page.bilingual) return
+    const { blocks, truncated } = translationCheckBlocks(editorRef.current.model)
+    if (blocks.length === 0) {
+      notice(labels.side.checkNothing)
+      return
+    }
+    setSending(true)
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    try {
+      const result = await checkTranslation(
+        {
+          documentId,
+          mainLanguage: documentLanguage,
+          sideLanguage,
+          replyLanguage: interfaceLanguage === 'am' || interfaceLanguage === 'om' ? interfaceLanguage : 'en',
+          blocks,
+        },
+        { signal: controller.signal },
+      )
+      if (!result.ok) {
+        notice(labels.side.checkUnavailable(result.reason), 'error')
+        return
+      }
+      const proposals = translationCheckProposals(editorRef.current.model, blocks, result.terms, result.mismatches, {
+        term: labels.side.checkTerm,
+      })
+      const text = proposals.length > 0 ? labels.side.checkReply(proposals.length) : labels.side.checkClean
+      append({
+        id: newMessageId(),
+        createdAt: Date.now(),
+        role: 'assistant',
+        kind: 'reply',
+        text: truncated ? `${text} ${labels.side.checkTruncated(blocks.length)}` : text,
+        questions: [],
+        proposals,
+        fieldUpdates: [],
+      })
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) notice(labels.requestFailed, 'error')
+    } finally {
+      setSending(false)
+    }
+  }, [append, documentId, documentLanguage, interfaceLanguage, labels, notice, sending, sideLanguage])
+
   /**
    * After the assistant's rewrite of a paragraph is accepted: if it has a side translation, that
    * translation may be out of date, so the thread offers to update it. Rewrites accepted one after
@@ -789,6 +859,8 @@ export function useAssistant({
     postCheck,
     clearThread,
     translateSideColumn,
+    checkSideTranslation,
+    translationCheckCount,
     sideTranslationCount,
     /** The language "Translate the side column" translates into, and a way to choose another. */
     sideLanguage,

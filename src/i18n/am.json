@@ -1338,5 +1338,17 @@
   "clauses.saved": "አንቀጹ ተቀምጧል",
   "clauses.deleted": "አንቀጹ ተሰርዟል",
   "clauses.inserted": "\"{title}\" ገብቷል",
-  "clauses.failed": "አንቀጹ ሊቀመጥ አልቻለም። ግንኙነትዎን አረጋግጠው እንደገና ይሞክሩ።"
+  "clauses.failed": "አንቀጹ ሊቀመጥ አልቻለም። ግንኙነትዎን አረጋግጠው እንደገና ይሞክሩ።",
+  "assistant.side.check": "ትርጉሙን ፈትሽ",
+  "assistant.side.checkHint": "በሁለት መንገድ የተተረጎሙ ስሞችንና ቃላትን፣ እንዲሁም ከአንቀጹ የተለየ ነገር የሚሉ ትርጉሞችን ያገኛል። የAI አቅም ይጠቀማል።",
+  "assistant.side.checkNone": "እስካሁን የሚፈተሽ የጎን ትርጉም ያለው አንቀጽ የለም።",
+  "assistant.side.checkNothing": "የሚፈተሽ ነገር የለም፤ እስካሁን የጎን ትርጉም ያለው አንቀጽ የለም።",
+  "assistant.side.checkClean": "ትርጉሙን ፈትሼዋለሁ፤ ስሞችና ቃላት በሰነዱ ሁሉ በአንድ ዓይነት ተጽፈዋል፣ እያንዳንዱ ትርጉም አንቀጹ የሚለውን ይላል።",
+  "assistant.side.checkReplyOne": "ትርጉሙ መቀየር ያለበት 1 አንቀጽ አግኝቻለሁ። ማስተካከያውን ይቀበሉ ወይም ይተዉት።",
+  "assistant.side.checkReply": "ትርጉማቸው መቀየር ያለበት {count} አንቀጾች አግኝቻለሁ። አንድ በአንድ ወይም ሁሉንም በአንዴ ይቀበሉ።",
+  "assistant.side.checkTruncated": "ሰነዱ ረጅም ነው፤ የመጀመሪያዎቹን {count} አንቀጾች ፈትሻለሁ።",
+  "assistant.side.checkTerm": "“{source}” በሌላ ቦታ “{preferred}” ተብሎ ተጽፏል እንጂ “{variant}” አይደለም።",
+  "assistant.side.checkUnavailable.demo": "ትርጉሙን ለመፈተሽ የSenedDesk ሰርቨር ያስፈልጋል። ምንም አልተቀየረም።",
+  "assistant.side.checkUnavailable.failed": "ትርጉሙ ሊፈተሽ አልቻለም። ምንም አልተቀየረም።",
+  "check.issue.TERM_SPELLING_VARIANT": "“{variant}” በዚህ ሰነድ ውስጥ “{usual}” ተብሎም ተጽፏል። አንድ አጻጻፍ ይጠቀሙ።"
 }

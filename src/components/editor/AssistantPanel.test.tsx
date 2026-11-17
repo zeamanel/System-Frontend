@@ -13,11 +13,13 @@ import { EditorWorkspace } from './EditorWorkspace'
 // The real client answers offline in fixture mode; tests swap in AI replies.
 const askAssistantMock = vi.hoisted(() => vi.fn())
 const translateSideMock = vi.hoisted(() => vi.fn())
+const checkTranslationMock = vi.hoisted(() => vi.fn())
 vi.mock('../../lib/assistant/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/assistant/client')>()
   askAssistantMock.mockImplementation(actual.askAssistant)
   translateSideMock.mockImplementation(actual.translateSide)
-  return { ...actual, askAssistant: askAssistantMock, translateSide: translateSideMock }
+  checkTranslationMock.mockImplementation(actual.checkTranslation)
+  return { ...actual, askAssistant: askAssistantMock, translateSide: translateSideMock, checkTranslation: checkTranslationMock }
 })
 
 const repos = getRepositories()
@@ -688,6 +690,71 @@ describe('Assistant panel', () => {
       fireEvent.click(screen.getAllByTestId('assistant-proposal-undo')[0])
       await waitFor(() => expect(sideText('b1')).toBe(''))
       expect(sideText('b2')).toBe('አከራዩ ቤቱን ይጠግናል።')
+    })
+
+    it('Check the translation sends paragraphs with a translation and offers one fix per paragraph', async () => {
+      const { doc, template } = await createBilingual([
+        paragraph('b1', 'The employee, Dawit Haile, starts in May.', 'ሠራተኛው ዳዊት ኃይሌ በግንቦት ይጀምራል።'),
+        paragraph('b2', 'Dawit Haile is paid monthly.', 'ዳዊት ሀይሌ በየወሩ ይከፈለዋል።'),
+        paragraph('b3', 'Either party may end it with one month notice.', 'ማንኛውም ወገን ውሉን ማቋረጥ ይችላል።'),
+        paragraph('b4', 'Not translated yet.'),
+      ])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      checkTranslationMock.mockResolvedValueOnce({
+        ok: true,
+        terms: [
+          {
+            source: 'Dawit Haile',
+            preferred: 'ዳዊት ኃይሌ',
+            renderings: [
+              { text: 'ዳዊት ኃይሌ', blockIds: ['b1'] },
+              { text: 'ዳዊት ሀይሌ', blockIds: ['b2'] },
+            ],
+          },
+        ],
+        mismatches: [{ blockId: 'b3', problem: 'The one month notice is missing.', suggestedSide: 'ማንኛውም ወገን የአንድ ወር ማስታወቂያ በመስጠት ውሉን ማቋረጥ ይችላል።' }],
+      })
+
+      fireEvent.click(screen.getByTestId('assistant-side-check'))
+
+      await waitFor(() => expect(screen.getAllByTestId('assistant-proposal')).toHaveLength(2))
+      expect(checkTranslationMock.mock.calls[0][0]).toMatchObject({
+        documentId: doc.id,
+        mainLanguage: 'en',
+        sideLanguage: 'am',
+        replyLanguage: 'en',
+        blocks: [
+          { id: 'b1', main: 'The employee, Dawit Haile, starts in May.', side: 'ሠራተኛው ዳዊት ኃይሌ በግንቦት ይጀምራል።' },
+          { id: 'b2', main: 'Dawit Haile is paid monthly.', side: 'ዳዊት ሀይሌ በየወሩ ይከፈለዋል።' },
+          { id: 'b3', main: 'Either party may end it with one month notice.', side: 'ማንኛውም ወገን ውሉን ማቋረጥ ይችላል።' },
+        ],
+      })
+      const reply = screen.getAllByTestId('assistant-reply').at(-1) as HTMLElement
+      expect(reply).toHaveTextContent('I found 2 paragraphs whose translation should change.')
+      expect(reply).toHaveTextContent('“Dawit Haile” is written “ዳዊት ኃይሌ” elsewhere, not “ዳዊት ሀይሌ”.')
+      expect(reply).toHaveTextContent('The one month notice is missing.')
+      expect(sideText('b2')).toBe('ዳዊት ሀይሌ በየወሩ ይከፈለዋል።')
+
+      fireEvent.click(screen.getByTestId('assistant-accept-all'))
+      await waitFor(() => expect(sideText('b2')).toBe('ዳዊት ኃይሌ በየወሩ ይከፈለዋል።'))
+      expect(sideText('b3')).toBe('ማንኛውም ወገን የአንድ ወር ማስታወቂያ በመስጠት ውሉን ማቋረጥ ይችላል።')
+      expect(sideText('b1')).toBe('ሠራተኛው ዳዊት ኃይሌ በግንቦት ይጀምራል።')
+    })
+
+    it('says so when the translation check finds nothing, or cannot run', async () => {
+      const { doc, template } = await createBilingual([paragraph('b1', 'Rent.', 'ኪራይ።')])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      checkTranslationMock.mockResolvedValueOnce({ ok: true, terms: [], mismatches: [] })
+      fireEvent.click(screen.getByTestId('assistant-side-check'))
+      await waitFor(() =>
+        expect(screen.getAllByTestId('assistant-reply').at(-1)).toHaveTextContent('I checked the translation: names and terms are written the same way'),
+      )
+      checkTranslationMock.mockResolvedValueOnce({ ok: false, reason: 'demo' })
+      fireEvent.click(screen.getByTestId('assistant-side-check'))
+      expect(await screen.findByText('Checking the translation needs the SenedDesk server. Nothing was changed.')).toBeInTheDocument()
+      expect(sideText('b1')).toBe('ኪራይ።')
     })
 
     it('translates only the selected block when the work is limited to it', async () => {
