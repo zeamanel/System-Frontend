@@ -19,6 +19,7 @@ import {
   DownloadIcon,
   EyeIcon,
   HistoryIcon,
+  ClauseIcon,
   PageStyleIcon,
   ChatIcon,
   PanelLeftIcon,
@@ -52,6 +53,8 @@ export interface EditorToolbarProps {
   onShowHistory?: () => void
   /** Opens the style picker (absent: no style button, e.g. read-only views). */
   onChooseStyle?: () => void
+  /** Opens the clause library (absent: no menu item). */
+  onOpenClauses?: () => void
   onReloadLatest: () => void
   onOverwrite: () => void
   onPrint: () => void
@@ -118,6 +121,7 @@ export function EditorToolbar({
   onSave,
   onShowHistory,
   onChooseStyle,
+  onOpenClauses,
   onReloadLatest,
   onOverwrite,
   onPrint,
@@ -239,6 +243,7 @@ export function EditorToolbar({
         onSave,
         onShowHistory,
         onChooseStyle,
+        onOpenClauses,
         onPrint,
         onSaveAsTemplate,
         onSendToTelegram,
@@ -279,6 +284,7 @@ function renderToolbarEnd(props: {
   onSave: () => void
   onShowHistory?: () => void
   onChooseStyle?: () => void
+  onOpenClauses?: () => void
   onPrint: () => void
   onSaveAsTemplate?: () => void
   onSendToTelegram?: () => void
@@ -424,6 +430,23 @@ function renderToolbarEnd(props: {
                 <span>
                   <strong>{t('styles.button')}</strong>
                   <small>{t('editor.styleHint')}</small>
+                </span>
+              </button>
+            ) : null}
+            {props.onOpenClauses ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={() => {
+                  close()
+                  props.onOpenClauses?.()
+                }}
+                data-testid="editor-clauses"
+              >
+                <ClauseIcon size={16} />
+                <span>
+                  <strong>{t('clauses.title')}</strong>
+                  <small>{t('clauses.menuHint')}</small>
                 </span>
               </button>
             ) : null}

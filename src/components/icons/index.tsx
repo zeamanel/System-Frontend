@@ -629,3 +629,14 @@ export function RedoIcon({ size = 18, ...rest }: IconProps) {
     </svg>
   )
 }
+
+/** A page with a bookmark: saved clauses. */
+export function ClauseIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M6 3h9l4 4v14H6z" />
+      <path d="M9 3v7l2-1.5L13 10V3" />
+      <path d="M9 14h7M9 17.5h5" />
+    </svg>
+  )
+}
