@@ -137,15 +137,17 @@
 }
 
 /* Laptop widths: secondary actions become icons (their aria-label and
-   title keep them named); Save, Export and Print keep their words. From
-   1440px (room for the title too) Preview, Style and History keep theirs. */
+   title keep them named); Save, More, Export and Print keep their words.
+   From 1600px (room for the whole title too) Format, Assistant and Dictate
+   keep theirs. */
 @media (min-width: 961px) and (max-width: 1799px) {
   .editor-toolbar .editor-toolbar__label,
   .editor-toolbar .editor-toolbar__vault-btn-label {
     display: none;
   }
 
-  .editor-toolbar__group--end > .popover .editor-toolbar__label {
+  .editor-toolbar__group--end > .popover .editor-toolbar__label,
+  .editor-toolbar__group--end > .editor-toolbar__more .editor-toolbar__label {
     display: inline;
   }
 
@@ -159,7 +161,7 @@
   }
 }
 
-@media (min-width: 1440px) and (max-width: 1799px) {
+@media (min-width: 1600px) and (max-width: 1799px) {
   .editor-toolbar .editor-toolbar__label.editor-toolbar__label--named {
     display: inline;
   }

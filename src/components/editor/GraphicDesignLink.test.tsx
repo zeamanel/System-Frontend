@@ -65,6 +65,8 @@ describe('Open in Graphic Design', () => {
     const before = new Set((await repos.documents.list()).map((d) => d.id))
     await renderEditor(true)
 
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }))
+
     fireEvent.click(screen.getByTestId('editor-style'))
     expect(await screen.findByTestId('style-graphic-design')).toHaveTextContent(/Opens the Certificate with the answers/)
     fireEvent.click(screen.getByTestId('open-graphic-design'))
@@ -89,6 +91,7 @@ describe('Open in Graphic Design', () => {
 
   it('is not offered when designs are switched off', async () => {
     await renderEditor(false)
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }))
     fireEvent.click(screen.getByTestId('editor-style'))
     await screen.findByTestId('style-option-standard')
     expect(screen.queryByTestId('style-graphic-design')).not.toBeInTheDocument()

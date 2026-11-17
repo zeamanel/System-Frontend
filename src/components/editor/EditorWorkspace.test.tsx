@@ -77,6 +77,8 @@ describe('EditorWorkspace', () => {
     renderWorkspace(doc, template)
     await screen.findByTestId('editor-title-input')
 
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }))
+
     fireEvent.click(screen.getByTestId('editor-style'))
     const option = await screen.findByTestId('style-option-legal-frame')
     // The rental agreement suggests the legal frame.
@@ -89,6 +91,7 @@ describe('EditorWorkspace', () => {
     expect(saveStatus()).toHaveTextContent(/unsaved|saving|saved/i)
 
     // Back to the plain look.
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }))
     fireEvent.click(screen.getByTestId('editor-style'))
     fireEvent.click(await screen.findByTestId('style-option-standard'))
     await waitFor(() =>

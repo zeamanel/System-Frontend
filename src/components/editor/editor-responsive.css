@@ -53,51 +53,19 @@
     min-width: 0;
   }
 
-  /* Secondary actions: one row that scrolls sideways instead of wrapping. */
+  /* Actions: every one in sight. The row wraps onto a second line rather
+     than hiding actions off the edge (a sideways-scrolling row hid half of them). */
   .editor-toolbar__group--end {
     flex: 1 1 100%;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 2px;
-  }
-
-  .editor-toolbar__group--end::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* More buttons off the edge: that edge fades, so the row reads as scrollable. */
-  .editor-toolbar__group--end[data-more-after='true'] {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
-  }
-
-  .editor-toolbar__group--end[data-more-before='true'] {
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 40px);
-    mask-image: linear-gradient(to right, transparent, #000 40px);
-  }
-
-  .editor-toolbar__group--end[data-more-before='true'][data-more-after='true'] {
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
-    mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
   }
 
   .editor-toolbar__group--end > * {
     flex-shrink: 0;
   }
 
-  /*
-   * The Export menu would be clipped by the scrolling row, so it opens as a
-   * panel above the bottom bar instead; the row's edge fade (a mask, which
-   * would clip it too) is off while it is open.
-   */
-  .editor-toolbar__group--end:has(.editor-export-panel) {
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-
+  /* The Export and More menus open as a panel above the bottom bar, in reach of a thumb. */
   .editor-toolbar__group--end .editor-export-panel {
     position: fixed;
     top: auto;
@@ -111,21 +79,24 @@
     overflow-y: auto;
   }
 
-  /* Print, Save, Style and History first: the most-used actions never scroll out of view. */
+  /* The most-used actions first: gaps to fill, Print, Save, More and Export. */
   .editor-toolbar__group--end > .editor-toolbar__gaps {
-    order: -4;
+    order: -5;
   }
 
   .editor-toolbar__group--end > .editor-toolbar__print {
-    order: -3;
+    order: -4;
   }
 
   .editor-toolbar__group--end > .editor-toolbar__save {
+    order: -3;
+  }
+
+  .editor-toolbar__group--end > .editor-toolbar__more {
     order: -2;
   }
 
-  .editor-toolbar__group--end > .editor-toolbar__style,
-  .editor-toolbar__group--end > .editor-toolbar__history {
+  .editor-toolbar__group--end > .popover {
     order: -1;
   }
 
@@ -267,6 +238,11 @@
 
 /* Phones: full-width sheets, icon-only secondary toolbar actions. */
 @media (max-width: 640px) {
+  /* Phones: the Telegram files button is its icon and count (its name stays in the tooltip). */
+  .editor-toolbar .editor-toolbar__vault-btn-label {
+    display: none;
+  }
+
   .editor-workspace--left-open .editor-side--left,
   .editor-workspace--right-open .editor-side--right {
     width: 100vw;

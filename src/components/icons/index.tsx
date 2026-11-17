@@ -468,6 +468,16 @@ export function ShieldIcon({ size = 18, ...rest }: IconProps) {
   )
 }
 
+export function MoreIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </svg>
+  )
+}
+
 export function CloudOffIcon({ size = 18, ...rest }: IconProps) {
   return (
     <svg {...svgProps(size)} {...rest}>

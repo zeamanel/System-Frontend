@@ -1297,5 +1297,10 @@
   "dictation.useInMessage": "Use in message",
   "editor.offlineSaved": "Offline: saved on this device",
   "offline.banner": "You’re offline. Changes are kept on this device and sync when you’re back.",
-  "offline.bannerDetail": "Documents you opened before still open and can be edited. Changes are saved on this device and sent to the server when the connection returns. The assistant, exports and Telegram need a connection."
+  "offline.bannerDetail": "Documents you opened before still open and can be edited. Changes are saved on this device and sent to the server when the connection returns. The assistant, exports and Telegram need a connection.",
+  "editor.more": "More",
+  "editor.moreLabel": "More actions: preview, style, history",
+  "editor.previewHint": "See the pages as they will print",
+  "editor.styleHint": "Fonts, colours and page look",
+  "editor.historyHint": "Saved versions: compare or restore"
 }

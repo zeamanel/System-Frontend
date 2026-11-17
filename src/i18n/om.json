@@ -1297,5 +1297,10 @@
   "dictation.useInMessage": "Ergaa keessatti fayyadami",
   "editor.offlineSaved": "Toora ala: meeshaa kana irratti olkaa’ameera",
   "offline.banner": "Toora ala jirtu. Jijjiiramni meeshaa kana irratti olkaa’ama, yeroo deebitanitti ni ergama.",
-  "offline.bannerDetail": "Sanadoonni duraan bantan ammas ni banamu, ni gulaalamus. Jijjiiramni meeshaa kana irratti olkaa’amee yeroo walqunnamtiin deebi’u gara sarvaraatti ergama. Gargaaraan, buusuun fi Telegram walqunnamtii barbaadu."
+  "offline.bannerDetail": "Sanadoonni duraan bantan ammas ni banamu, ni gulaalamus. Jijjiiramni meeshaa kana irratti olkaa’amee yeroo walqunnamtiin deebi’u gara sarvaraatti ergama. Gargaaraan, buusuun fi Telegram walqunnamtii barbaadu.",
+  "editor.more": "Dabalata",
+  "editor.moreLabel": "Gochaalee dabalataa: dursa ilaaluu, akkaataa, seenaa",
+  "editor.previewHint": "Fuulota akka maxxanfamanitti ilaali",
+  "editor.styleHint": "Qubee, halluu fi bifa fuulaa",
+  "editor.historyHint": "Fooyya’iinsota olkaa’aman: wal bira qabi ykn deebisi"
 }
