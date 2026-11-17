@@ -24,6 +24,9 @@ import {
   getGenerationUsage as fetchGenerationUsageEndpoint,
 } from '../api/endpoints/generation'
 import { clearSyncedUserCache, ensureSyncedUser } from '../api/sync-user'
+import { isNetworkFailure } from '../offline/network'
+import { reportNetworkFailure, reportNetworkSuccess } from '../offline/connection'
+import { clearOfflineData, forgetDocument, keepDocument, offlineRead, offlineWrite } from '../offline/store'
 import {
   sendPasswordReset,
   signInWithGoogle,
@@ -343,6 +346,39 @@ const TEMPLATE_ALIASES: Record<string, string> = {
   'certificate-of-service': 'work-experience-certificate',
 }
 
+/**
+ * Loads from the server and keeps a copy on this device; when the server
+ * cannot be reached, answers with the kept copy (offline work). Refusals
+ * (404, 403, …) are never hidden.
+ */
+async function withOfflineCopy<T>(
+  key: string,
+  load: () => Promise<T>,
+  keep: (value: T) => Promise<void> = (value) => offlineWrite(key, value),
+): Promise<T> {
+  let value: T
+  try {
+    value = await load()
+  } catch (error) {
+    if (!isNetworkFailure(error)) throw error
+    reportNetworkFailure()
+    const kept = await offlineRead<T>(key)
+    if (kept !== null) return kept
+    throw error
+  }
+  reportNetworkSuccess()
+  void keep(value).catch(() => undefined)
+  return value
+}
+
+/** The kept copy of a document after a change made online (a response may leave the text out). */
+async function refreshKeptDocument(id: string, result: DocumentDetailRecord, savedContent?: string | null): Promise<void> {
+  const kept = await offlineRead<DocumentDetailRecord>(`document:${id}`)
+  const content = result.content ?? savedContent ?? kept?.content ?? null
+  if (content === null && !kept) return
+  await keepDocument(id, { ...kept, ...result, content, answers: result.answers ?? kept?.answers })
+}
+
 class HttpTemplatesRepository implements TemplatesRepository {
   constructor(
     private readonly getFavoriteIds: () => Promise<string[]>,
@@ -375,11 +411,18 @@ class HttpTemplatesRepository implements TemplatesRepository {
   private async fetchAll(locale: Locale): Promise<TemplateSummary[]> {
     let apiTemplates: TemplateSummary[] = []
     try {
-      const records = await apiClient.get<TemplateApiRecord[]>('/templates', {
-        query: { locale },
-        auth: 'optional',
-      })
-      apiTemplates = (Array.isArray(records) ? records : []).map(mapTemplate)
+      apiTemplates = await withOfflineCopy(
+        `templates:${locale}`,
+        async () => {
+          const records = await apiClient.get<TemplateApiRecord[]>('/templates', {
+            query: { locale },
+            auth: 'optional',
+          })
+          return (Array.isArray(records) ? records : []).map(mapTemplate)
+        },
+        // An empty answer is not worth keeping over a real list.
+        (list) => (list.length > 0 ? offlineWrite(`templates:${locale}`, list) : Promise.resolve()),
+      )
     } catch {
       apiTemplates = []
     }
@@ -484,6 +527,7 @@ class HttpTemplatesRepository implements TemplatesRepository {
   async get(id: string, locale: Locale): Promise<TemplateDetail | null> {
     // Built-in templates that were copies of backend ones open the backend template.
     const lookup = TEMPLATE_ALIASES[id] ?? id
+    const keptKey = `template:${locale}:${lookup}`
     let reached = false
     try {
       const record = await nullOnNotFound(() =>
@@ -493,8 +537,9 @@ class HttpTemplatesRepository implements TemplatesRepository {
         ),
       )
       reached = true
+      reportNetworkSuccess()
       if (record) {
-        return {
+        const detail = {
           ...mapTemplate(record),
           questions: (record.questions ?? []).map((question) => ({
             id: question.id,
@@ -506,9 +551,16 @@ class HttpTemplatesRepository implements TemplatesRepository {
             ...(question.options?.length ? { options: question.options } : {}),
           })),
         } satisfies TemplateDetail
+        void offlineWrite(keptKey, detail).catch(() => undefined)
+        return detail
       }
-    } catch {
-      // The backend cannot be reached: fall through to the built-in templates.
+    } catch (error) {
+      // The backend cannot be reached: the copy kept on this device, else the built-in templates.
+      if (isNetworkFailure(error)) {
+        reportNetworkFailure()
+        const kept = await offlineRead<TemplateDetail>(keptKey)
+        if (kept) return kept
+      }
     }
     // The backend answered that it does not have this template: it cannot be used.
     if (reached) return null
@@ -533,25 +585,62 @@ function mapVersionConflict(error: unknown): unknown {
 }
 
 class HttpDocumentsRepository implements DocumentsRepository {
+  /** The whole list as last seen online, for working offline. */
+  private async keptList(error: unknown): Promise<DocumentRecord[]> {
+    if (!isNetworkFailure(error)) throw error
+    reportNetworkFailure()
+    const kept = await offlineRead<DocumentRecord[]>('documents:list')
+    if (!kept) throw error
+    return kept
+  }
+
   async list(options?: { search?: string }): Promise<DocumentRecord[]> {
-    // Backend returns a bare array (totals via X-Total-Count when needed).
-    const records = await fetchDocumentsEndpoint({ search: options?.search, limit: 200 })
-    return records.map(mapDocument)
+    const search = options?.search?.trim()
+    if (!search) {
+      // Backend returns a bare array (totals via X-Total-Count when needed).
+      return withOfflineCopy('documents:list', async () => (await fetchDocumentsEndpoint({ limit: 200 })).map(mapDocument))
+    }
+    try {
+      const records = await fetchDocumentsEndpoint({ search, limit: 200 })
+      reportNetworkSuccess()
+      return records.map(mapDocument)
+    } catch (error) {
+      // Offline: search the kept list by title.
+      const needle = search.toLowerCase()
+      return (await this.keptList(error)).filter((document) => document.title.toLowerCase().includes(needle))
+    }
   }
 
   async recent(limit: number): Promise<DocumentRecord[]> {
-    const records = await fetchDocumentsEndpoint({
-      limit: Math.min(Math.max(limit, 1), 200),
-    })
-    return records
-      .map(mapDocument)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .slice(0, limit)
+    let documents: DocumentRecord[]
+    try {
+      const records = await fetchDocumentsEndpoint({
+        limit: Math.min(Math.max(limit, 1), 200),
+      })
+      reportNetworkSuccess()
+      documents = records.map(mapDocument)
+    } catch (error) {
+      documents = await this.keptList(error)
+    }
+    return documents.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit)
   }
 
   async get(id: string): Promise<DocumentDetailRecord | null> {
-    const record = await nullOnNotFound(() => fetchDocumentEndpoint(id))
-    return record ? mapDocumentDetail(record) : null
+    let record: DocumentApiRecord | null
+    try {
+      record = await nullOnNotFound(() => fetchDocumentEndpoint(id))
+    } catch (error) {
+      if (!isNetworkFailure(error)) throw error
+      reportNetworkFailure()
+      const kept = await offlineRead<DocumentDetailRecord>(`document:${id}`)
+      if (kept) return kept
+      throw error
+    }
+    reportNetworkSuccess()
+    const document = record ? mapDocumentDetail(record) : null
+    // Kept for offline work; a document the server no longer has is forgotten.
+    void (document ? keepDocument(id, document) : forgetDocument(id)).catch(() => undefined)
+    return document
   }
 
   async create(payload: CreateDocumentPayload): Promise<DocumentRecord> {
@@ -586,7 +675,9 @@ class HttpDocumentsRepository implements DocumentsRepository {
         },
         payload.baseVersion,
       )
-      return mapDocumentDetail(record)
+      const result = mapDocumentDetail(record)
+      void refreshKeptDocument(id, result, payload.content).catch(() => undefined)
+      return result
     } catch (error) {
       throw mapVersionConflict(error)
     }
@@ -599,7 +690,9 @@ class HttpDocumentsRepository implements DocumentsRepository {
   ): Promise<DocumentDetailRecord> {
     try {
       const record = await renameDocumentEndpoint(id, title, ifMatch)
-      return mapDocumentDetail(record)
+      const result = mapDocumentDetail(record)
+      void refreshKeptDocument(id, result).catch(() => undefined)
+      return result
     } catch (error) {
       throw mapVersionConflict(error)
     }
@@ -626,7 +719,9 @@ class HttpDocumentsRepository implements DocumentsRepository {
   async restoreVersion(id: string, version: number): Promise<DocumentDetailRecord> {
     try {
       const record = await restoreDocumentVersionEndpoint(id, version)
-      return mapDocumentDetail(record)
+      const result = mapDocumentDetail(record)
+      void refreshKeptDocument(id, result).catch(() => undefined)
+      return result
     } catch (error) {
       throw mapVersionConflict(error)
     }
@@ -634,6 +729,7 @@ class HttpDocumentsRepository implements DocumentsRepository {
 
   async delete(id: string): Promise<void> {
     await deleteDocumentEndpoint(id)
+    void forgetDocument(id).catch(() => undefined)
   }
 
   async listShared(options?: { search?: string }): Promise<DocumentRecord[]> {
@@ -899,6 +995,8 @@ class HttpSessionRepository implements SessionRepository {
       // Stateless endpoint — best effort only.
     }
     clearSyncedUserCache()
+    // A shared computer keeps nothing of this user's documents.
+    await clearOfflineData().catch(() => undefined)
     try {
       await signOutOfFirebase()
     } catch {

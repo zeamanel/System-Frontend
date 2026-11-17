@@ -156,8 +156,10 @@ function notifySessionExpired(): void {
 export async function handleSessionExpired(): Promise<void> {
   notifySessionExpired()
   clearSyncedUserCache()
-  // Shared-PC privacy (SEC-12): an expired session wipes customer data too.
+  // Shared-PC privacy (SEC-12): an expired session wipes customer data too,
+  // and the documents kept on this device for offline work.
   clearAllCustomerLocalData()
+  void import('../offline/store').then((store) => store.clearOfflineData()).catch(() => undefined)
   if (!isApiMode()) return
   try {
     await signOutOfFirebase()

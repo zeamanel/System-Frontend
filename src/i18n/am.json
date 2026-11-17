@@ -1294,5 +1294,8 @@
   "reviews.workOn": "በዚህ ላይ ስራ",
   "reviews.workOnMessage": "{name} ይህን ሰነድ ገምግመው እንዲህ ጽፈዋል፦ “{text}” ይህ የሚጠይቀውን የሰነዱን ለውጥ አቅርብ።",
   "assistant.dictate": "መልእክትዎን በድምፅ ይናገሩ",
-  "dictation.useInMessage": "በመልእክቱ ተጠቀም"
+  "dictation.useInMessage": "በመልእክቱ ተጠቀም",
+  "editor.offlineSaved": "ከመስመር ውጭ፦ በዚህ መሣሪያ ላይ ተቀምጧል",
+  "offline.banner": "ከመስመር ውጭ ነዎት። ለውጦች በዚህ መሣሪያ ላይ ይቀመጣሉ፤ ሲመለሱ ይላካሉ።",
+  "offline.bannerDetail": "ከዚህ በፊት የከፈቷቸው ሰነዶች አሁንም ይከፈታሉ፣ ሊስተካከሉም ይችላሉ። ለውጦች በዚህ መሣሪያ ላይ ይቀመጡና ግንኙነቱ ሲመለስ ወደ አገልጋዩ ይላካሉ። ረዳቱ፣ ማውረድና ቴሌግራም ግንኙነት ያስፈልጋቸዋል።"
 }

@@ -1294,5 +1294,8 @@
   "reviews.workOn": "Kanarratti hojjedhu",
   "reviews.workOnMessage": "{name} sanada kana gamaaggamanii akkas barreessaniiru: “{text}” Jijjiirama sanadaa kun gaafatu yaadi.",
   "assistant.dictate": "Ergaa keessan sagaleen dubbadhaa",
-  "dictation.useInMessage": "Ergaa keessatti fayyadami"
+  "dictation.useInMessage": "Ergaa keessatti fayyadami",
+  "editor.offlineSaved": "Toora ala: meeshaa kana irratti olkaa’ameera",
+  "offline.banner": "Toora ala jirtu. Jijjiiramni meeshaa kana irratti olkaa’ama, yeroo deebitanitti ni ergama.",
+  "offline.bannerDetail": "Sanadoonni duraan bantan ammas ni banamu, ni gulaalamus. Jijjiiramni meeshaa kana irratti olkaa’amee yeroo walqunnamtiin deebi’u gara sarvaraatti ergama. Gargaaraan, buusuun fi Telegram walqunnamtii barbaadu."
 }

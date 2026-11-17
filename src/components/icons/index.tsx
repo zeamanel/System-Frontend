@@ -468,6 +468,15 @@ export function ShieldIcon({ size = 18, ...rest }: IconProps) {
   )
 }
 
+export function CloudOffIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  )
+}
+
 export function MicIcon({ size = 18, ...rest }: IconProps) {
   return (
     <svg {...svgProps(size)} {...rest}>

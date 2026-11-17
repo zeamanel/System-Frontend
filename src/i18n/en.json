@@ -1294,5 +1294,8 @@
   "reviews.workOn": "Work on this",
   "reviews.workOnMessage": "{name} reviewed this document and wrote: “{text}” Propose the changes to the document that this asks for.",
   "assistant.dictate": "Speak your message",
-  "dictation.useInMessage": "Use in message"
+  "dictation.useInMessage": "Use in message",
+  "editor.offlineSaved": "Offline: saved on this device",
+  "offline.banner": "You’re offline. Changes are kept on this device and sync when you’re back.",
+  "offline.bannerDetail": "Documents you opened before still open and can be edited. Changes are saved on this device and sent to the server when the connection returns. The assistant, exports and Telegram need a connection."
 }

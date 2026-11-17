@@ -7,6 +7,8 @@ import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
 import { AiNotice } from './AiNotice'
+import { OfflineBanner } from './OfflineBanner'
+import { useOffline } from '../../lib/offline/connection'
 
 /** Document-editor routes — the sidebar collapses to an icon rail on desktop. */
 const EDITOR_ROUTE_PATTERN = /^\/documents\/[^/]+\/?$/
@@ -21,6 +23,7 @@ export function AppShell() {
   const { t } = useI18n()
   const location = useLocation()
   const [navOpen, setNavOpen] = useState(false)
+  const offline = useOffline()
   const isEditorRoute = EDITOR_ROUTE_PATTERN.test(location.pathname)
 
   // Close the drawer whenever the route changes.
@@ -43,11 +46,12 @@ export function AppShell() {
   }, [navOpen])
 
   return (
-    <div className={['app-shell', isEditorRoute ? 'app-shell--editor' : null].filter(Boolean).join(' ')}>
+    <div className={['app-shell', isEditorRoute ? 'app-shell--editor' : null, offline ? 'app-shell--offline' : null].filter(Boolean).join(' ')}>
       <a className="skip-link" href="#main-content">
         {t('nav.skipToContent')}
       </a>
       <TopBar onOpenMenu={() => setNavOpen(true)} menuOpen={navOpen} />
+      <OfflineBanner />
       <div className={['app-shell__body', isEditorRoute ? 'app-shell__body--editor' : null].filter(Boolean).join(' ')}>
         <Sidebar
           mobileOpen={navOpen}

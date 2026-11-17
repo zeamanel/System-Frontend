@@ -811,7 +811,7 @@ function ProposalCard({
       (saveStatus === 'saved' || saveStatus === 'idle')
     appliedState = saved
       ? t('assistant.proposal.saved')
-      : saveStatus === 'error' || saveStatus === 'conflict'
+      : saveStatus === 'error' || saveStatus === 'conflict' || saveStatus === 'offline'
         ? t('assistant.proposal.notSaved')
         : t('assistant.proposal.saving')
   }

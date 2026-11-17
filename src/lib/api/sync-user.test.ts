@@ -142,3 +142,46 @@ describe('ensureSyncedUser', () => {
     expect(syncUser).not.toHaveBeenCalled()
   })
 })
+
+describe('working offline', () => {
+  const PROFILE_KEY = 'seneddesk.lastProfile'
+  const abebe = { id: 'user-1', name: 'Abebe Bikila', email: 'abebe@example.com', role: 'user' }
+
+  it('remembers the profile the server confirmed', async () => {
+    const { getCurrentFirebaseUser } = await import('./auth-store')
+    vi.mocked(getCurrentFirebaseUser).mockReturnValue(firebaseUser('u1') as never)
+    vi.mocked(syncUser).mockResolvedValue(backendProfile() as never)
+    await ensureSyncedUser()
+    expect(JSON.parse(window.localStorage.getItem(PROFILE_KEY) ?? 'null')).toEqual({ uid: 'u1', user: abebe })
+  })
+
+  it('stays signed in as that user when the server cannot be reached, and tries again next time', async () => {
+    const { getCurrentFirebaseUser } = await import('./auth-store')
+    vi.mocked(getCurrentFirebaseUser).mockReturnValue(firebaseUser('u1') as never)
+    window.localStorage.setItem(PROFILE_KEY, JSON.stringify({ uid: 'u1', user: abebe }))
+    vi.mocked(syncUser).mockRejectedValue(new ApiError(0, 'Network request failed.'))
+
+    await expect(ensureSyncedUser()).resolves.toEqual(abebe)
+    // Back online: the handshake runs again (the offline answer is not kept).
+    vi.mocked(syncUser).mockResolvedValue(backendProfile({ displayName: 'Abebe B.' }) as never)
+    await expect(ensureSyncedUser()).resolves.toMatchObject({ name: 'Abebe B.' })
+  })
+
+  it('never uses another person’s profile, and never hides a refusal', async () => {
+    const { getCurrentFirebaseUser } = await import('./auth-store')
+    window.localStorage.setItem(PROFILE_KEY, JSON.stringify({ uid: 'someone-else', user: abebe }))
+    vi.mocked(getCurrentFirebaseUser).mockReturnValue(firebaseUser('u2') as never)
+    vi.mocked(syncUser).mockRejectedValue(new ApiError(0, 'Network request failed.'))
+    await expect(ensureSyncedUser()).rejects.toBeInstanceOf(ApiError)
+
+    window.localStorage.setItem(PROFILE_KEY, JSON.stringify({ uid: 'u2', user: abebe }))
+    vi.mocked(syncUser).mockRejectedValue(new ApiError(500, 'Server error'))
+    await expect(ensureSyncedUser()).rejects.toMatchObject({ status: 500 })
+  })
+
+  it('forgets the profile on sign-out', () => {
+    window.localStorage.setItem(PROFILE_KEY, JSON.stringify({ uid: 'u1', user: abebe }))
+    clearSyncedUserCache()
+    expect(window.localStorage.getItem(PROFILE_KEY)).toBeNull()
+  })
+})
