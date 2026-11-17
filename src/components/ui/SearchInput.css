@@ -25,6 +25,9 @@
 .search-input__field {
   flex: 1;
   min-width: 0;
+  /* The whole height of the box takes a tap, not only the line of text. */
+  align-self: stretch;
+  min-height: 24px;
   border: none;
   background: none;
   padding: 0;

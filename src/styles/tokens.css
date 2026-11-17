@@ -43,7 +43,8 @@
   /* ---------- Semantic: text ---------- */
   --color-text: var(--gray-900);
   --color-text-secondary: var(--gray-600);
-  --color-text-tertiary: var(--gray-500);
+  /* Darker than --gray-500 so small text reaches 4.5:1 (WCAG AA) on every light background. */
+  --color-text-tertiary: #66666f;
   --color-text-disabled: var(--gray-400);
   --color-text-inverse: var(--gray-0);
 
@@ -68,6 +69,22 @@
   --color-error-bg: #faedec;
   --color-info: var(--gray-700);
   --color-info-bg: var(--gray-100);
+
+  /* ---------- Aliases ----------
+     Names some components use. They were never defined, so the rules using
+     them did nothing (a required field left empty got no red text or border).
+     They point at the tokens above; prefer those in new code. */
+  --color-danger: var(--color-error);
+  --color-primary: var(--color-action-primary);
+  --color-primary-subtle: var(--gray-100);
+  --color-brand-primary: var(--color-action-primary);
+  --color-action-primary-bg: var(--color-action-primary);
+  --color-focus: var(--color-focus-ring);
+  --color-text-muted: var(--color-text-tertiary);
+  --color-surface-hover: var(--color-action-ghost-hover);
+  --color-surface-subtle: var(--color-surface-muted);
+  --color-surface-sunken: var(--gray-100);
+  --color-bg: var(--color-app-bg);
 
   /* ---------- Typography ----------
      System stack with Ethiopic fallbacks so Amharic renders

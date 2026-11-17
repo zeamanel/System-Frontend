@@ -177,6 +177,8 @@ export function EditorToolbar({
           <span className="editor-toolbar__label editor-toolbar__label--named">{t('editor.mobile.fields')}</span>
         </Button>
 
+        {/* The page's heading for screen readers: the title field below is what people see. */}
+        <h1 className="sr-only">{title.trim() || t('editor.untitled')}</h1>
         <input
           className="editor-toolbar__title"
           value={title}

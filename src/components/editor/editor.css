@@ -115,6 +115,12 @@
   outline: none;
 }
 
+/* Keyboard focus is unmistakable (a light border alone was too faint to see). */
+.editor-toolbar__title:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
 /* Desktop: one toolbar row. The title takes the room that is left (it used
    to wrap the toolbar onto three rows and cut the title to ~100px). */
 @media (min-width: 961px) {
