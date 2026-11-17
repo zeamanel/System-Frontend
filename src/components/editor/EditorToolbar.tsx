@@ -55,6 +55,8 @@ export interface EditorToolbarProps {
   onChooseStyle?: () => void
   /** Opens the clause library (absent: no menu item). */
   onOpenClauses?: () => void
+  /** Makes many documents from a table (absent: no menu item). */
+  onMakeCopies?: () => void
   onReloadLatest: () => void
   onOverwrite: () => void
   onPrint: () => void
@@ -122,6 +124,7 @@ export function EditorToolbar({
   onShowHistory,
   onChooseStyle,
   onOpenClauses,
+  onMakeCopies,
   onReloadLatest,
   onOverwrite,
   onPrint,
@@ -244,6 +247,7 @@ export function EditorToolbar({
         onShowHistory,
         onChooseStyle,
         onOpenClauses,
+        onMakeCopies,
         onPrint,
         onSaveAsTemplate,
         onSendToTelegram,
@@ -285,6 +289,7 @@ function renderToolbarEnd(props: {
   onShowHistory?: () => void
   onChooseStyle?: () => void
   onOpenClauses?: () => void
+  onMakeCopies?: () => void
   onPrint: () => void
   onSaveAsTemplate?: () => void
   onSendToTelegram?: () => void
@@ -447,6 +452,23 @@ function renderToolbarEnd(props: {
                 <span>
                   <strong>{t('clauses.title')}</strong>
                   <small>{t('clauses.menuHint')}</small>
+                </span>
+              </button>
+            ) : null}
+            {props.onMakeCopies ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={() => {
+                  close()
+                  props.onMakeCopies?.()
+                }}
+                data-testid="editor-make-copies"
+              >
+                <CopyIcon size={16} />
+                <span>
+                  <strong>{t('bulk.title')}</strong>
+                  <small>{t('bulk.menuHint')}</small>
                 </span>
               </button>
             ) : null}

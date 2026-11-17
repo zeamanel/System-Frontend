@@ -136,6 +136,21 @@ export function countGaps(model: DocumentModel): number {
   return count
 }
 
+const ENTITIES: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' }
+
+/** The different gaps of the document, each once, in the order they first appear ("[employee name]"). */
+export function listGaps(model: DocumentModel): string[] {
+  const found = new Set<string>()
+  const bilingual = Boolean(model.page.bilingual)
+  for (const block of model.blocks) {
+    for (const { html } of partsOf(block, bilingual)) {
+      const text = html.replace(/<[^>]*>/g, '').replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (entity) => ENTITIES[entity] ?? entity)
+      for (const match of text.match(GAP_PATTERN) ?? []) found.add(match)
+    }
+  }
+  return [...found]
+}
+
 /** How many times this exact gap appears in the document. */
 export function countGap(model: DocumentModel, gap: string): number {
   const needle = gapHtml(gap)

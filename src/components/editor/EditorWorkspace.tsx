@@ -105,6 +105,7 @@ import { GapFillBox } from './GapFillBox'
 import { DictationPanel } from './DictationPanel'
 import { SendForReviewDialog } from '../reviews/SendForReviewDialog'
 import { ClauseLibraryDialog } from './ClauseLibraryDialog'
+import { BulkCopiesDialog } from './BulkCopiesDialog'
 import { clauseParagraphs } from '../../lib/clauses/client'
 import type { Clause } from '../../lib/clauses/types'
 import { useDictation } from './useDictation'
@@ -1184,6 +1185,8 @@ export function EditorWorkspace({
 
   // ── Clause library: saved passages inserted after the paragraph the caret is in ──
   const [clausesOpen, setClausesOpen] = useState(false)
+  // Many documents from one table (the gaps filled from its columns).
+  const [copiesOpen, setCopiesOpen] = useState(false)
   const [clauseDraft, setClauseDraft] = useState('')
 
   const handleOpenClauses = useCallback((): void => {
@@ -1551,6 +1554,7 @@ export function EditorWorkspace({
         onShowHistory={() => setHistoryOpen(true)}
         onChooseStyle={() => setStyleOpen(true)}
         onOpenClauses={doc.access === 'view' || doc.kind === 'design' ? undefined : handleOpenClauses}
+        onMakeCopies={doc.access === 'view' || doc.kind === 'design' ? undefined : () => setCopiesOpen(true)}
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
@@ -1974,6 +1978,15 @@ export function EditorWorkspace({
           </div>
         ) : null}
       </Dialog>
+
+      <BulkCopiesDialog
+        open={copiesOpen}
+        onClose={() => setCopiesOpen(false)}
+        model={model}
+        title={editor.title}
+        language={editor.language}
+        templateId={doc.templateId}
+      />
 
       <ClauseLibraryDialog
         open={clausesOpen}
