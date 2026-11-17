@@ -29,6 +29,7 @@ import {
   SmartphoneIcon,
   MicIcon,
   UsersIcon,
+  CloudOffIcon,
   RedoIcon,
   SlidersIcon,
   UndoIcon,
@@ -123,6 +124,7 @@ const STATUS_LABEL_KEY: Record<SaveStatus, string> = {
   saved: 'editor.saved',
   error: 'editor.saveFailed',
   conflict: 'editor.conflict',
+  offline: 'editor.offlineSaved',
 }
 
 
@@ -228,6 +230,8 @@ export function EditorToolbar({
             <CheckIcon size={12} />
           ) : status === 'error' || status === 'conflict' ? (
             <AlertIcon size={12} />
+          ) : status === 'offline' ? (
+            <CloudOffIcon size={12} />
           ) : null}
           {status !== 'idle' ? t(STATUS_LABEL_KEY[status] as never) : null}
         </span>

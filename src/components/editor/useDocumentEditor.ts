@@ -50,13 +50,17 @@ import { diffBlocks, revertTrackedChange, type TrackedChange, type RevertResult 
 
 export type { TrackedChange, RevertResult }
 import type { DocumentDetailRecord } from '../../lib/repositories'
+import { isNetworkFailure } from '../../lib/offline/network'
 
 /** Longest flush() waits for an in-flight save before giving up. */
 const FLUSH_WAIT_MS = 15_000
 
-export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'conflict'
+/** `offline`: the server cannot be reached; the work is kept on this device and saved when the connection returns. */
+export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'conflict' | 'offline'
 
 const AUTOSAVE_DELAY_MS = 1500
+/** While offline, a save is tried again this often (and at once when the browser is back online). */
+export const OFFLINE_RETRY_MS = 20_000
 /** Unsaved work is mirrored to the recovery buffer at most this often (and when the page is hidden or closed). */
 export const BUFFER_WRITE_DELAY_MS = 800
 
@@ -207,6 +211,8 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
 
   const dirtyRef = useRef(false)
+  /** The last save could not reach the server: edits stay on this device until a retry gets through. */
+  const offlineRef = useRef(false)
   const savingRef = useRef(false)
   const queuedRef = useRef(false)
   const saveRef = useRef<(force?: boolean) => Promise<void>>(async () => {})
@@ -244,7 +250,8 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
 
   const markDirty = useCallback((): void => {
     dirtyRef.current = true
-    setStatus('unsaved')
+    // Offline, an edit is kept on this device (the recovery buffer); the retry saves it.
+    setStatus(offlineRef.current ? 'offline' : 'unsaved')
   }, [])
 
   /** The only way the model changes: keeps the ref current and records an undo step. */
@@ -501,6 +508,7 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
           },
         })
         dirtyRef.current = false
+        offlineRef.current = false
         setLastSavedAt(saveStartedAt)
         setSavedAt(result.updatedAt)
         setSavedVersion(result.version)
@@ -514,8 +522,15 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
           queryKey: queryKeys.documents.list(undefined).slice(0, 2),
         })
       } catch (error) {
-        setStatus(error instanceof DocumentConflictError ? 'conflict' : 'error')
-        // The recovery buffer keeps the work; the user retries explicitly.
+        if (isNetworkFailure(error)) {
+          // No connection: the recovery buffer keeps the work and the save is retried by itself.
+          offlineRef.current = true
+          setStatus('offline')
+        } else {
+          offlineRef.current = false
+          setStatus(error instanceof DocumentConflictError ? 'conflict' : 'error')
+          // The recovery buffer keeps the work; the user retries explicitly.
+        }
       } finally {
         savingRef.current = false
         if (queuedRef.current) {
@@ -596,6 +611,20 @@ export function useDocumentEditor({ document: doc, refresh, onFieldSynced, onLoc
     const timer = window.setTimeout(() => void saveRef.current(), AUTOSAVE_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [status, model, title, answers, language])
+
+  // Offline: try again when the browser says the connection is back, and every little while.
+  useEffect(() => {
+    if (status !== 'offline') return
+    const retry = (): void => {
+      if (dirtyRef.current && !savingRef.current) void saveRef.current()
+    }
+    window.addEventListener('online', retry)
+    const timer = window.setInterval(retry, OFFLINE_RETRY_MS)
+    return () => {
+      window.removeEventListener('online', retry)
+      window.clearInterval(timer)
+    }
+  }, [status])
 
   // Guard against losing work when the tab closes mid-edit.
   useEffect(() => {

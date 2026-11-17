@@ -17,6 +17,13 @@ if (!rootElement) {
   throw new Error('Root element #root was not found in index.html.')
 }
 
+// Built app only: a service worker keeps the app's files, so it opens with no connection.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+  })
+}
+
 // Sign-in (Firebase) downloads alongside the page instead of inside the first file.
 preloadFirebaseAuth()
 
