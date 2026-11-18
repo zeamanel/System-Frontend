@@ -11,7 +11,7 @@ const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const TemplateDetailPage = lazy(() => import('./pages/TemplateDetailPage'))
 const CreateDocumentFlowPage = lazy(() => import('./pages/CreateDocumentFlowPage'))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'))
-const CustomersPage = lazy(() => import('./pages/CustomersPage'))
+const DataPage = lazy(() => import('./pages/DataPage'))
 const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'))
 const TelegramFilesPage = lazy(() => import('./pages/TelegramFilesPage'))
 const EditorPage = lazy(() => import('./pages/EditorPage'))
@@ -58,7 +58,9 @@ export function AppRoutes() {
           <Route path="templates/:templateId" element={<TemplateDetailPage />} />
           <Route path="templates/:templateId/create" element={<CreateDocumentFlowPage />} />
           <Route path="documents" element={<DocumentsPage />} />
-          <Route path="customers" element={<CustomersPage />} />
+          <Route path="data" element={<DataPage />} />
+          {/* Customers are the Data page's first tab; a customer's own page stays. */}
+          <Route path="customers" element={<Navigate to="/data" replace />} />
           <Route path="customers/:customerId" element={<CustomerDetailPage />} />
           <Route path="telegram-files" element={<TelegramFilesPage />} />
           <Route path="documents/:documentId" element={<EditorPage />} />

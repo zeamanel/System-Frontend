@@ -35,7 +35,7 @@ const WORKSPACE_ITEMS: NavItem[] = [
   { to: '/', labelKey: 'nav.home', icon: HomeIcon, end: true },
   { to: '/templates', labelKey: 'nav.templates', icon: TemplateIcon },
   { to: '/documents', labelKey: 'nav.documents', icon: DocumentIcon },
-  { to: '/customers', labelKey: 'nav.customers', icon: UsersIcon },
+  { to: '/data', labelKey: 'nav.data', icon: UsersIcon },
   { to: '/telegram-files', labelKey: 'nav.telegramFiles', icon: SmartphoneIcon },
   { to: '/favorites', labelKey: 'nav.favorites', icon: StarIcon },
 ]

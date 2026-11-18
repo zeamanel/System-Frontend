@@ -11,6 +11,7 @@ import { DatePicker, SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
 import { useOrganization } from '../../hooks/use-organization'
 import { SavedCustomers, SaveCustomerButton } from '../customers'
+import { FillFromData } from '../data/FillFromData'
 import { customerTargets, type FieldFill } from '../../lib/customers/fill'
 import { organizationSuggestionsForField } from '../../lib/organization/autofill'
 import type { TemplateDetail, TemplateQuestion } from '../../lib/repositories'
@@ -659,6 +660,13 @@ export function GuidedFieldsPanel({
             answers={answers}
             onFill={(fills) => handleCustomerFill(fills, fills[0]?.questionId ?? '')}
             onAppendInstructions={handleAppendInstructions}
+            documentId={documentId}
+          />
+          <FillFromData
+            questions={questions}
+            answers={answers}
+            documentLanguage={language}
+            onFill={(fills, nameQuestionId) => handleCustomerFill(fills, nameQuestionId)}
             documentId={documentId}
           />
           {questions.map((question) => {

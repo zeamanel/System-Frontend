@@ -22,7 +22,7 @@ export default function CustomerDetailPage() {
   const [confirming, setConfirming] = useState(false)
 
   const back = (
-    <Link className="panel__link customer-detail__back" to="/customers">
+    <Link className="panel__link customer-detail__back" to="/data">
       <ArrowLeftIcon size={15} />
       {t('customers.allCustomers')}
     </Link>
@@ -89,7 +89,7 @@ export default function CustomerDetailPage() {
                   forget.mutate(data.id, {
                     onSuccess: () => {
                       toast.push(t('customers.forgotten'))
-                      navigate('/customers')
+                      navigate('/data')
                     },
                     onError: () => {
                       setConfirming(false)

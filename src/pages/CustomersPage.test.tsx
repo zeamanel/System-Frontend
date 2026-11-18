@@ -7,7 +7,7 @@ import { ToastProvider } from '../components/ui'
 import { PendingCustomerNotice } from '../components/customers'
 import { markCustomerUsed, saveCustomer } from '../lib/customers/client'
 import { getPendingCustomer } from '../lib/customers/pending'
-import CustomersPage from './CustomersPage'
+import DataPage from './DataPage'
 import CustomerDetailPage from './CustomerDetailPage'
 
 function renderAt(path: string) {
@@ -17,7 +17,7 @@ function renderAt(path: string) {
         <ToastProvider>
           <MemoryRouter initialEntries={[path]}>
             <Routes>
-              <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/data" element={<DataPage />} />
               <Route path="/customers/:customerId" element={<CustomerDetailPage />} />
               <Route path="/templates" element={<div data-testid="templates-page"><PendingCustomerNotice /></div>} />
             </Routes>
@@ -33,25 +33,24 @@ beforeEach(() => {
   window.sessionStorage.clear()
 })
 
-describe('Customers page', () => {
-  it('lists saved customers and opens one', async () => {
+describe('Customers on the Data page', () => {
+  it('lists saved customers and opens one\'s documents', async () => {
     await saveCustomer({ name: 'Dawit Haile', tin: '0012345678', phone: '+251 911 223344' })
     await saveCustomer({ name: 'Almaz Bekele' })
-    renderAt('/customers')
+    renderAt('/data')
 
-    const list = await screen.findByTestId('customer-directory')
-    const rows = within(list).getAllByTestId('customer-directory-row')
-    expect(rows).toHaveLength(2)
-    expect(within(list).getByText('Dawit Haile')).toBeInTheDocument()
-    expect(within(list).getByText('TIN 0012345678 · +251 911 223344')).toBeInTheDocument()
+    const list = await screen.findByTestId('data-list')
+    expect(within(list).getAllByTestId('data-row')).toHaveLength(2)
+    expect(within(list).getByText('0012345678 · +251 911 223344')).toBeInTheDocument()
 
-    fireEvent.click(within(list).getByText('Dawit Haile'))
+    const row = within(list).getByText('Dawit Haile').closest('li') as HTMLElement
+    fireEvent.click(within(row).getByRole('link', { name: 'Documents' }))
     expect(await screen.findByRole('heading', { level: 1, name: /Dawit Haile/ })).toBeInTheDocument()
   })
 
-  it('says how customers get saved when there are none', async () => {
-    renderAt('/customers')
-    expect(await screen.findByText('No saved customers yet')).toBeInTheDocument()
+  it('says how to add customers when there are none', async () => {
+    renderAt('/data')
+    expect(await screen.findByText('No customers yet')).toBeInTheDocument()
   })
 })
 
@@ -98,7 +97,7 @@ describe('A customer’s page', () => {
 
     fireEvent.click(await screen.findByTestId('customer-forget'))
     fireEvent.click(screen.getByTestId('customer-forget-confirm'))
-    expect(await screen.findByText('No saved customers yet')).toBeInTheDocument()
+    expect(await screen.findByText('No customers yet')).toBeInTheDocument()
   })
 
   it('says when the customer is gone', async () => {
