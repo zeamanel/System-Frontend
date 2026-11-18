@@ -13,11 +13,16 @@ import {
   listDataRequests,
   createDataRequest,
   revokeDataRequest,
+  createCollection,
+  deleteCollection,
+  getDataAccess,
+  setMemberAccess,
+  updateCollection,
   type DataRequestInput,
   type UseOptions,
 } from '../lib/data/client'
-import type { DataCollection } from '../lib/data/catalog'
-import type { RecordInput } from '../lib/data/types'
+import { builtInDefs, type CollectionDef } from '../lib/data/catalog'
+import type { CollectionInput, RecordInput } from '../lib/data/types'
 import { queryKeys } from '../lib/query-keys'
 
 /** The caller's data space: personal or the organization's, and whether they see sensitive fields. */
@@ -25,7 +30,16 @@ export function useDataSpace(enabled = true) {
   return useQuery({ queryKey: queryKeys.data.space, queryFn: ({ signal }) => getDataSpace(signal), enabled, staleTime: 30_000 })
 }
 
-export function useRecords(collection: DataCollection, query = '', enabled = true) {
+/**
+ * The space's record types (built-in with the organization's own fields, then
+ * its own types). Built-in ones while the space loads.
+ */
+export function useCollections(): CollectionDef[] {
+  const space = useDataSpace()
+  return space.data?.collections ?? builtInDefs(false)
+}
+
+export function useRecords(collection: string, query = '', enabled = true) {
   return useQuery({
     queryKey: queryKeys.data.list(collection, query.trim()),
     queryFn: ({ signal }) => listRecords(collection, query, { signal }),
@@ -56,7 +70,7 @@ function useInvalidate() {
 export function useSaveRecord() {
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: ({ id, collection, input }: { id?: string; collection: DataCollection; input: RecordInput }) =>
+    mutationFn: ({ id, collection, input }: { id?: string; collection: string; input: RecordInput }) =>
       id ? updateRecord(id, input) : createRecord(collection, input),
     onSuccess: invalidate,
   })
@@ -70,7 +84,7 @@ export function useDeleteRecord() {
 export function useImportRecords() {
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: ({ collection, records }: { collection: DataCollection; records: RecordInput[] }) => importRecords(collection, records),
+    mutationFn: ({ collection, records }: { collection: string; records: RecordInput[] }) => importRecords(collection, records),
     onSuccess: invalidate,
   })
 }
@@ -114,4 +128,32 @@ export function useCreateDataRequest() {
 export function useRevokeDataRequest() {
   const invalidate = useInvalidate()
   return useMutation({ mutationFn: (id: string) => revokeDataRequest(id), onSuccess: invalidate })
+}
+
+// ─── Settings (Phase 3): own record types, retention, member access ────────
+
+export function useSaveCollection() {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: ({ key, input }: { key?: string; input: CollectionInput }) =>
+      key ? updateCollection(key, input) : createCollection(input as Parameters<typeof createCollection>[0]),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteCollection() {
+  const invalidate = useInvalidate()
+  return useMutation({ mutationFn: ({ key, confirm }: { key: string; confirm: string }) => deleteCollection(key, confirm), onSuccess: invalidate })
+}
+
+export function useDataAccess(enabled = true) {
+  return useQuery({ queryKey: queryKeys.data.access, queryFn: ({ signal }) => getDataAccess(signal), enabled, staleTime: 15_000 })
+}
+
+export function useSetMemberAccess() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, ...access }: { userId: string; canEdit?: boolean; canSeeSensitive?: boolean }) => setMemberAccess(userId, access),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.data.access }),
+  })
 }

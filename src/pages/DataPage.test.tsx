@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n'
 import { ToastProvider } from '../components/ui'
 import * as dataClient from '../lib/data/client'
+import { builtInDefs } from '../lib/data/catalog'
 import DataPage from './DataPage'
 
 function renderAt(path = '/data') {
@@ -36,7 +37,7 @@ describe('Data page', () => {
 
     fireEvent.click(screen.getByTestId('data-add'))
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByTestId('record-sensitive')).toHaveTextContent('Owners and admins only')
+    expect(within(dialog).getByTestId('record-sensitive')).toHaveTextContent('Restricted details')
 
     // The name is required; a date must be a date.
     fireEvent.click(within(dialog).getByTestId('record-save'))
@@ -85,7 +86,10 @@ describe('Data page', () => {
       organizationId: 'org-1',
       role: 'member',
       canSeeSensitive: false,
+      canEdit: true,
+      canAdminister: false,
       counts: { customer: 0, employee: 0, property: 0 },
+      collections: builtInDefs(false),
     })
     renderAt('/data?c=employee')
     expect(await screen.findByRole('heading', { level: 1, name: 'Organization data' })).toBeInTheDocument()
@@ -94,6 +98,72 @@ describe('Data page', () => {
     const dialog = await screen.findByRole('dialog')
     await waitFor(() => expect(within(dialog).getByTestId('record-sensitive-hidden')).toBeInTheDocument())
     expect(within(dialog).queryByLabelText('Monthly salary (ETB)')).toBeNull()
-    expect(within(dialog).queryByText('Owners and admins only')).toBeNull()
+    expect(within(dialog).queryByText('Restricted details')).toBeNull()
+    expect(screen.queryByTestId('data-manage')).toBeNull()
+  })
+
+  it('lets a view-only member look but not add, import or ask', async () => {
+    vi.spyOn(dataClient, 'getDataSpace').mockResolvedValue({
+      kind: 'organization',
+      organizationId: 'org-1',
+      role: 'member',
+      canSeeSensitive: false,
+      canEdit: false,
+      canAdminister: false,
+      counts: { customer: 0, employee: 0, property: 0 },
+      collections: builtInDefs(false),
+    })
+    renderAt('/data?c=employee')
+    expect(await screen.findByTestId('data-view-only')).toBeInTheDocument()
+    expect(screen.queryByTestId('data-add')).toBeNull()
+    expect(screen.queryByTestId('data-import')).toBeNull()
+    expect(screen.queryByTestId('data-ask')).toBeNull()
+    expect(screen.getByTestId('data-export')).toBeInTheDocument()
+  })
+
+  it('makes a record type of the organization’s own and keeps records in it', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderAt('/data')
+    fireEvent.click(await screen.findByTestId('data-manage'))
+    let dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByTestId('manage-type'), { target: { value: '__new__' } })
+    fireEvent.change(await within(dialog).findByTestId('manage-name'), { target: { value: 'Vehicles' } })
+    fireEvent.change(within(dialog).getByLabelText(/Name of each record/), { target: { value: 'Plate number' } })
+    fireEvent.click(within(dialog).getByTestId('manage-add-field'))
+    const labels = within(dialog).getAllByLabelText('Field name')
+    fireEvent.change(labels[labels.length - 1], { target: { value: 'Fuel' } })
+    const kinds = within(dialog).getAllByLabelText('Kind')
+    fireEvent.change(kinds[kinds.length - 1], { target: { value: 'choice' } })
+    fireEvent.change(within(dialog).getByLabelText('Choices'), { target: { value: 'Petrol, Diesel' } })
+    fireEvent.click(within(dialog).getByTestId('manage-save'))
+
+    // The page opens the new type's tab.
+    expect(await screen.findByTestId('data-tab-x_vehicles')).toHaveTextContent('Vehicles')
+    fireEvent.click(within(dialog).getByText('Close'))
+    await waitFor(() => expect(screen.getByTestId('data-tab-x_vehicles')).toHaveAttribute('aria-selected', 'true'))
+    expect(screen.getByText('Nothing in Vehicles yet')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('data-add'))
+    dialog = await screen.findByRole('dialog', { name: 'Add to Vehicles' })
+    fireEvent.change(within(dialog).getByLabelText(/Plate number/), { target: { value: 'AA 3-12345' } })
+    fireEvent.change(within(dialog).getByLabelText('Fuel'), { target: { value: 'Diesel' } })
+    fireEvent.click(within(dialog).getByTestId('record-save'))
+    const list = await screen.findByTestId('data-list')
+    expect(within(list).getByText('AA 3-12345')).toBeInTheDocument()
+    expect(within(list).getByText('Diesel')).toBeInTheDocument()
+    const [car] = (await dataClient.listRecords('x_vehicles')).items
+    expect((await dataClient.getRecord(car.id)).values).toEqual({ x_plate_number: 'AA 3-12345', x_fuel: 'Diesel' })
+  })
+
+  it('adds a field to employees and keeps customers until deleted', async () => {
+    await dataClient.updateCollection('employee', { fields: [{ label: 'Shift', type: 'text' }] })
+    await dataClient.updateCollection('customer', { retentionDays: null })
+    const space = await dataClient.getDataSpace()
+    expect(space.collections.find((def) => def.key === 'employee')?.fields.map((f) => f.key)).toContain('x_shift')
+    expect(space.collections.find((def) => def.key === 'customer')?.retentionDays).toBeNull()
+    renderAt('/data?c=employee')
+    fireEvent.click(await screen.findByTestId('data-add'))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Shift')).toBeInTheDocument()
   })
 })

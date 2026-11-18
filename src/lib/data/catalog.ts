@@ -17,6 +17,9 @@ export interface CatalogField {
   required?: boolean
   options?: readonly string[]
   digits?: boolean
+  /** An organization's own field (key `x_…`): its label, as the organization wrote it. */
+  label?: string
+  custom?: boolean
 }
 
 export const CATALOG: Record<DataCollection, readonly CatalogField[]> = {
@@ -80,9 +83,71 @@ export const MAX_EXTRA_FIELDS = 20
 export const isDataCollection = (value: unknown): value is DataCollection =>
   typeof value === 'string' && (DATA_COLLECTIONS as readonly string[]).includes(value)
 
-export function catalogField(collection: DataCollection, key: string): CatalogField | undefined {
-  return CATALOG[collection].find((field) => field.key === key)
+/** A field of a record type: the catalog's, or one the organization added (from the space's definitions). */
+export function catalogField(collection: string, key: string): CatalogField | undefined {
+  return getDef(collection)?.fields.find((field) => field.key === key) ?? (isDataCollection(collection) ? CATALOG[collection].find((field) => field.key === key) : undefined)
 }
+
+// ─── Phase 3: the space's record types ──────────────────────────────────────
+
+/**
+ * A record type of the space (GET /data/space `collections`): a built-in one
+ * with any fields the organization added, or one of its own (key `x_…`).
+ */
+export interface CollectionDef {
+  key: string
+  /** The organization's name for its own type (null for built-ins, labelled by i18n). */
+  name: string | null
+  builtIn: boolean
+  nameField: string
+  summaryFields: readonly string[]
+  /** Days without use before a record is forgotten; null: kept. */
+  retentionDays: number | null
+  /** Only the fields the caller may see. */
+  fields: readonly CatalogField[]
+  /** Sensitive fields exist that the caller may not see. */
+  hasHiddenFields: boolean
+}
+
+export const DEFAULT_RETENTION: Record<DataCollection, number | null> = { customer: 365, employee: null, property: null }
+export const MAX_CUSTOM_FIELDS = 30
+export const MAX_CUSTOM_COLLECTIONS = 10
+export const FIELD_TYPES: readonly FieldType[] = ['text', 'long_text', 'email', 'phone', 'date', 'money', 'number', 'choice']
+export const RETENTION_MIN_DAYS = 30
+export const RETENTION_MAX_DAYS = 3650
+
+export function builtInDef(collection: DataCollection, canSeeSensitive = true): CollectionDef {
+  return {
+    key: collection,
+    name: null,
+    builtIn: true,
+    nameField: NAME_FIELD[collection],
+    summaryFields: SUMMARY_FIELDS[collection],
+    retentionDays: DEFAULT_RETENTION[collection],
+    fields: CATALOG[collection].filter((field) => canSeeSensitive || !field.sensitive),
+    hasHiddenFields: !canSeeSensitive && CATALOG[collection].some((field) => field.sensitive),
+  }
+}
+
+export const builtInDefs = (canSeeSensitive = true): CollectionDef[] => DATA_COLLECTIONS.map((c) => builtInDef(c, canSeeSensitive))
+
+/**
+ * The definitions of the space last loaded (set by getDataSpace), so labels
+ * and checks everywhere know the organization's own fields and types.
+ */
+let registry = new Map<string, CollectionDef>(builtInDefs().map((def) => [def.key, def]))
+
+export function setDefs(defs: readonly CollectionDef[]): void {
+  registry = new Map(defs.map((def) => [def.key, def]))
+  for (const def of builtInDefs()) if (!registry.has(def.key)) registry.set(def.key, def)
+}
+
+export const getDef = (key: string): CollectionDef | undefined => registry.get(key)
+export const getDefs = (): CollectionDef[] => [...registry.values()]
+
+/** A record type's name field (the record's display name). */
+export const nameFieldOf = (collection: string): string =>
+  getDef(collection)?.nameField ?? (isDataCollection(collection) ? NAME_FIELD[collection] : '')
 
 const tidy = (value: string): string => value.replace(/\s+/g, ' ').trim()
 

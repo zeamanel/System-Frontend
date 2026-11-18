@@ -1,4 +1,4 @@
-import type { DataCollection } from './catalog'
+import type { CollectionDef } from './catalog'
 
 export interface ExtraField {
   label: string
@@ -13,13 +13,41 @@ export interface DataSpace {
   organizationId: string | null
   role: 'personal' | 'owner' | 'admin' | 'member'
   canSeeSensitive: boolean
-  counts: Record<DataCollection, number>
+  /** May add, change and import records (false: view-only member). */
+  canEdit: boolean
+  /** Owner, admin, or a personal space: manages record types, retention and access. */
+  canAdminister: boolean
+  /** By record type key (built-in and the organization's own). */
+  counts: Record<string, number>
+  /** The space's record types: the built-in three first, then the organization's own. */
+  collections: CollectionDef[]
+}
+
+/** GET /data/access */
+export interface MemberAccess {
+  userId: string
+  name: string
+  email: string
+  role: 'owner' | 'admin' | 'member'
+  canEdit: boolean
+  canSeeSensitive: boolean
+  /** Owners and admins always have full access. */
+  fixed: boolean
+}
+
+/** POST /data/collections, PATCH /data/collections/:key */
+export interface CollectionInput {
+  name?: string
+  fields?: Array<{ key?: string; label: string; type: string; options?: string[]; sensitive?: boolean }>
+  /** null keeps records; 'default' the built-in default; or days without use. */
+  retentionDays?: number | null | 'default'
 }
 
 /** A record in a list: never sensitive values. */
 export interface RecordSummary {
   id: string
-  collection: DataCollection
+  /** A built-in type or the organization's own (`x_…`). */
+  collection: string
   displayName: string
   summary: Record<string, string>
   mine: boolean
@@ -53,7 +81,7 @@ export interface ImportResult {
 /** GET /documents/:id/records: a record the document was filled from. */
 export interface DocumentRecordLink {
   recordId: string
-  collection: import('./catalog').DataCollection
+  collection: string
   displayName: string
   party: string
   /** Which document field got which record field. */

@@ -492,3 +492,109 @@
 .share-page__consent input {
   margin-top: 3px;
 }
+
+/* ── Phase 3: record types, access ─────────────────────────────────────── */
+
+.data-manage,
+.data-access {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.data-manage__hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.data-manage__standard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.data-manage__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.data-manage__chip {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-surface-muted, var(--color-border-subtle));
+  font-size: var(--text-sm);
+}
+
+.data-manage__field {
+  display: grid;
+  grid-template-columns: minmax(140px, 2fr) minmax(120px, 1fr) auto auto;
+  align-items: end;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.data-manage__field:last-of-type {
+  border-bottom: 0;
+}
+
+.data-manage__options {
+  grid-column: 1 / -1;
+}
+
+.data-manage__retention {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.data-access__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.data-access__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.data-access__item:first-child {
+  border-top: 0;
+}
+
+.data-access__who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.data-access__who small {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.data-access__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+@media (max-width: 560px) {
+  .data-manage__field {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}

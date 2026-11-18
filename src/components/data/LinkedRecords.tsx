@@ -2,10 +2,8 @@ import './data.css'
 
 import { useState } from 'react'
 import { useI18n } from '../../i18n'
-import type { MessageKey } from '../../i18n'
 import { useDocumentRecords, useMarkRecordUsed, useSaveRecord } from '../../hooks/use-data'
-import type { DataCollection } from '../../lib/data/catalog'
-import { fieldLabel } from '../../lib/data/labels'
+import { collectionLabel, fieldLabel } from '../../lib/data/labels'
 import { linkDifferences, type LinkDifference } from '../../lib/data/links'
 import type { DocumentRecordLink } from '../../lib/data/types'
 import { Button, useToast } from '../ui'
@@ -89,7 +87,7 @@ export function LinkedRecords({ documentId, questions, answers, onAnswerChange, 
         {items.map((link) => {
           const differences = linkDifferences(link, questions, answers)
           const signature = differences.map((d) => `${d.questionId}=${d.documentValue}`).join('|')
-          const kind = t(`data.kind.${link.collection as DataCollection}` as MessageKey)
+          const kind = collectionLabel(t, link.collection, 'kind')
           const fromRecord = link.changedSince && differences.length > 0
           const fromDocument = !link.changedSince && differences.some((d) => d.documentValue) && dismissed[`${documentId}:${link.recordId}`] !== signature
           const shown = fromDocument ? differences.filter((d) => d.documentValue) : differences

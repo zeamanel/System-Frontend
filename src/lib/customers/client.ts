@@ -73,7 +73,7 @@ export async function listCustomers(query = '', signal?: AbortSignal, limit?: nu
   const q = query.trim().toLowerCase()
   const now = Date.now()
   return readDemo()
-    .filter((c) => new Date(c.expiresAt).getTime() > now)
+    .filter((c) => !c.expiresAt || new Date(c.expiresAt).getTime() > now)
     .filter((c) => !q || [c.name, c.tin, c.phone].some((value) => value.toLowerCase().includes(q)))
     .sort((a, b) => b.lastUsedAt.localeCompare(a.lastUsedAt))
 }

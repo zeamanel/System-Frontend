@@ -1,4 +1,3 @@
-import type { DataCollection } from './catalog'
 import { catalogField } from './catalog'
 import type { RecordDetail } from './types'
 
@@ -57,7 +56,7 @@ const FIELD_WORDS: Record<string, readonly string[]> = {
 }
 
 /** Words that name the party a record is (a field naming another party is not filled from it). */
-const PARTY_WORDS: Record<DataCollection, readonly string[]> = {
+const PARTY_WORDS: Record<string, readonly string[]> = {
   employee: ['employee', 'staff', 'worker', 'candidate', 'applicant', 'recipient', 'ሠራተኛ', 'ሰራተኛ', 'ተቀጣሪ', 'አመልካች', 'hojjataa'],
   customer: ['customer', 'client', 'buyer', 'tenant', 'lessee', 'debtor', 'borrower', 'applicant', 'ደንበኛ', 'ገዢ', 'ገዥ', 'ተከራይ', 'ተበዳሪ', 'maamila'],
   property: ['property', 'premises', 'house', 'apartment', 'unit', 'building', 'ቤት', 'ንብረት', 'mana'],
@@ -109,8 +108,12 @@ const has = (text: string, phrase: string): boolean => {
 }
 
 /** The catalog fields a question asks for (more than one: a combined field, not filled). */
-function fieldsAsked(text: string, collection: DataCollection, keys: readonly string[]): string[] {
-  const found = keys.filter((key) => (FIELD_WORDS[key] ?? []).some((phrase) => has(text, phrase)))
+function fieldsAsked(text: string, collection: string, keys: readonly string[]): string[] {
+  const found = keys.filter((key) => wordsFor(collection, key).some((phrase) => has(text, phrase)))
+  // An organization's own field that matches by its whole label wins over a catalog word inside it
+  // ("Pension number" is not the "number" of anything else).
+  const custom = found.filter((key) => key.startsWith('x_'))
+  if (custom.length === 1) return custom
   // "bank account" names the account, not the bank; "property type" is not the property's name;
   // "owner name" and "contact person" are not the record's own name.
   const drop = new Set<string>()
@@ -123,8 +126,26 @@ function fieldsAsked(text: string, collection: DataCollection, keys: readonly st
   return found.filter((key) => !drop.has(key))
 }
 
+/** Normalized words of a label, as textOf makes them ("Plate No." → "plate no"). */
+const phraseOf = (label: string): string =>
+  label
+    .toLowerCase()
+    .split(/[^a-z0-9ሀ-፿]+/)
+    .filter(Boolean)
+    .join(' ')
+
+/**
+ * What a field is called: the catalog's words, or an organization's own field's label.
+ */
+function wordsFor(collection: string, key: string): readonly string[] {
+  if (!key.startsWith('x_')) return FIELD_WORDS[key] ?? []
+  const label = catalogField(collection, key)?.label
+  const phrase = label ? phraseOf(label) : ''
+  return phrase ? [phrase] : []
+}
+
 /** Money with thousands separators for the document ("20000" → "20,000"). */
-export function display(collection: DataCollection, key: string, value: string): string {
+export function display(collection: string, key: string, value: string): string {
   const field = catalogField(collection, key)
   if (field?.type === 'money') {
     const [whole, cents] = value.split('.')
@@ -149,7 +170,9 @@ export function planRecordFill(
   // An Amharic document gets the Amharic name (and the link says so, for "changed since").
   const amharicName = documentLanguage === 'am' && Boolean(values.full_name_am)
   if (amharicName) values.full_name = values.full_name_am
-  const keys = Object.keys(FIELD_WORDS).filter((key) => key !== 'full_name_am' && values[key] && catalogField(collection, key))
+  const keys = [...Object.keys(FIELD_WORDS), ...Object.keys(values).filter((key) => key.startsWith('x_'))].filter(
+    (key) => key !== 'full_name_am' && values[key] && catalogField(collection, key),
+  )
   const fills: PlannedFill[] = []
   for (const question of questions) {
     const text = textOf(question)
@@ -159,7 +182,7 @@ export function planRecordFill(
     const key = asked[0]
     // A person's name fills a field that names this kind of record ("employee name"), or one
     // that says nothing but "name"; "witness name" or "child's name" are someone else's.
-    if (key === 'full_name' && !PARTY_WORDS[collection].some((word) => has(text, word))) {
+    if (key === 'full_name' && !(PARTY_WORDS[collection] ?? []).some((word) => has(text, word))) {
       const words = text.trim().split(' ')
       if (!words.every((word) => NAME_ONLY.has(word))) continue
     }

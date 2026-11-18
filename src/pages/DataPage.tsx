@@ -6,41 +6,51 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
 import { useDebouncedValue } from '../hooks/use-debounced-value'
-import { useDataRequests, useDataSpace, useRecords, useRevokeDataRequest } from '../hooks/use-data'
-import { DATA_COLLECTIONS, catalogField, isDataCollection, type DataCollection } from '../lib/data/catalog'
+import { useCollections, useDataRequests, useDataSpace, useRecords, useRevokeDataRequest } from '../hooks/use-data'
+import { catalogField } from '../lib/data/catalog'
 import { exportRecords } from '../lib/data/client'
 import type { RecordSummary } from '../lib/data/types'
 import { FolderIcon } from '../components/icons'
 import { RecordDialog } from '../components/data/RecordDialog'
 import { ImportRecordsDialog } from '../components/data/ImportRecordsDialog'
 import { RequestDialog } from '../components/data/RequestDialog'
-import { fieldLabel } from '../lib/data/labels'
+import { CollectionsDialog } from '../components/data/CollectionsDialog'
+import { AccessDialog } from '../components/data/AccessDialog'
+import { collectionLabel, collectionText, fieldLabel, optionLabel } from '../lib/data/labels'
 import { Badge, Button, EmptyState, PageHeader, PanelError, PanelLoading, SearchInput, useToast } from '../components/ui'
 
 /**
- * The Organization Data Manager: the customers, employees and properties the
- * organization (or a person working alone) owns, for filling documents.
+ * The Organization Data Manager: the customers, employees, properties and
+ * record types of its own the organization (or a person working alone) owns,
+ * for filling documents.
  */
 export default function DataPage() {
   const { t } = useI18n()
   const toast = useToast()
   const [params, setParams] = useSearchParams()
-  const collection: DataCollection = isDataCollection(params.get('c')) ? (params.get('c') as DataCollection) : 'customer'
+  const space = useDataSpace()
+  const defs = useCollections()
+  const asked = params.get('c') ?? 'customer'
+  const collection = defs.some((def) => def.key === asked) ? asked : 'customer'
   const [search, setSearch] = useState('')
   const debounced = useDebouncedValue(search, 250)
-  const space = useDataSpace()
   const records = useRecords(collection, debounced)
   const [editing, setEditing] = useState<{ id: string | null } | null>(null)
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [requesting, setRequesting] = useState(false)
+  const [managing, setManaging] = useState(false)
+  const [accessOpen, setAccessOpen] = useState(false)
   const requests = useDataRequests()
   const revoke = useRevokeDataRequest()
   const visibleRequests = (requests.data ?? []).filter((item) => item.collection === collection && item.status !== 'revoked').slice(0, 20)
   const canSeeSensitive = space.data?.canSeeSensitive ?? false
+  const canEdit = space.data?.canEdit ?? true
+  const canAdminister = space.data?.canAdminister ?? false
+  const askable = collection === 'customer' || collection === 'employee'
   const items = records.data?.items ?? []
 
-  const choose = (next: DataCollection): void => {
+  const choose = (next: string): void => {
     setSearch('')
     setParams(next === 'customer' ? {} : { c: next }, { replace: true })
   }
@@ -52,7 +62,7 @@ export default function DataPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `${t(`data.tab.${collection}` as MessageKey)}.csv`
+      link.download = `${collectionLabel(t, collection)}.csv`
       link.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch {
@@ -64,7 +74,7 @@ export default function DataPage() {
 
   const summaryText = (record: RecordSummary): string =>
     Object.entries(record.summary)
-      .map(([key, value]) => (catalogField(collection, key)?.type === 'choice' ? t(`data.option.${value}` as MessageKey) : value))
+      .map(([key, value]) => (catalogField(collection, key)?.type === 'choice' ? optionLabel(t, collection, key, value) : value))
       .join(' · ')
 
   const personal = space.data?.kind === 'personal'
@@ -80,9 +90,14 @@ export default function DataPage() {
           {t('data.memberNote')}
         </p>
       ) : null}
+      {space.data && !canEdit ? (
+        <p className="data-page__note" data-testid="data-view-only">
+          {t('data.viewOnly')}
+        </p>
+      ) : null}
 
       <div className="category-pills" role="tablist" aria-label={t('data.tabsLabel')}>
-        {DATA_COLLECTIONS.map((value) => (
+        {defs.map(({ key: value }) => (
           <button
             key={value}
             type="button"
@@ -92,8 +107,8 @@ export default function DataPage() {
             onClick={() => choose(value)}
             data-testid={`data-tab-${value}`}
           >
-            {t(`data.tab.${value}` as MessageKey)}
-            {space.data ? <span className="data-page__count">{space.data.counts[value]}</span> : null}
+            {collectionLabel(t, value)}
+            {space.data ? <span className="data-page__count">{space.data.counts[value] ?? 0}</span> : null}
           </button>
         ))}
       </div>
@@ -103,20 +118,24 @@ export default function DataPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder={t(`data.search.${collection}` as MessageKey)}
+            placeholder={collectionText(t, collection, 'search')}
             ariaLabel={t('common.search')}
             clearLabel={t('search.clear')}
             loading={records.isFetching && Boolean(debounced)}
           />
         </div>
         <div className="data-page__actions">
-          <Button variant="primary" onClick={() => setEditing({ id: null })} data-testid="data-add">
-            {t(`data.add.${collection}` as MessageKey)}
-          </Button>
-          <Button variant="secondary" onClick={() => setImporting(true)} data-testid="data-import">
-            {t('data.importButton')}
-          </Button>
-          {collection !== 'property' ? (
+          {canEdit ? (
+            <>
+              <Button variant="primary" onClick={() => setEditing({ id: null })} data-testid="data-add">
+                {collectionText(t, collection, 'add')}
+              </Button>
+              <Button variant="secondary" onClick={() => setImporting(true)} data-testid="data-import">
+                {t('data.importButton')}
+              </Button>
+            </>
+          ) : null}
+          {askable && canEdit ? (
             <Button variant="secondary" onClick={() => setRequesting(true)} data-testid="data-ask">
               {t('data.requestButton')}
             </Button>
@@ -124,6 +143,16 @@ export default function DataPage() {
           <Button variant="ghost" loading={exporting} disabled={items.length === 0} onClick={() => void download()} data-testid="data-export">
             {t('data.exportButton')}
           </Button>
+          {canAdminister ? (
+            <Button variant="ghost" onClick={() => setManaging(true)} data-testid="data-manage">
+              {t('data.manageButton')}
+            </Button>
+          ) : null}
+          {canAdminister && space.data?.kind === 'organization' ? (
+            <Button variant="ghost" onClick={() => setAccessOpen(true)} data-testid="data-access">
+              {t('data.accessButton')}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -144,7 +173,7 @@ export default function DataPage() {
         ) : (
           <EmptyState
             icon={<FolderIcon size={22} />}
-            title={t(`data.empty.${collection}` as MessageKey)}
+            title={collectionText(t, collection, 'empty')}
             description={t('data.emptyHint')}
           />
         )
@@ -199,7 +228,7 @@ export default function DataPage() {
                       {t('data.requestOpen')}
                     </Button>
                   ) : null}
-                  {item.status === 'open' ? (
+                  {item.status === 'open' && canEdit ? (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -216,7 +245,7 @@ export default function DataPage() {
         </section>
       ) : null}
 
-      {requesting && collection !== 'property' ? (
+      {requesting && (collection === 'customer' || collection === 'employee') ? (
         <RequestDialog open onClose={() => setRequesting(false)} collection={collection} canSeeSensitive={canSeeSensitive} />
       ) : null}
 
@@ -226,8 +255,11 @@ export default function DataPage() {
         collection={collection}
         recordId={editing?.id ?? null}
         canSeeSensitive={canSeeSensitive}
+        canEdit={canEdit}
       />
       <ImportRecordsDialog open={importing} onClose={() => setImporting(false)} collection={collection} canSeeSensitive={canSeeSensitive} />
+      {managing ? <CollectionsDialog open onClose={() => setManaging(false)} initial={collection} onCreated={choose} /> : null}
+      {accessOpen ? <AccessDialog open onClose={() => setAccessOpen(false)} /> : null}
     </div>
   )
 }

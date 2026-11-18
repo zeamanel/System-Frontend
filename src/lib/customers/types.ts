@@ -11,7 +11,8 @@ export interface Customer {
   /** True when shared with the organization; false for a personal customer. */
   shared: boolean
   lastUsedAt: string
-  expiresAt: string
+  /** null: the organization keeps customers until they are deleted. */
+  expiresAt: string | null
 }
 
 export interface CustomerInput {

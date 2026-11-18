@@ -1,15 +1,31 @@
 import { env } from '../../config/env'
 import { ApiError, apiClient } from '../api'
 import { getRepositories } from '../repositories'
-import { CATALOG, catalogField, checkValue, NAME_FIELD, SUMMARY_FIELDS, type DataCollection } from './catalog'
+import {
+  builtInDef,
+  catalogField,
+  checkValue,
+  DATA_COLLECTIONS,
+  getDef,
+  isDataCollection,
+  MAX_CUSTOM_COLLECTIONS,
+  nameFieldOf,
+  setDefs,
+  type CatalogField,
+  type CollectionDef,
+  type DataCollection,
+  type FieldType,
+} from './catalog'
 import type { Customer } from '../customers/types'
 import type {
+  CollectionInput,
   CreatedDataRequest,
   DataRequest,
   DataSpace,
   DocumentRecordLink,
   ExtraField,
   ImportResult,
+  MemberAccess,
   RecordDetail,
   RecordDocument,
   RecordInput,
@@ -88,7 +104,7 @@ function recordToCustomer(record: RecordDetail): DemoCustomer {
     address: address ?? '',
     shared: false,
     lastUsedAt: record.lastUsedAt ?? record.updatedAt,
-    expiresAt: record.expiresAt ?? new Date(now.getTime() + CUSTOMER_RETENTION_MS).toISOString(),
+    expiresAt: record.expiresAt ?? (getDef('customer')?.retentionDays === null ? null : new Date(now.getTime() + CUSTOMER_RETENTION_MS).toISOString()),
     dataValues: rest,
     dataExtra: record.extraFields,
     useCount: record.useCount,
@@ -99,7 +115,7 @@ function recordToCustomer(record: RecordDetail): DemoCustomer {
 function readDemo(): RecordDetail[] {
   const now = Date.now()
   const customers = readJson<DemoCustomer>(DEMO_CUSTOMERS_KEY)
-    .filter((customer) => new Date(customer.expiresAt).getTime() > now)
+    .filter((customer) => !customer.expiresAt || new Date(customer.expiresAt).getTime() > now)
     .map(customerToRecord)
   return [...customers, ...readJson<RecordDetail>(DEMO_KEY)]
 }
@@ -115,12 +131,12 @@ function toSummary(record: RecordDetail): RecordSummary {
   const { values, extraFields: _extra, sensitiveHidden: _hidden, source: _source, expiresAt: _expires, createdAt: _created, ...summary } = record
   return {
     ...summary,
-    summary: Object.fromEntries(SUMMARY_FIELDS[record.collection].flatMap((key) => (values[key] ? [[key, values[key]]] : []))),
+    summary: Object.fromEntries((getDef(record.collection)?.summaryFields ?? []).flatMap((key) => (values[key] ? [[key, values[key]]] : []))),
   }
 }
 
 /** Demo: checks values like the server and keeps the name. */
-function demoValues(collection: DataCollection, input: Record<string, string>, base: Record<string, string> = {}): Record<string, string> {
+function demoValues(collection: string, input: Record<string, string>, base: Record<string, string> = {}): Record<string, string> {
   const next = { ...base }
   for (const [key, raw] of Object.entries(input)) {
     const field = catalogField(collection, key)
@@ -130,32 +146,192 @@ function demoValues(collection: DataCollection, input: Record<string, string>, b
     if (result.value === '') delete next[key]
     else next[key] = result.value
   }
-  if (!next[NAME_FIELD[collection]]) throw new Error(`values.${NAME_FIELD[collection]}: Required`)
+  const nameKey = nameFieldOf(collection)
+  if (!next[nameKey]) throw new Error(`values.${nameKey}: Required`)
   return next
 }
 
 const cleanExtra = (extra: ExtraField[] = []): ExtraField[] =>
   extra.map((f) => ({ label: f.label.trim(), value: f.value.trim(), sensitive: f.sensitive })).filter((f) => f.label && f.value)
 
+// ─── Record types (Phase 3) ──────────────────────────────────────────────────
+
+const DEMO_DEFS_KEY = 'docuA4.fixture.dataCollections'
+
+/** A space's settings for one record type, as the demo keeps them (the server's data_collections). */
+interface DemoCollection {
+  key: string
+  name: string | null
+  fields: Array<{ key: string; label: string; type: FieldType; options?: string[]; sensitive?: boolean }>
+  retentionCustom: boolean
+  retentionDays: number | null
+}
+
+const toField = (field: DemoCollection['fields'][number]): CatalogField => ({
+  key: field.key,
+  type: field.type,
+  label: field.label,
+  custom: true,
+  ...(field.sensitive ? { sensitive: true } : {}),
+  ...(field.type === 'choice' && field.options?.length ? { options: field.options } : {}),
+})
+
+/** Built-in types with the space's added fields, then its own types (as the server's loadDefs). */
+function demoDefs(): CollectionDef[] {
+  const rows = readJson<DemoCollection>(DEMO_DEFS_KEY)
+  const defs: CollectionDef[] = DATA_COLLECTIONS.map((collection) => {
+    const row = rows.find((r) => r.key === collection)
+    const base = builtInDef(collection)
+    return {
+      ...base,
+      fields: [...base.fields, ...(row?.fields ?? []).map(toField)],
+      retentionDays: row?.retentionCustom ? row.retentionDays : base.retentionDays,
+    }
+  })
+  for (const row of rows) {
+    if (isDataCollection(row.key) || row.fields.length === 0) continue
+    const fields = row.fields.map(toField).map((field, index) => (index === 0 ? { ...field, required: true, sensitive: undefined } : field))
+    defs.push({
+      key: row.key,
+      name: row.name ?? row.key,
+      builtIn: false,
+      nameField: fields[0].key,
+      summaryFields: fields.slice(1).filter((field) => !field.sensitive).slice(0, 3).map((field) => field.key),
+      retentionDays: row.retentionCustom ? row.retentionDays : null,
+      fields,
+      hasHiddenFields: false,
+    })
+  }
+  return defs
+}
+
+/** `x_` + snake_case from a label, as the server makes it ("Plate number" → "x_plate_number"). */
+export function customKey(label: string): string {
+  const slug = label
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 36)
+  return `x_${slug || 'field'}`
+}
+
+const uniqueKey = (base: string, taken: Set<string>): string => {
+  let key = base
+  for (let n = 2; taken.has(key); n++) key = `${base.slice(0, 38)}_${n}`
+  taken.add(key)
+  return key
+}
+
+function demoFields(input: NonNullable<CollectionInput['fields']>, existing: DemoCollection['fields'], taken: Set<string>): DemoCollection['fields'] {
+  const known = new Set(existing.map((field) => field.key))
+  return input.map((field) => ({
+    key: field.key && known.has(field.key) ? field.key : uniqueKey(customKey(field.label), taken),
+    label: field.label.replace(/\s+/g, ' ').trim(),
+    type: field.type as FieldType,
+    ...(field.type === 'choice' && field.options?.length ? { options: field.options } : {}),
+    ...(field.sensitive ? { sensitive: true } : {}),
+  }))
+}
+
+const retentionOf = (value: CollectionInput['retentionDays']) =>
+  value === undefined ? undefined : value === 'default' ? { retentionCustom: false, retentionDays: null } : { retentionCustom: true, retentionDays: value }
+
 export async function getDataSpace(signal?: AbortSignal): Promise<DataSpace> {
-  if (isHttp()) return apiClient.get<DataSpace>('/data/space', { signal, auth: 'required' })
+  if (isHttp()) {
+    const space = await apiClient.get<DataSpace>('/data/space', { signal, auth: 'required' })
+    setDefs(space.collections)
+    return space
+  }
   const records = readDemo()
+  const collections = demoDefs()
+  setDefs(collections)
   return {
     kind: 'personal',
     organizationId: null,
     role: 'personal',
     canSeeSensitive: true,
-    counts: {
-      customer: records.filter((r) => r.collection === 'customer').length,
-      employee: records.filter((r) => r.collection === 'employee').length,
-      property: records.filter((r) => r.collection === 'property').length,
-    },
+    canEdit: true,
+    canAdminister: true,
+    counts: Object.fromEntries(collections.map((def) => [def.key, records.filter((r) => r.collection === def.key).length])),
+    collections,
   }
+}
+
+/** A new record type of the space's own (owners and admins). */
+export async function createCollection(input: CollectionInput & { name: string; fields: NonNullable<CollectionInput['fields']> }): Promise<CollectionDef> {
+  if (isHttp()) return apiClient.post<CollectionDef>('/data/collections', input, { auth: 'required' })
+  const rows = readJson<DemoCollection>(DEMO_DEFS_KEY)
+  const defs = demoDefs()
+  if (defs.filter((def) => !def.builtIn).length >= MAX_CUSTOM_COLLECTIONS) throw new Error(`At most ${MAX_CUSTOM_COLLECTIONS} record types of your own`)
+  if (defs.some((def) => (def.name ?? '').toLowerCase() === input.name.trim().toLowerCase())) throw new Error(`“${input.name}” already exists`)
+  const key = uniqueKey(customKey(input.name), new Set(defs.map((def) => def.key)))
+  const fields = demoFields(input.fields, [], new Set())
+  if (fields[0]) fields[0] = { key: fields[0].key, label: fields[0].label, type: 'text' }
+  const retention = retentionOf(input.retentionDays) ?? { retentionCustom: false, retentionDays: null }
+  writeJson(DEMO_DEFS_KEY, [...rows.filter((r) => r.key !== key), { key, name: input.name.trim(), fields, ...retention }])
+  return demoDefs().find((def) => def.key === key) as CollectionDef
+}
+
+/** Changes a record type: the fields the organization added (all fields of its own type), its name, its retention. */
+export async function updateCollection(key: string, input: CollectionInput): Promise<CollectionDef & { expiringSoon: number }> {
+  if (isHttp()) return apiClient.patch(`/data/collections/${encodeURIComponent(key)}`, input, { auth: 'required' })
+  const rows = readJson<DemoCollection>(DEMO_DEFS_KEY)
+  const row: DemoCollection = rows.find((r) => r.key === key) ?? { key, name: null, fields: [], retentionCustom: false, retentionDays: null }
+  const taken = new Set([...row.fields.map((f) => f.key), ...(isDataCollection(key) ? builtInDef(key).fields.map((f) => f.key) : [])])
+  const fields = input.fields ? demoFields(input.fields, row.fields, taken) : row.fields
+  const next: DemoCollection = {
+    ...row,
+    fields,
+    ...(input.name && !isDataCollection(key) ? { name: input.name.trim() } : {}),
+    ...(retentionOf(input.retentionDays) ?? {}),
+  }
+  writeJson(DEMO_DEFS_KEY, [...rows.filter((r) => r.key !== key), next])
+  // Values of removed fields go with them, as on the server.
+  if (input.fields) {
+    const keep = new Set(demoDefs().find((def) => def.key === key)?.fields.map((f) => f.key))
+    writeDemo(
+      readDemo().map((record) =>
+        record.collection === key ? { ...record, values: Object.fromEntries(Object.entries(record.values).filter(([k]) => keep.has(k))) } : record,
+      ),
+    )
+  }
+  return { ...(demoDefs().find((def) => def.key === key) as CollectionDef), expiringSoon: 0 }
+}
+
+/** Deletes one of the organization's own record types and its records; `confirm` is its name. */
+export async function deleteCollection(key: string, confirm: string): Promise<{ deleted: number }> {
+  if (isHttp()) return apiClient.delete(`/data/collections/${encodeURIComponent(key)}`, { auth: 'required', body: { confirm } })
+  const records = readDemo()
+  writeDemo(records.filter((record) => record.collection !== key))
+  writeJson(DEMO_DEFS_KEY, readJson<DemoCollection>(DEMO_DEFS_KEY).filter((r) => r.key !== key))
+  return { deleted: records.filter((record) => record.collection === key).length }
+}
+
+/** What each member may do with the organization's data (a personal space has none). */
+export async function getDataAccess(signal?: AbortSignal): Promise<MemberAccess[]> {
+  if (!isHttp()) return []
+  return (await apiClient.get<{ members: MemberAccess[] }>('/data/access', { signal, auth: 'required' })).members
+}
+
+export async function setMemberAccess(userId: string, access: { canEdit?: boolean; canSeeSensitive?: boolean }): Promise<MemberAccess> {
+  return apiClient.put<MemberAccess>(`/data/access/${encodeURIComponent(userId)}`, access, { auth: 'required' })
+}
+
+/**
+ * Many records with every field the caller may see, in the order asked (for
+ * making a document per record). Audited once on the server.
+ */
+export async function readRecords(ids: readonly string[]): Promise<RecordDetail[]> {
+  if (ids.length === 0) return []
+  if (isHttp()) return (await apiClient.post<{ items: RecordDetail[] }>('/data/records/batch', { ids }, { auth: 'required' })).items
+  const byId = new Map(readDemo().map((record) => [record.id, record]))
+  return ids.flatMap((id) => (byId.get(id) ? [byId.get(id) as RecordDetail] : []))
 }
 
 /** Records of a collection matching `query` (never on sensitive values), last used or updated first. */
 export async function listRecords(
-  collection: DataCollection,
+  collection: string,
   query = '',
   options: { limit?: number; signal?: AbortSignal } = {},
 ): Promise<{ items: RecordSummary[]; total: number }> {
@@ -166,7 +342,7 @@ export async function listRecords(
     return apiClient.get(`/data/records?${params.toString()}`, { signal: options.signal, auth: 'required' })
   }
   const needle = q.toLowerCase()
-  const sensitive = new Set(CATALOG[collection].filter((f) => f.sensitive).map((f) => f.key))
+  const sensitive = new Set((getDef(collection)?.fields ?? []).filter((f) => f.sensitive).map((f) => f.key))
   const items = readDemo()
     .filter((r) => r.collection === collection)
     .filter((r) => {
@@ -188,14 +364,14 @@ export async function getRecord(id: string, signal?: AbortSignal): Promise<Recor
   return record
 }
 
-export async function createRecord(collection: DataCollection, input: RecordInput): Promise<RecordDetail> {
+export async function createRecord(collection: string, input: RecordInput): Promise<RecordDetail> {
   if (isHttp()) return apiClient.post<RecordDetail>('/data/records', { collection, ...input }, { auth: 'required' })
   const now = new Date().toISOString()
   const values = demoValues(collection, input.values)
   const record: RecordDetail = {
     id: globalThis.crypto.randomUUID(),
     collection,
-    displayName: values[NAME_FIELD[collection]],
+    displayName: values[nameFieldOf(collection)],
     summary: {},
     mine: true,
     canManage: true,
@@ -222,7 +398,7 @@ export async function updateRecord(id: string, input: Partial<RecordInput>): Pro
   const updated: RecordDetail = {
     ...current,
     values,
-    displayName: values[NAME_FIELD[current.collection]],
+    displayName: values[nameFieldOf(current.collection)],
     extraFields: input.extraFields ? cleanExtra(input.extraFields) : current.extraFields,
     updatedAt: new Date().toISOString(),
   }
@@ -384,13 +560,13 @@ export async function declineSharedRequest(token: string): Promise<void> {
   await apiClient.post(`/data-requests/${encodeURIComponent(token)}/decline`, {})
 }
 
-export async function importRecords(collection: DataCollection, records: RecordInput[]): Promise<ImportResult> {
+export async function importRecords(collection: string, records: RecordInput[]): Promise<ImportResult> {
   if (isHttp()) return apiClient.post<ImportResult>('/data/import', { collection, records }, { auth: 'required' })
   const seen = new Set(readDemo().filter((r) => r.collection === collection).map((r) => matchKey(r.displayName)))
   const result: ImportResult = { created: 0, skipped: 0, errors: [] }
   for (const [index, input] of records.entries()) {
     try {
-      const name = matchKey(input.values[NAME_FIELD[collection]] ?? '')
+      const name = matchKey(input.values[nameFieldOf(collection)] ?? '')
       if (name && seen.has(name)) {
         result.skipped++
         continue
@@ -411,12 +587,13 @@ const csvCell = (value: string): string => {
 }
 
 /** The collection as a CSV file (sensitive columns only for owners and admins, decided by the server). */
-export async function exportRecords(collection: DataCollection): Promise<Blob> {
-  if (isHttp()) return apiClient.get<Blob>(`/data/export?collection=${collection}`, { auth: 'required', responseType: 'blob' })
+export async function exportRecords(collection: string): Promise<Blob> {
+  if (isHttp()) return apiClient.get<Blob>(`/data/export?collection=${encodeURIComponent(collection)}`, { auth: 'required', responseType: 'blob' })
   const records = readDemo().filter((r) => r.collection === collection)
-  const keys = CATALOG[collection].map((f) => f.key)
+  const columns = getDef(collection)?.fields ?? []
+  const keys = columns.map((f) => f.key)
   const labels = [...new Set(records.flatMap((r) => r.extraFields.map((f) => f.label)))]
-  const lines = [[...keys, ...labels].map(csvCell).join(',')]
+  const lines = [[...columns.map((f) => f.label ?? f.key), ...labels].map(csvCell).join(',')]
   for (const r of records) {
     const extras = new Map(r.extraFields.map((f) => [f.label, f.value] as const))
     lines.push([...keys.map((k) => r.values[k] ?? ''), ...labels.map((l) => extras.get(l) ?? '')].map(csvCell).join(','))

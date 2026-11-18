@@ -1,5 +1,5 @@
 import type { DataSourceTag, OrganizationProfile, TemplateQuestion } from '../repositories/types'
-import { catalogField, type DataCollection } from './catalog'
+import { catalogField } from './catalog'
 import { display, type PlannedFill } from './fill'
 
 /**
@@ -67,13 +67,13 @@ export function planSlotFill(
     const value = values[key]
     if (!value) return []
     const formatted =
-      slot.collection === 'organization' ? value : display(slot.collection as DataCollection, key, value)
+      slot.collection === 'organization' ? value : display(slot.collection, key, value)
     return [{ questionId: question.questionId, label: question.label, fieldKey: key, value: formatted, current: (answers[question.questionId] ?? '').trim() }]
   })
 }
 
 /** A value as compared between a document and a record (money without thousands separators). */
-export function comparable(collection: DataCollection, key: string, value: string): string {
+export function comparable(collection: string, key: string, value: string): string {
   const text = value.replace(/\s+/g, ' ').trim()
   const type = catalogField(collection, key)?.type
   return type === 'money' || type === 'number' ? text.replace(/,(?=\d{3}\b)/g, '') : text

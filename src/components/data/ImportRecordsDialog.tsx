@@ -3,17 +3,17 @@ import './data.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n'
-import { useImportRecords } from '../../hooks/use-data'
+import { useCollections, useImportRecords } from '../../hooks/use-data'
 import { parseDelimited, readTableFile, toTable, type Table } from '../../lib/bulk/table'
-import { CATALOG, NAME_FIELD, type DataCollection } from '../../lib/data/catalog'
+import { isDataCollection, nameFieldOf } from '../../lib/data/catalog'
 import type { ImportResult, RecordInput } from '../../lib/data/types'
 import { Button, Dialog, Select, Textarea } from '../ui'
-import { fieldLabel } from '../../lib/data/labels'
+import { collectionLabel, fieldLabel } from '../../lib/data/labels'
 
 export interface ImportRecordsDialogProps {
   open: boolean
   onClose: () => void
-  collection: DataCollection
+  collection: string
   canSeeSensitive: boolean
 }
 
@@ -56,7 +56,11 @@ export function ImportRecordsDialog({ open, onClose, collection, canSeeSensitive
   const [result, setResult] = useState<ImportResult | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const fields = useMemo(() => CATALOG[collection].filter((field) => canSeeSensitive || !field.sensitive), [collection, canSeeSensitive])
+  const defs = useCollections()
+  const fields = useMemo(
+    () => (defs.find((def) => def.key === collection)?.fields ?? []).filter((field) => canSeeSensitive || !field.sensitive),
+    [defs, collection, canSeeSensitive],
+  )
 
   useEffect(() => {
     if (!open) return
@@ -125,7 +129,7 @@ export function ImportRecordsDialog({ open, onClose, collection, canSeeSensitive
     })
   }, [t, table, targets])
 
-  const nameMapped = targets.some((target) => target.kind === 'field' && target.key === NAME_FIELD[collection])
+  const nameMapped = targets.some((target) => target.kind === 'field' && target.key === nameFieldOf(collection))
 
   const submit = async (): Promise<void> => {
     try {
@@ -143,7 +147,7 @@ export function ImportRecordsDialog({ open, onClose, collection, canSeeSensitive
   ]
 
   return (
-    <Dialog open={open} onClose={onClose} title={t(`data.import.${collection}` as MessageKey)} closeLabel={t('common.close')} width="md">
+    <Dialog open={open} onClose={onClose} title={isDataCollection(collection) ? t(`data.import.${collection}` as MessageKey) : t('data.importCustom', { name: collectionLabel(t, collection) })} closeLabel={t('common.close')} width="md">
       {result ? (
         <div className="data-import" data-testid="data-import-result">
           <p className="data-import__hint" role="status">
@@ -193,7 +197,7 @@ export function ImportRecordsDialog({ open, onClose, collection, canSeeSensitive
           </div>
           {!nameMapped ? (
             <p className="data-import__error" role="alert">
-              {t('data.importNeedsName', { field: fieldLabel(t, collection, NAME_FIELD[collection]) })}
+              {t('data.importNeedsName', { field: fieldLabel(t, collection, nameFieldOf(collection)) })}
             </p>
           ) : null}
           {error ? (

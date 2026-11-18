@@ -2,22 +2,24 @@ import './data.css'
 
 import { useEffect, useState } from 'react'
 import { useI18n } from '../../i18n'
-import type { MessageKey } from '../../i18n'
-import { fieldLabel } from '../../lib/data/labels'
-import { useDeleteRecord, useRecord, useRecordDocuments, useSaveRecord } from '../../hooks/use-data'
+import { collectionText, fieldLabel, optionLabel } from '../../lib/data/labels'
+import { useCollections, useDeleteRecord, useRecord, useRecordDocuments, useSaveRecord } from '../../hooks/use-data'
 import { Link } from 'react-router-dom'
 import { RequestDialog } from './RequestDialog'
-import { CATALOG, checkValue, MAX_EXTRA_FIELDS, type CatalogField, type DataCollection } from '../../lib/data/catalog'
+import { builtInDef, checkValue, isDataCollection, MAX_EXTRA_FIELDS, type CatalogField } from '../../lib/data/catalog'
 import type { ExtraField } from '../../lib/data/types'
 import { Button, Dialog, Input, PanelError, PanelLoading, Select, Textarea, useToast } from '../ui'
 
 export interface RecordDialogProps {
   open: boolean
   onClose: () => void
-  collection: DataCollection
+  /** A built-in type or the organization's own (`x_…`). */
+  collection: string
   /** null: a new record. */
   recordId: string | null
   canSeeSensitive: boolean
+  /** false: a view-only member. */
+  canEdit?: boolean
 }
 
 const ERROR_KEYS = {
@@ -31,12 +33,15 @@ const ERROR_KEYS = {
   required: 'data.error.required',
 } as const
 
+/** Record types a person can be asked to share their own details for. */
+const ASKABLE = new Set(['customer', 'employee'])
+
 /**
- * Adds or edits a customer, employee or property: the catalog's fields,
- * sensitive ones (salary, ID numbers, bank accounts) only for owners and
- * admins, and optional extra fields.
+ * Adds or edits a record: its type's fields (the catalog's and the
+ * organization's own), sensitive ones (salary, ID numbers, bank accounts)
+ * only for those allowed, and optional extra fields.
  */
-export function RecordDialog({ open, onClose, collection, recordId, canSeeSensitive }: RecordDialogProps) {
+export function RecordDialog({ open, onClose, collection, recordId, canSeeSensitive, canEdit = true }: RecordDialogProps) {
   const { t } = useI18n()
   const toast = useToast()
   const record = useRecord(open ? recordId : null)
@@ -48,7 +53,9 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
   const [asking, setAsking] = useState(false)
 
   const loaded = recordId ? record.data : null
-  const readOnly = Boolean(loaded && !loaded.canManage)
+  const readOnly = !canEdit || Boolean(loaded && !loaded.canManage)
+  const defs = useCollections()
+  const def = defs.find((item) => item.key === collection) ?? (isDataCollection(collection) ? builtInDef(collection, canSeeSensitive) : null)
 
   useEffect(() => {
     if (!open) return
@@ -62,7 +69,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
     }
   }, [open, recordId, record.data])
 
-  const fields = CATALOG[collection]
+  const fields = def?.fields ?? []
   const publicFields = fields.filter((field) => !field.sensitive)
   const sensitiveFields = fields.filter((field) => field.sensitive)
 
@@ -121,7 +128,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
           onChange={(event) => set(event.target.value)}
           options={[
             { value: '', label: t('data.notSet') },
-            ...(field.options ?? []).map((option) => ({ value: option, label: t(`data.option.${option}` as MessageKey) })),
+            ...(field.options ?? []).map((option) => ({ value: option, label: optionLabel(t, collection, field.key, option) })),
           ]}
         />
       )
@@ -142,7 +149,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
 
   const title = recordId
     ? (loaded?.displayName ?? t('data.loading'))
-    : t(`data.add.${collection}` as MessageKey)
+    : collectionText(t, collection, 'add')
 
   return (
     <Dialog open={open} onClose={onClose} title={title} closeLabel={t('common.close')} width="lg">
@@ -159,10 +166,10 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
             if (!readOnly) void submit()
           }}
         >
-          {readOnly ? <p className="record-form__note">{t('data.readOnly')}</p> : null}
+          {readOnly ? <p className="record-form__note">{t(canEdit ? 'data.readOnly' : 'data.viewOnly')}</p> : null}
           <div className="record-form__grid">{publicFields.map(renderField)}</div>
 
-          {sensitiveFields.length > 0 ? (
+          {sensitiveFields.length > 0 || def?.hasHiddenFields ? (
             canSeeSensitive ? (
               <fieldset className="record-form__sensitive" data-testid="record-sensitive">
                 <legend>{t('data.sensitiveTitle')}</legend>
@@ -235,7 +242,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
           {recordId && loaded ? <RecordDocuments recordId={recordId} /> : null}
 
           <div className="record-form__actions">
-            {loaded && collection !== 'property' && !readOnly ? (
+            {loaded && ASKABLE.has(collection) && !readOnly ? (
               <Button variant="ghost" onClick={() => setAsking(true)} data-testid="record-ask">
                 {t('data.requestButton')}
               </Button>
@@ -257,7 +264,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
           </div>
         </form>
       )}
-      {loaded && asking && collection !== 'property' ? (
+      {loaded && asking && (collection === 'customer' || collection === 'employee') ? (
         <RequestDialog
           open={asking}
           onClose={() => setAsking(false)}

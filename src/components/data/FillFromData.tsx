@@ -4,18 +4,17 @@ import { useMemo, useState } from 'react'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n'
 import { useDebouncedValue } from '../../hooks/use-debounced-value'
-import { useMarkRecordUsed, useRecords } from '../../hooks/use-data'
+import { useCollections, useMarkRecordUsed, useRecords } from '../../hooks/use-data'
 import { useOrganization } from '../../hooks/use-organization'
 import { getRecord } from '../../lib/data/client'
-import type { DataCollection } from '../../lib/data/catalog'
 import { planRecordFill, type FillQuestion, type PlannedFill } from '../../lib/data/fill'
-import { fieldLabel } from '../../lib/data/labels'
+import { collectionLabel, collectionText, fieldLabel } from '../../lib/data/labels'
 import { organizationValues, partySlots, planSlotFill, type PartySlot } from '../../lib/data/tags'
 import type { DataSourceTag } from '../../lib/repositories/types'
 import { Button, SearchInput, useToast } from '../ui'
 
-/** Free filling (untagged templates): employees and properties first; customers also have their own box above. */
-const COLLECTIONS: readonly DataCollection[] = ['employee', 'property', 'customer']
+/** Free filling (untagged templates): employees and properties first; customers also have their own box above; then the organization's own types. */
+const FIRST: readonly string[] = ['employee', 'property', 'customer']
 const VISIBLE = 4
 
 export interface FillFromDataProps {
@@ -61,8 +60,10 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
   const untagged = useMemo(() => questions.filter((question) => !question.dataSource), [questions])
   const tagged = slots.length > 0
   const [view, setView] = useState<View>({ kind: 'closed' })
-  const [freeCollection, setFreeCollection] = useState<DataCollection>('employee')
-  const collection: DataCollection =
+  const defs = useCollections()
+  const kinds = useMemo(() => [...FIRST, ...defs.map((def) => def.key).filter((key) => !FIRST.includes(key))], [defs])
+  const [freeCollection, setFreeCollection] = useState<string>('employee')
+  const collection: string =
     view.kind === 'pick' && view.slot && view.slot.collection !== 'organization' ? view.slot.collection : freeCollection
   const [query, setQuery] = useState('')
   const debounced = useDebouncedValue(query, 250)
@@ -227,7 +228,7 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
         <>
           {!view.slot ? (
             <div className="fill-data__kinds" role="radiogroup" aria-label={t('data.tabsLabel')}>
-              {COLLECTIONS.map((value) => (
+              {kinds.map((value) => (
                 <button
                   key={value}
                   type="button"
@@ -240,7 +241,7 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
                   }}
                   data-testid={`fill-data-kind-${value}`}
                 >
-                  {t(`data.tab.${value}` as MessageKey)}
+                  {collectionLabel(t, value)}
                 </button>
               ))}
             </div>
@@ -248,13 +249,13 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
           <SearchInput
             value={query}
             onChange={setQuery}
-            placeholder={t(`data.search.${collection}` as MessageKey)}
-            ariaLabel={t(`data.search.${collection}` as MessageKey)}
+            placeholder={collectionText(t, collection, 'search')}
+            ariaLabel={collectionText(t, collection, 'search')}
             clearLabel={t('search.clear')}
             loading={records.isFetching}
           />
           {(records.data?.items ?? []).length === 0 && !records.isPending ? (
-            <p className="fill-data__hint">{t(`data.empty.${collection}` as MessageKey)}</p>
+            <p className="fill-data__hint">{collectionText(t, collection, 'empty')}</p>
           ) : (
             <ul className="fill-data__list">
               {(records.data?.items ?? []).slice(0, VISIBLE).map((record) => (
