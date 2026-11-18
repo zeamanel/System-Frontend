@@ -124,7 +124,7 @@ function fieldsAsked(text: string, collection: DataCollection, keys: readonly st
 }
 
 /** Money with thousands separators for the document ("20000" → "20,000"). */
-function display(collection: DataCollection, key: string, value: string): string {
+export function display(collection: DataCollection, key: string, value: string): string {
   const field = catalogField(collection, key)
   if (field?.type === 'money') {
     const [whole, cents] = value.split('.')
@@ -146,7 +146,9 @@ export function planRecordFill(
 ): PlannedFill[] {
   const collection = record.collection
   const values: Record<string, string> = { ...record.values }
-  if (documentLanguage === 'am' && values.full_name_am) values.full_name = values.full_name_am
+  // An Amharic document gets the Amharic name (and the link says so, for "changed since").
+  const amharicName = documentLanguage === 'am' && Boolean(values.full_name_am)
+  if (amharicName) values.full_name = values.full_name_am
   const keys = Object.keys(FIELD_WORDS).filter((key) => key !== 'full_name_am' && values[key] && catalogField(collection, key))
   const fills: PlannedFill[] = []
   for (const question of questions) {
@@ -164,7 +166,7 @@ export function planRecordFill(
     fills.push({
       questionId: question.id,
       label: question.label,
-      fieldKey: key,
+      fieldKey: key === 'full_name' && amharicName ? 'full_name_am' : key,
       value: display(collection, key, values[key]),
       current: (answers[question.id] ?? '').trim(),
     })

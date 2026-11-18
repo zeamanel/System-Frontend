@@ -1,8 +1,21 @@
 import { env } from '../../config/env'
-import { apiClient } from '../api'
+import { ApiError, apiClient } from '../api'
+import { getRepositories } from '../repositories'
 import { CATALOG, catalogField, checkValue, NAME_FIELD, SUMMARY_FIELDS, type DataCollection } from './catalog'
 import type { Customer } from '../customers/types'
-import type { DataSpace, ExtraField, ImportResult, RecordDetail, RecordInput, RecordSummary } from './types'
+import type {
+  CreatedDataRequest,
+  DataRequest,
+  DataSpace,
+  DocumentRecordLink,
+  ExtraField,
+  ImportResult,
+  RecordDetail,
+  RecordDocument,
+  RecordInput,
+  RecordSummary,
+  SharedRequest,
+} from './types'
 
 /**
  * The Organization Data Manager over /data (docs/ORGANIZATION_DATA.md in the
@@ -225,17 +238,150 @@ export async function deleteRecord(id: string): Promise<void> {
   writeDemo(readDemo().filter((r) => r.id !== id))
 }
 
-/** A record went into a document. Best effort: a failure never blocks filling. */
-export async function markRecordUsed(id: string, documentId?: string): Promise<void> {
+const DEMO_LINKS_KEY = 'docuA4.fixture.recordLinks'
+
+interface DemoLink {
+  recordId: string
+  documentId: string
+  party: string
+  fieldMap: Record<string, string>
+  recordUpdatedAt: string
+  linkedAt: string
+}
+
+export interface UseOptions {
+  documentId?: string
+  /** The template's party the record filled ("buyer"). */
+  party?: string
+  /** Which document field got which record field. */
+  fields?: Record<string, string>
+}
+
+/**
+ * A record went into a document: counted and, with a document, linked with the
+ * fields it filled. Best effort: a failure never blocks filling.
+ */
+export async function markRecordUsed(id: string, options: UseOptions = {}): Promise<void> {
   try {
     if (isHttp()) {
-      await apiClient.post(`/data/records/${encodeURIComponent(id)}/use`, documentId ? { documentId } : {}, { auth: 'required' })
+      const body = {
+        ...(options.documentId ? { documentId: options.documentId } : {}),
+        ...(options.party ? { party: options.party } : {}),
+        ...(options.fields ? { fields: options.fields } : {}),
+      }
+      await apiClient.post(`/data/records/${encodeURIComponent(id)}/use`, body, { auth: 'required' })
       return
     }
-    writeDemo(readDemo().map((r) => (r.id === id ? { ...r, useCount: r.useCount + 1, lastUsedAt: new Date().toISOString() } : r)))
+    const list = readDemo()
+    const record = list.find((r) => r.id === id)
+    writeDemo(list.map((r) => (r.id === id ? { ...r, useCount: r.useCount + 1, lastUsedAt: new Date().toISOString() } : r)))
+    if (record && options.documentId) {
+      const links = readJson<DemoLink>(DEMO_LINKS_KEY).filter((l) => !(l.recordId === id && l.documentId === options.documentId))
+      const previous = readJson<DemoLink>(DEMO_LINKS_KEY).find((l) => l.recordId === id && l.documentId === options.documentId)
+      links.push({
+        recordId: id,
+        documentId: options.documentId,
+        party: options.party ?? previous?.party ?? '',
+        fieldMap: options.fields && Object.keys(options.fields).length > 0 ? options.fields : (previous?.fieldMap ?? {}),
+        recordUpdatedAt: record.updatedAt,
+        linkedAt: new Date().toISOString(),
+      })
+      writeJson(DEMO_LINKS_KEY, links)
+    }
   } catch {
     // Offline or gone: the count simply is not updated.
   }
+}
+
+/** The records a document was filled from, with their current values. */
+export async function getDocumentRecords(documentId: string, signal?: AbortSignal): Promise<DocumentRecordLink[]> {
+  if (isHttp()) return apiClient.get<DocumentRecordLink[]>(`/documents/${encodeURIComponent(documentId)}/records`, { signal, auth: 'required' })
+  const records = new Map(readDemo().map((r) => [r.id, r]))
+  return readJson<DemoLink>(DEMO_LINKS_KEY)
+    .filter((link) => link.documentId === documentId && records.has(link.recordId))
+    .map((link) => {
+      const record = records.get(link.recordId) as RecordDetail
+      const used = Object.values(link.fieldMap)
+      return {
+        recordId: record.id,
+        collection: record.collection,
+        displayName: record.displayName,
+        party: link.party,
+        fieldMap: link.fieldMap,
+        current: Object.fromEntries(used.filter((key) => key in record.values).map((key) => [key, record.values[key]])),
+        hidden: [],
+        changedSince: record.updatedAt > link.recordUpdatedAt,
+        recordUpdatedAt: record.updatedAt,
+        linkedAt: link.linkedAt,
+        canManage: true,
+      }
+    })
+}
+
+/** The documents a record filled that the caller can open. */
+export async function getRecordDocuments(id: string, signal?: AbortSignal): Promise<RecordDocument[]> {
+  if (isHttp()) return apiClient.get<RecordDocument[]>(`/data/records/${encodeURIComponent(id)}/documents`, { signal, auth: 'required' })
+  const links = readJson<DemoLink>(DEMO_LINKS_KEY).filter((link) => link.recordId === id)
+  const documents = await Promise.all(
+    links.map(async (link): Promise<RecordDocument | null> => {
+      const doc = await getRepositories().documents.get(link.documentId).catch(() => null)
+      return doc ? { id: doc.id, title: doc.title, updatedAt: doc.updatedAt, access: 'owner', party: link.party } : null
+    }),
+  )
+  return documents.filter((doc): doc is RecordDocument => doc !== null)
+}
+
+// ─── Data requests (a person shares their own details) ───────────────────────
+
+/** Data requests need the server (the person answers from their own phone). */
+export class DataRequestsUnavailable extends Error {
+  constructor() {
+    super('Data requests need the SenedDesk server')
+    this.name = 'DataRequestsUnavailable'
+  }
+}
+
+export interface DataRequestInput {
+  collection: DataCollection
+  fields: string[]
+  recipientName: string
+  purpose: string
+  recordId?: string
+}
+
+export async function createDataRequest(input: DataRequestInput): Promise<CreatedDataRequest> {
+  if (!isHttp()) throw new DataRequestsUnavailable()
+  return apiClient.post<CreatedDataRequest>('/data/requests', input, { auth: 'required' })
+}
+
+export async function listDataRequests(signal?: AbortSignal): Promise<DataRequest[]> {
+  if (!isHttp()) return []
+  return apiClient.get<DataRequest[]>('/data/requests', { signal, auth: 'required' })
+}
+
+export async function revokeDataRequest(id: string): Promise<void> {
+  if (!isHttp()) throw new DataRequestsUnavailable()
+  await apiClient.delete<void>(`/data/requests/${encodeURIComponent(id)}`, { auth: 'required' })
+}
+
+/** The request behind a share link: 'invalid' (404), 'expired' (410) or the request. */
+export async function getSharedRequest(token: string, signal?: AbortSignal): Promise<SharedRequest | 'invalid' | 'expired' | 'unavailable'> {
+  if (!isHttp()) return 'unavailable'
+  try {
+    return await apiClient.get<SharedRequest>(`/data-requests/${encodeURIComponent(token)}`, { signal })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return 'invalid'
+    if (error instanceof ApiError && error.status === 410) return 'expired'
+    throw error
+  }
+}
+
+export async function answerSharedRequest(token: string, values: Record<string, string>): Promise<void> {
+  await apiClient.post(`/data-requests/${encodeURIComponent(token)}/answer`, { values, consent: true })
+}
+
+export async function declineSharedRequest(token: string): Promise<void> {
+  await apiClient.post(`/data-requests/${encodeURIComponent(token)}/decline`, {})
 }
 
 export async function importRecords(collection: DataCollection, records: RecordInput[]): Promise<ImportResult> {

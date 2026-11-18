@@ -52,6 +52,19 @@ export interface TemplateQuestion {
   options?: Array<{ value: string; label: string }>
   /** A file field: the id of the field its text goes into. */
   fills?: string
+  /**
+   * Where the answer comes from in the organization's data (set in the template factory):
+   * a record type's field or the organization's own, and the party it belongs to.
+   */
+  dataSource?: DataSourceTag
+}
+
+/** A template question's link to the organization's data (backend docs/ORGANIZATION_DATA.md). */
+export interface DataSourceTag {
+  collection: 'customer' | 'employee' | 'property' | 'organization'
+  key: string
+  /** Questions with the same party fill from one record ("buyer", "seller"). */
+  party?: string
 }
 
 export interface TemplateSummary {

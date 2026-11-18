@@ -6,13 +6,15 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
 import { useDebouncedValue } from '../hooks/use-debounced-value'
-import { useDataSpace, useRecords } from '../hooks/use-data'
+import { useDataRequests, useDataSpace, useRecords, useRevokeDataRequest } from '../hooks/use-data'
 import { DATA_COLLECTIONS, catalogField, isDataCollection, type DataCollection } from '../lib/data/catalog'
 import { exportRecords } from '../lib/data/client'
 import type { RecordSummary } from '../lib/data/types'
 import { FolderIcon } from '../components/icons'
 import { RecordDialog } from '../components/data/RecordDialog'
 import { ImportRecordsDialog } from '../components/data/ImportRecordsDialog'
+import { RequestDialog } from '../components/data/RequestDialog'
+import { fieldLabel } from '../lib/data/labels'
 import { Badge, Button, EmptyState, PageHeader, PanelError, PanelLoading, SearchInput, useToast } from '../components/ui'
 
 /**
@@ -31,6 +33,10 @@ export default function DataPage() {
   const [editing, setEditing] = useState<{ id: string | null } | null>(null)
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [requesting, setRequesting] = useState(false)
+  const requests = useDataRequests()
+  const revoke = useRevokeDataRequest()
+  const visibleRequests = (requests.data ?? []).filter((item) => item.collection === collection && item.status !== 'revoked').slice(0, 20)
   const canSeeSensitive = space.data?.canSeeSensitive ?? false
   const items = records.data?.items ?? []
 
@@ -110,6 +116,11 @@ export default function DataPage() {
           <Button variant="secondary" onClick={() => setImporting(true)} data-testid="data-import">
             {t('data.importButton')}
           </Button>
+          {collection !== 'property' ? (
+            <Button variant="secondary" onClick={() => setRequesting(true)} data-testid="data-ask">
+              {t('data.requestButton')}
+            </Button>
+          ) : null}
           <Button variant="ghost" loading={exporting} disabled={items.length === 0} onClick={() => void download()} data-testid="data-export">
             {t('data.exportButton')}
           </Button>
@@ -162,6 +173,52 @@ export default function DataPage() {
           ))}
         </ul>
       )}
+
+      {visibleRequests.length > 0 ? (
+        <section className="data-requests" aria-labelledby="data-requests-title" data-testid="data-requests">
+          <h2 id="data-requests-title" className="data-requests__title">
+            {t('data.requestsTitle')}
+          </h2>
+          <ul className="data-list">
+            {visibleRequests.map((item) => (
+              <li key={item.id} className="data-item data-requests__item">
+                <span className="data-item__main data-item__main--static">
+                  <span className="data-item__text">
+                    <span className="data-item__name">{item.recipientName}</span>
+                    <span className="data-item__meta">
+                      {item.purpose} · {item.fields.map((key) => fieldLabel(t, item.collection, key)).join(', ')}
+                    </span>
+                  </span>
+                </span>
+                <span className="data-item__side">
+                  <Badge variant={item.status === 'submitted' ? 'success' : item.status === 'open' ? 'info' : 'neutral'}>
+                    {t(`data.requestStatus.${item.status}` as MessageKey)}
+                  </Badge>
+                  {item.status === 'submitted' && item.resultRecordId ? (
+                    <Button variant="ghost" size="sm" onClick={() => setEditing({ id: item.resultRecordId })}>
+                      {t('data.requestOpen')}
+                    </Button>
+                  ) : null}
+                  {item.status === 'open' ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => revoke.mutate(item.id)}
+                      aria-label={t('data.requestRevokeNamed', { name: item.recipientName })}
+                    >
+                      {t('data.requestRevoke')}
+                    </Button>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {requesting && collection !== 'property' ? (
+        <RequestDialog open onClose={() => setRequesting(false)} collection={collection} canSeeSensitive={canSeeSensitive} />
+      ) : null}
 
       <RecordDialog
         open={editing !== null}

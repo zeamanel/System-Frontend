@@ -22,6 +22,7 @@ const BillingPage = lazy(() => import('./pages/BillingPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const ReviewPage = lazy(() => import('./pages/ReviewPage'))
+const SharePage = lazy(() => import('./pages/SharePage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const AboutPage = lazy(() => import('./pages/info/AboutPage'))
 const FaqPage = lazy(() => import('./pages/info/FaqPage'))
@@ -39,6 +40,7 @@ export function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         {/* Public: the sign-in page, Google and the Telegram bot link here, so no sign-in is needed. */}
         <Route path="/review/:token" element={<ReviewPage />} />
+        <Route path="/share/:token" element={<SharePage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/terms" element={<TermsPage />} />

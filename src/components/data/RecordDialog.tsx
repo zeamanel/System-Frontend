@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n'
 import { fieldLabel } from '../../lib/data/labels'
-import { useDeleteRecord, useRecord, useSaveRecord } from '../../hooks/use-data'
+import { useDeleteRecord, useRecord, useRecordDocuments, useSaveRecord } from '../../hooks/use-data'
+import { Link } from 'react-router-dom'
+import { RequestDialog } from './RequestDialog'
 import { CATALOG, checkValue, MAX_EXTRA_FIELDS, type CatalogField, type DataCollection } from '../../lib/data/catalog'
 import type { ExtraField } from '../../lib/data/types'
 import { Button, Dialog, Input, PanelError, PanelLoading, Select, Textarea, useToast } from '../ui'
@@ -43,6 +45,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
   const [values, setValues] = useState<Record<string, string>>({})
   const [extra, setExtra] = useState<ExtraField[]>([])
   const [errors, setErrors] = useState<Record<string, keyof typeof ERROR_KEYS>>({})
+  const [asking, setAsking] = useState(false)
 
   const loaded = recordId ? record.data : null
   const readOnly = Boolean(loaded && !loaded.canManage)
@@ -229,7 +232,14 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
             ) : null}
           </fieldset>
 
+          {recordId && loaded ? <RecordDocuments recordId={recordId} /> : null}
+
           <div className="record-form__actions">
+            {loaded && collection !== 'property' && !readOnly ? (
+              <Button variant="ghost" onClick={() => setAsking(true)} data-testid="record-ask">
+                {t('data.requestButton')}
+              </Button>
+            ) : null}
             {loaded?.canManage ? (
               <Button variant="ghost" onClick={() => void confirmDelete()} loading={remove.isPending} data-testid="record-delete">
                 {t('data.delete')}
@@ -247,6 +257,39 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
           </div>
         </form>
       )}
+      {loaded && asking && collection !== 'property' ? (
+        <RequestDialog
+          open={asking}
+          onClose={() => setAsking(false)}
+          collection={collection}
+          canSeeSensitive={canSeeSensitive}
+          record={{ id: loaded.id, name: loaded.displayName }}
+        />
+      ) : null}
     </Dialog>
+  )
+}
+
+/** The documents this record filled. */
+function RecordDocuments({ recordId }: { recordId: string }) {
+  const { t } = useI18n()
+  const documents = useRecordDocuments(recordId)
+  const items = documents.data ?? []
+  return (
+    <section className="record-form__documents" data-testid="record-documents">
+      <p className="record-form__legend">{t('data.recordDocuments')}</p>
+      {items.length === 0 ? (
+        <p className="record-form__note">{documents.isPending ? t('data.loading') : t('data.recordNoDocuments')}</p>
+      ) : (
+        <ul className="record-form__doc-list">
+          {items.map((doc) => (
+            <li key={doc.id}>
+              <Link to={`/documents/${encodeURIComponent(doc.id)}`}>{doc.title}</Link>
+              {doc.access === 'view' ? <small> · {t('data.recordSharedDoc')}</small> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

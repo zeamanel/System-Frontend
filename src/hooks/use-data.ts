@@ -8,6 +8,13 @@ import {
   listRecords,
   markRecordUsed,
   updateRecord,
+  getDocumentRecords,
+  getRecordDocuments,
+  listDataRequests,
+  createDataRequest,
+  revokeDataRequest,
+  type DataRequestInput,
+  type UseOptions,
 } from '../lib/data/client'
 import type { DataCollection } from '../lib/data/catalog'
 import type { RecordInput } from '../lib/data/types'
@@ -71,7 +78,40 @@ export function useImportRecords() {
 export function useMarkRecordUsed() {
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: ({ id, documentId }: { id: string; documentId?: string }) => markRecordUsed(id, documentId),
+    mutationFn: ({ id, ...options }: { id: string } & UseOptions) => markRecordUsed(id, options),
     onSettled: invalidate,
   })
+}
+
+/** The records a document was filled from (for "changed since" and "save to the record"). */
+export function useDocumentRecords(documentId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.data.documentLinks(documentId ?? ''),
+    queryFn: ({ signal }) => getDocumentRecords(documentId as string, signal),
+    enabled: Boolean(documentId),
+    staleTime: 10_000,
+  })
+}
+
+/** The documents a record filled. */
+export function useRecordDocuments(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.data.recordDocuments(id ?? ''),
+    queryFn: ({ signal }) => getRecordDocuments(id as string, signal),
+    enabled: Boolean(id),
+  })
+}
+
+export function useDataRequests(enabled = true) {
+  return useQuery({ queryKey: queryKeys.data.requests, queryFn: ({ signal }) => listDataRequests(signal), enabled, staleTime: 15_000 })
+}
+
+export function useCreateDataRequest() {
+  const invalidate = useInvalidate()
+  return useMutation({ mutationFn: (input: DataRequestInput) => createDataRequest(input), onSuccess: invalidate })
+}
+
+export function useRevokeDataRequest() {
+  const invalidate = useInvalidate()
+  return useMutation({ mutationFn: (id: string) => revokeDataRequest(id), onSuccess: invalidate })
 }
