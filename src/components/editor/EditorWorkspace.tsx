@@ -104,8 +104,13 @@ import { useGaps } from './useGaps'
 import { GapFillBox } from './GapFillBox'
 import { DictationPanel } from './DictationPanel'
 import { SendForReviewDialog } from '../reviews/SendForReviewDialog'
+import { ClauseLibraryDialog } from './ClauseLibraryDialog'
+import { BulkCopiesDialog } from './BulkCopiesDialog'
+import { clauseParagraphs } from '../../lib/clauses/client'
+import type { Clause } from '../../lib/clauses/types'
 import { useDictation } from './useDictation'
 import { getSmartSuggestion } from '../../lib/ethiopian/smart-field'
+import { useUsage } from '../../hooks/use-usage'
 
 /** Loaded only when "Send to my Telegram" is used. */
 const TelegramQrCode = lazy(() => import('../telegram/QrCode').then((module) => ({ default: module.QrCode })))
@@ -173,7 +178,7 @@ export function EditorWorkspace({
   onNewCustomer,
   onOpenDocument,
 }: EditorWorkspaceProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const toast = useToast()
 
   // Field-sync reports go to the assistant thread (created below).
@@ -443,12 +448,38 @@ export function EditorWorkspace({
                   ? 'assistant.side.unavailable.rateLimit'
                   : 'assistant.side.unavailable.failed',
           ),
+        checkNothing: t('assistant.side.checkNothing'),
+        checkClean: t('assistant.side.checkClean'),
+        checkReply: (count) =>
+          t(count === 1 ? 'assistant.side.checkReplyOne' : 'assistant.side.checkReply', { count: String(count) }),
+        checkTruncated: (count) => t('assistant.side.checkTruncated', { count: String(count) }),
+        checkTerm: (source, variant, preferred) => t('assistant.side.checkTerm', { source, variant, preferred }),
+        checkUnavailable: (reason) =>
+          t(
+            reason === 'demo'
+              ? 'assistant.side.checkUnavailable.demo'
+              : reason === 'quota'
+                ? 'assistant.side.unavailable.quota'
+                : reason === 'rate-limit'
+                  ? 'assistant.side.unavailable.rateLimit'
+                  : 'assistant.side.checkUnavailable.failed',
+          ),
       },
     },
+    interfaceLanguage: locale,
   })
   fieldSyncHandlerRef.current = assistant.postFieldSync
 
   const openAssistant = useCallback((): void => showRightTab('assistant'), [showRightTab])
+
+  // Today's AI allowance, shown in the assistant panel and refreshed after each request.
+  const usage = useUsage()
+  const assistantBusy = assistant.sending || assistant.checking
+  const wasBusyRef = useRef(false)
+  useEffect(() => {
+    if (wasBusyRef.current && !assistantBusy) void queryClient.invalidateQueries({ queryKey: queryKeys.usage.all })
+    wasBusyRef.current = assistantBusy
+  }, [assistantBusy, queryClient])
 
   const { postGenerationNotes } = assistant
   // ---- first-time guidance: "click a paragraph to edit it, or Ask AI next to it" ----
@@ -745,8 +776,19 @@ export function EditorWorkspace({
             ),
           { coalesce: `text:${blockId}` },
         ),
+      // Like the main text: what the cell holds goes into the model as it is (it is cleaned when
+      // loaded and saved). Cleaning on every keystroke changed a trailing space, which rewrote the
+      // cell and sent the caret back to the start ("abc def" came out "fedabc").
       updateSecondaryText: (blockId, html) =>
-        updateModel((current) => updateSecondaryText(current, blockId, html), { coalesce: `secondary:${blockId}` }),
+        updateModel(
+          (current) =>
+            updateBlock(current, blockId, (block) =>
+              (block.type === 'paragraph' || block.type === 'heading') && block.secondaryHtml !== html
+                ? { ...block, secondaryHtml: html }
+                : block,
+            ),
+          { coalesce: `secondary:${blockId}` },
+        ),
       setSideImage: (blockId, file) => handleSideImage(blockId, file),
       setSideColumnPct: (blockId, pct) => updateModel((current) => setSideColumnPct(current, blockId, pct)),
       setSideMode: (blockId, mode) => updateModel((current) => setSideMode(current, blockId, mode)),
@@ -1141,6 +1183,46 @@ export function EditorWorkspace({
     [dictation, editor, insertAfterActive],
   )
 
+  // ── Clause library: saved passages inserted after the paragraph the caret is in ──
+  const [clausesOpen, setClausesOpen] = useState(false)
+  // Many documents from one table (the gaps filled from its columns).
+  const [copiesOpen, setCopiesOpen] = useState(false)
+  const [clauseDraft, setClauseDraft] = useState('')
+
+  const handleOpenClauses = useCallback((): void => {
+    // "Save as clause" starts from the selected text, or the paragraph the caret is in.
+    const selection = document.getSelection()
+    const anchorNode = selection?.anchorNode ?? null
+    const inPage = (anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement)?.closest('.doc-paper')
+    const selected = inPage && selection && !selection.isCollapsed ? selection.toString().trim() : ''
+    setClauseDraft(selected || (activeBlock && activeBlock.type !== 'image' ? blockPlainText(activeBlock).trim() : ''))
+    setClausesOpen(true)
+  }, [activeBlock])
+
+  const handleInsertClause = useCallback(
+    (clause: Clause): void => {
+      const blocks = clauseParagraphs(clause.body).map((text) => createParagraph(escapePlainText(text)))
+      const last = blocks[blocks.length - 1]
+      if (!last) return
+      editor.breakUndoGroup()
+      updateModel((current) => insertBlocksAfter(current, activeRef?.blockId ?? null, blocks))
+      editor.breakUndoGroup()
+      // Caret at the clause's end once the dialog has closed (closing gives focus back to
+      // what opened it) and the pages show the new block (a frame or two later).
+      let tries = 0
+      const focusInserted = (): void => {
+        // The block's wrapper carries the id too: the text inside it is what takes the caret.
+        const found = findEditable(document, { blockId: last.id })
+        const element = found?.isContentEditable ? found : found?.querySelector<HTMLElement>('[contenteditable="true"]')
+        if (element && !document.querySelector('dialog[open]')) focusEditable(element, 'end')
+        else if (++tries < 20) window.requestAnimationFrame(focusInserted)
+      }
+      window.setTimeout(focusInserted, 0)
+      toast.push(t('clauses.inserted', { title: clause.title }), { variant: 'success' })
+    },
+    [activeRef?.blockId, editor, t, toast, updateModel],
+  )
+
   const handleAppendToPrompt = useCallback(
     (text: string) => {
       if (!text.trim()) return
@@ -1471,6 +1553,8 @@ export function EditorWorkspace({
         onSave={() => void editor.save()}
         onShowHistory={() => setHistoryOpen(true)}
         onChooseStyle={() => setStyleOpen(true)}
+        onOpenClauses={doc.access === 'view' || doc.kind === 'design' ? undefined : handleOpenClauses}
+        onMakeCopies={doc.access === 'view' || doc.kind === 'design' ? undefined : () => setCopiesOpen(true)}
         onReloadLatest={() => void editor.reloadLatest()}
         onOverwrite={() => void editor.overwrite()}
         onPrint={() => void handlePrint()}
@@ -1738,6 +1822,12 @@ export function EditorWorkspace({
               onDictate={handleDictateToAssistant}
               dictating={dictation.state.phase !== 'idle' && dictationFor === 'assistant'}
               dictatedText={dictatedForAssistant}
+              documentType={template?.documentTypeId ?? template?.id ?? doc.templateId}
+              allowance={
+                usage.data?.dailyQuotaLimit !== undefined && usage.data?.creditsUsedToday !== undefined
+                  ? { used: usage.data.creditsUsedToday, limit: usage.data.dailyQuotaLimit }
+                  : null
+              }
             />
           </div>
         ) : (
@@ -1888,6 +1978,24 @@ export function EditorWorkspace({
           </div>
         ) : null}
       </Dialog>
+
+      <BulkCopiesDialog
+        open={copiesOpen}
+        onClose={() => setCopiesOpen(false)}
+        model={model}
+        title={editor.title}
+        language={editor.language}
+        templateId={doc.templateId}
+      />
+
+      <ClauseLibraryDialog
+        open={clausesOpen}
+        onClose={() => setClausesOpen(false)}
+        language={editor.language}
+        draftText={clauseDraft}
+        canInsert={!pageLocked && !previewMode}
+        onInsert={handleInsertClause}
+      />
 
       <SendForReviewDialog
         open={reviewOpen}

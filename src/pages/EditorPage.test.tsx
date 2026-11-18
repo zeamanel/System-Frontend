@@ -174,6 +174,7 @@ describe('EditorPage', () => {
     renderEditor(`/documents/${created.id}`)
 
     expect((await screen.findAllByText('Rewritten wording.')).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }))
     fireEvent.click(screen.getByTestId('editor-history'))
     expect(await screen.findByText('Version history')).toBeInTheDocument()
     expect(await screen.findByText('Version 2')).toBeInTheDocument()

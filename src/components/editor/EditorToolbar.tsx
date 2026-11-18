@@ -1,4 +1,3 @@
-import { useEffect, useRef, type RefObject } from 'react'
 import { useI18n } from '../../i18n'
 import type { SaveStatus } from './useDocumentEditor'
 import { Badge, Button, Popover } from '../ui'
@@ -20,6 +19,7 @@ import {
   DownloadIcon,
   EyeIcon,
   HistoryIcon,
+  ClauseIcon,
   PageStyleIcon,
   ChatIcon,
   PanelLeftIcon,
@@ -30,6 +30,7 @@ import {
   MicIcon,
   UsersIcon,
   CloudOffIcon,
+  MoreIcon,
   RedoIcon,
   SlidersIcon,
   UndoIcon,
@@ -52,6 +53,10 @@ export interface EditorToolbarProps {
   onShowHistory?: () => void
   /** Opens the style picker (absent: no style button, e.g. read-only views). */
   onChooseStyle?: () => void
+  /** Opens the clause library (absent: no menu item). */
+  onOpenClauses?: () => void
+  /** Makes many documents from a table (absent: no menu item). */
+  onMakeCopies?: () => void
   onReloadLatest: () => void
   onOverwrite: () => void
   onPrint: () => void
@@ -89,34 +94,6 @@ export interface EditorToolbarProps {
   documentId?: string
 }
 
-/**
- * Marks a sideways-scrolling row with whether more of it is hidden before or
- * after the visible part (data-more-before / data-more-after), so the edge can
- * fade there: on phones the toolbar's buttons scroll and the fade shows it.
- */
-function useScrollEdges<E extends HTMLElement>() {
-  const ref = useRef<E>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const update = () => {
-      el.dataset.moreBefore = String(el.scrollLeft > 4)
-      el.dataset.moreAfter = String(el.scrollWidth - el.clientWidth - el.scrollLeft > 4)
-    }
-    update()
-    el.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
-    observer?.observe(el)
-    return () => {
-      el.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-      observer?.disconnect()
-    }
-  }, [])
-  return ref
-}
-
 const STATUS_LABEL_KEY: Record<SaveStatus, string> = {
   idle: 'editor.statusIdle',
   unsaved: 'editor.unsaved',
@@ -146,6 +123,8 @@ export function EditorToolbar({
   onSave,
   onShowHistory,
   onChooseStyle,
+  onOpenClauses,
+  onMakeCopies,
   onReloadLatest,
   onOverwrite,
   onPrint,
@@ -174,7 +153,6 @@ export function EditorToolbar({
   documentId,
 }: EditorToolbarProps) {
   const { t } = useI18n()
-  const endRef = useScrollEdges<HTMLDivElement>()
 
   return (
     <header className="editor-toolbar" data-testid="editor-toolbar">
@@ -206,6 +184,8 @@ export function EditorToolbar({
           <span className="editor-toolbar__label editor-toolbar__label--named">{t('editor.mobile.fields')}</span>
         </Button>
 
+        {/* The page's heading for screen readers: the title field below is what people see. */}
+        <h1 className="sr-only">{title.trim() || t('editor.untitled')}</h1>
         <input
           className="editor-toolbar__title"
           value={title}
@@ -266,6 +246,8 @@ export function EditorToolbar({
         onSave,
         onShowHistory,
         onChooseStyle,
+        onOpenClauses,
+        onMakeCopies,
         onPrint,
         onSaveAsTemplate,
         onSendToTelegram,
@@ -284,7 +266,6 @@ export function EditorToolbar({
         onAppendToPrompt,
         onInsertImage,
         documentId,
-        endRef,
         t,
       })}
     </header>
@@ -307,6 +288,8 @@ function renderToolbarEnd(props: {
   onSave: () => void
   onShowHistory?: () => void
   onChooseStyle?: () => void
+  onOpenClauses?: () => void
+  onMakeCopies?: () => void
   onPrint: () => void
   onSaveAsTemplate?: () => void
   onSendToTelegram?: () => void
@@ -325,12 +308,11 @@ function renderToolbarEnd(props: {
   onAppendToPrompt?: (text: string) => void
   onInsertImage?: (imageDataUrl: string, caption?: string) => void
   documentId?: string
-  endRef: RefObject<HTMLDivElement>
   t: T
 }) {
   const { t } = props
   return (
-    <div ref={props.endRef} className="editor-toolbar__group editor-toolbar__group--end" data-testid="editor-toolbar-end">
+    <div className="editor-toolbar__group editor-toolbar__group--end" data-testid="editor-toolbar-end">
       {props.onImportFile ? (
         <>
           <OpenLocalFileButton onImportIntoCurrent={props.onImportFile} compact />
@@ -398,46 +380,119 @@ function renderToolbarEnd(props: {
         })}
       </span>
 
-      <Button
-        variant="ghost"
-        icon={<EyeIcon size={16} />}
-        aria-pressed={props.previewMode}
-        onClick={props.onTogglePreview}
-        aria-label={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
-        title={props.previewMode ? t('editor.previewOff') : t('editor.preview')}
+      {/* In preview the way back stays in sight; otherwise Preview, Style and History share one menu. */}
+      {props.previewMode ? (
+        <Button
+          variant="secondary"
+          icon={<EyeIcon size={16} />}
+          aria-pressed
+          onClick={props.onTogglePreview}
+          data-testid="editor-preview-exit"
+        >
+          {t('editor.previewOff')}
+        </Button>
+      ) : null}
+
+      <span className="editor-toolbar__more">
+      <Popover
+        label={
+          <>
+            <MoreIcon size={16} />
+            <span className="editor-toolbar__label">{t('editor.more')}</span>
+          </>
+        }
+        ariaLabel={t('editor.moreLabel')}
+        panelClassName="editor-export-panel"
       >
-        <span className="editor-toolbar__label editor-toolbar__label--named">
-          {props.previewMode ? t('editor.previewOff') : t('editor.preview')}
-        </span>
-      </Button>
-
-      {props.onChooseStyle ? (
-        <Button
-          variant="ghost"
-          icon={<PageStyleIcon size={16} />}
-          onClick={props.onChooseStyle}
-          aria-label={t('styles.button')}
-          title={t('styles.button')}
-          className="editor-toolbar__style"
-          data-testid="editor-style"
-        >
-          <span className="editor-toolbar__label editor-toolbar__label--named">{t('styles.button')}</span>
-        </Button>
-      ) : null}
-
-      {props.onShowHistory ? (
-        <Button
-          variant="ghost"
-          icon={<HistoryIcon size={16} />}
-          onClick={props.onShowHistory}
-          aria-label={t('editor.history')}
-          title={t('editor.history')}
-          className="editor-toolbar__history"
-          data-testid="editor-history"
-        >
-          <span className="editor-toolbar__label editor-toolbar__label--named">{t('editor.history')}</span>
-        </Button>
-      ) : null}
+        {(close) => (
+          <div className="editor-export-menu" data-testid="editor-more-menu">
+            <button
+              type="button"
+              className="editor-export-menu__item"
+              onClick={() => {
+                close()
+                props.onTogglePreview()
+              }}
+              data-testid="editor-preview"
+            >
+              <EyeIcon size={16} />
+              <span>
+                <strong>{props.previewMode ? t('editor.previewOff') : t('editor.preview')}</strong>
+                <small>{t('editor.previewHint')}</small>
+              </span>
+            </button>
+            {props.onChooseStyle ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={() => {
+                  close()
+                  props.onChooseStyle?.()
+                }}
+                data-testid="editor-style"
+              >
+                <PageStyleIcon size={16} />
+                <span>
+                  <strong>{t('styles.button')}</strong>
+                  <small>{t('editor.styleHint')}</small>
+                </span>
+              </button>
+            ) : null}
+            {props.onOpenClauses ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={() => {
+                  close()
+                  props.onOpenClauses?.()
+                }}
+                data-testid="editor-clauses"
+              >
+                <ClauseIcon size={16} />
+                <span>
+                  <strong>{t('clauses.title')}</strong>
+                  <small>{t('clauses.menuHint')}</small>
+                </span>
+              </button>
+            ) : null}
+            {props.onMakeCopies ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={() => {
+                  close()
+                  props.onMakeCopies?.()
+                }}
+                data-testid="editor-make-copies"
+              >
+                <CopyIcon size={16} />
+                <span>
+                  <strong>{t('bulk.title')}</strong>
+                  <small>{t('bulk.menuHint')}</small>
+                </span>
+              </button>
+            ) : null}
+            {props.onShowHistory ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={() => {
+                  close()
+                  props.onShowHistory?.()
+                }}
+                data-testid="editor-history"
+              >
+                <HistoryIcon size={16} />
+                <span>
+                  <strong>{t('editor.history')}</strong>
+                  <small>{t('editor.historyHint')}</small>
+                </span>
+              </button>
+            ) : null}
+          </div>
+        )}
+      </Popover>
+      </span>
 
       <Button
         variant="secondary"
@@ -562,10 +617,11 @@ function renderToolbarEnd(props: {
           onClick={props.onDictate}
           aria-pressed={props.dictating ? true : false}
           className="editor-toolbar__dictate"
+          aria-label={t('dictation.button')}
           title={t('dictation.buttonTitle')}
           data-testid="toolbar-dictate"
         >
-          {t('dictation.button')}
+          <span className="editor-toolbar__label editor-toolbar__label--named">{t('dictation.button')}</span>
         </Button>
       ) : null}
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { askAssistant, translateSide, type AssistantPartial } from '../../lib/assistant/client'
+import { askAssistant, checkTranslation, translateSide, type AssistantPartial } from '../../lib/assistant/client'
+import { translationCheckBlocks, translationCheckProposals } from '../../lib/assistant/translation-check'
+import { loadAssistantThread, saveAssistantThread, toStoredThread } from '../../lib/assistant/thread'
 import { runDocumentCheck, type DocumentCheckResult } from '../../lib/document-check/check'
 import {
   applySideProposal,
@@ -35,8 +37,10 @@ import type { FieldSyncEvent } from './useDocumentEditor'
 /**
  * State and actions of the editor's assistant panel.
  *
- * The thread is per document and per browser tab (sessionStorage under the
- * `docuA4.` prefix, so sign-out wipes it). The assistant only proposes;
+ * The thread is kept with the document (the server, owner only), so it is
+ * there after closing the tab and on another device; this tab also keeps a
+ * copy in sessionStorage (under the `docuA4.` prefix, so sign-out wipes it)
+ * with the undo data of changes applied in this session. The assistant only proposes;
  * every accepted proposal goes through the editor's tracked changes so it
  * can be undone, and a proposal for a paragraph that changed since it was
  * suggested must be confirmed again before it is applied.
@@ -45,6 +49,8 @@ import type { FieldSyncEvent } from './useDocumentEditor'
 const THREAD_PREFIX = 'docuA4.assistant.thread.'
 const MAX_MESSAGES = 40
 const HISTORY_TURNS = 8
+/** The conversation is saved with the document this long after it last changed. */
+export const THREAD_SAVE_DELAY_MS = 1500
 /** Paragraphs sent to be translated per request (the API takes up to 60). */
 const SIDE_BATCH = 40
 
@@ -113,8 +119,21 @@ export interface UseAssistantParams {
       reply: (count: number, language: SideLanguage) => string
       replyMissing: (count: number) => string
       unavailable: (reason: AssistantOfflineInfo['reason']) => string
+      /** Translation check: nothing to check (no paragraph has both texts). */
+      checkNothing: string
+      /** Translation check: everything is consistent. */
+      checkClean: string
+      /** Translation check: the reply that carries its fixes. */
+      checkReply: (count: number) => string
+      /** Translation check: only the first part of a long document was checked. */
+      checkTruncated: (count: number) => string
+      /** Why a term was changed in a paragraph. */
+      checkTerm: (source: string, variant: string, preferred: string) => string
+      checkUnavailable: (reason: AssistantOfflineInfo['reason']) => string
     }
   }
+  /** The interface language: the translation check explains problems in it. */
+  interfaceLanguage?: string
 }
 
 export function useAssistant({
@@ -127,6 +146,7 @@ export function useAssistant({
   onNotice,
   documentLanguage,
   labels,
+  interfaceLanguage = 'en',
 }: UseAssistantParams) {
   const [messages, setMessages] = useState<AssistantMessage[]>(() => readThread(documentId))
   const [sending, setSending] = useState(false)
@@ -141,6 +161,47 @@ export function useAssistant({
 
   useEffect(() => {
     writeThread(documentId, messages)
+  }, [documentId, messages])
+
+  // The conversation kept with the document: loaded when this tab has none of its own,
+  // saved shortly after it changes. Nothing is saved before loading has finished,
+  // so an empty start never overwrites what was kept.
+  const loadedRef = useRef(false)
+  const savedJsonRef = useRef<string | null>(null)
+  useEffect(() => {
+    loadedRef.current = false
+    const controller = new AbortController()
+    const hasOwn = readThread(documentId).length > 0
+    if (hasOwn) {
+      loadedRef.current = true
+      return () => controller.abort()
+    }
+    loadAssistantThread(documentId, controller.signal)
+      .then((kept) => {
+        if (controller.signal.aborted) return
+        savedJsonRef.current = JSON.stringify(toStoredThread(kept))
+        if (kept.length > 0) setMessages((current) => (current.length === 0 ? kept.slice(-MAX_MESSAGES) : current))
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!controller.signal.aborted) loadedRef.current = true
+      })
+    return () => controller.abort()
+  }, [documentId])
+
+  useEffect(() => {
+    if (!loadedRef.current) return
+    if (messages.some((m) => m.kind === 'reply' && m.streaming)) return
+    const json = JSON.stringify(toStoredThread(messages))
+    if (json === savedJsonRef.current) return
+    const timer = window.setTimeout(() => {
+      saveAssistantThread(documentId, messages)
+        .then(() => {
+          savedJsonRef.current = json
+        })
+        .catch(() => undefined)
+    }, THREAD_SAVE_DELAY_MS)
+    return () => window.clearTimeout(timer)
   }, [documentId, messages])
 
   useEffect(() => () => abortRef.current?.abort(), [])
@@ -426,6 +487,61 @@ export function useAssistant({
     }
     await runSideTranslation(blocks)
   }, [labels.side.nothing, notice, runSideTranslation, sending, sideScopeIds])
+
+  /** How many paragraphs have both a text and a side translation (what the translation check reads). */
+  const translationCheckCount = (): number => translationCheckBlocks(editorRef.current.model).blocks.length
+
+  /**
+   * "Check the translation": the whole document's paragraphs with their side translations go to
+   * the check; terms translated two ways and translations that say something else come back as
+   * side proposals to accept or reject (nothing is written until then).
+   */
+  const checkSideTranslation = useCallback(async (): Promise<void> => {
+    if (sending || !editorRef.current.model.page.bilingual) return
+    const { blocks, truncated } = translationCheckBlocks(editorRef.current.model)
+    if (blocks.length === 0) {
+      notice(labels.side.checkNothing)
+      return
+    }
+    setSending(true)
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    try {
+      const result = await checkTranslation(
+        {
+          documentId,
+          mainLanguage: documentLanguage,
+          sideLanguage,
+          replyLanguage: interfaceLanguage === 'am' || interfaceLanguage === 'om' ? interfaceLanguage : 'en',
+          blocks,
+        },
+        { signal: controller.signal },
+      )
+      if (!result.ok) {
+        notice(labels.side.checkUnavailable(result.reason), 'error')
+        return
+      }
+      const proposals = translationCheckProposals(editorRef.current.model, blocks, result.terms, result.mismatches, {
+        term: labels.side.checkTerm,
+      })
+      const text = proposals.length > 0 ? labels.side.checkReply(proposals.length) : labels.side.checkClean
+      append({
+        id: newMessageId(),
+        createdAt: Date.now(),
+        role: 'assistant',
+        kind: 'reply',
+        text: truncated ? `${text} ${labels.side.checkTruncated(blocks.length)}` : text,
+        questions: [],
+        proposals,
+        fieldUpdates: [],
+      })
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) notice(labels.requestFailed, 'error')
+    } finally {
+      setSending(false)
+    }
+  }, [append, documentId, documentLanguage, interfaceLanguage, labels, notice, sending, sideLanguage])
 
   /**
    * After the assistant's rewrite of a paragraph is accepted: if it has a side translation, that
@@ -743,6 +859,8 @@ export function useAssistant({
     postCheck,
     clearThread,
     translateSideColumn,
+    checkSideTranslation,
+    translationCheckCount,
     sideTranslationCount,
     /** The language "Translate the side column" translates into, and a way to choose another. */
     sideLanguage,

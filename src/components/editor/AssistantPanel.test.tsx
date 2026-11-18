@@ -13,11 +13,13 @@ import { EditorWorkspace } from './EditorWorkspace'
 // The real client answers offline in fixture mode; tests swap in AI replies.
 const askAssistantMock = vi.hoisted(() => vi.fn())
 const translateSideMock = vi.hoisted(() => vi.fn())
+const checkTranslationMock = vi.hoisted(() => vi.fn())
 vi.mock('../../lib/assistant/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/assistant/client')>()
   askAssistantMock.mockImplementation(actual.askAssistant)
   translateSideMock.mockImplementation(actual.translateSide)
-  return { ...actual, askAssistant: askAssistantMock, translateSide: translateSideMock }
+  checkTranslationMock.mockImplementation(actual.checkTranslation)
+  return { ...actual, askAssistant: askAssistantMock, translateSide: translateSideMock, checkTranslation: checkTranslationMock }
 })
 
 const repos = getRepositories()
@@ -280,6 +282,55 @@ describe('Assistant panel', () => {
     // The dialog closed and the assistant shows the request.
     expect(screen.getByTestId('send-for-review').closest('dialog')).not.toHaveAttribute('open')
     expect(await screen.findByText('Here is the change.')).toBeInTheDocument()
+  })
+
+  it('keeps the conversation with the document: it is back after reopening, without stale undo', async () => {
+    const { doc, template } = await createRentalDocument('The tenant will pay rent.')
+    const first = renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    const blockId = firstParagraphId()
+    askAssistantMock.mockResolvedValueOnce({
+      reply: 'A shorter clause.',
+      questions: [],
+      proposals: [{ kind: 'replace', blockId, newText: 'Tenant pays rent.', reason: 'Shorter.' }],
+      fieldUpdates: [],
+    } satisfies AssistantReply)
+    fireEvent.click(screen.getByTestId('assistant-shorten'))
+    const proposal = await screen.findByTestId('assistant-proposal')
+    expect(askAssistantMock.mock.calls.at(-1)?.[0].message).toContain('shorter')
+    fireEvent.click(within(proposal).getByTestId('assistant-proposal-accept'))
+    expect(await within(proposal).findByTestId('assistant-proposal-undo')).toBeInTheDocument()
+    // Saved with the document shortly after.
+    await waitFor(() => expect(window.localStorage.getItem('docuA4.fixture.assistantThreads')).toContain('A shorter clause.'), { timeout: 4000 })
+    first.unmount()
+
+    // A new tab (no copy of its own): the conversation comes back from the document.
+    window.sessionStorage.clear()
+    const reopened = await repos.documents.get(doc.id)
+    renderWorkspace(reopened!, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    expect(await screen.findByText('A shorter clause.')).toBeInTheDocument()
+    const again = screen.getByTestId('assistant-proposal')
+    // Applied in the earlier session: no undo here, and it reads as saved.
+    expect(within(again).queryByTestId('assistant-proposal-undo')).toBeNull()
+    expect(within(again).getByTestId('assistant-proposal-state')).toHaveTextContent('Applied and saved.')
+  })
+
+  it('offers clause actions on contracts, and shows what is left of today’s AI allowance', async () => {
+    const usage = vi.spyOn(repos.usage, 'get').mockResolvedValue({ documentsThisMonth: 1, dailyQuotaLimit: 50, creditsUsedToday: 40 })
+    const { doc, template } = await createRentalDocument('The tenant will pay rent.')
+    renderWorkspace(doc, template)
+    fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+    expect(await screen.findByTestId('assistant-allowance')).toHaveTextContent('AI today: 20% left')
+    expect(screen.getByTestId('assistant-termination')).toBeInTheDocument()
+    expect(screen.getByTestId('assistant-dispute')).toBeInTheDocument()
+
+    askAssistantMock.mockResolvedValueOnce({ reply: 'Added.', questions: [], proposals: [], fieldUpdates: [] } satisfies AssistantReply)
+    fireEvent.click(screen.getByTestId('assistant-dispute'))
+    await waitFor(() => expect(askAssistantMock.mock.calls.at(-1)?.[0].message).toContain('dispute resolution clause'))
+    // The meter is refreshed after the request.
+    await waitFor(() => expect(usage.mock.calls.length).toBeGreaterThan(1))
+    usage.mockRestore()
   })
 
   it('asks for confirmation when the paragraph changed after the suggestion', async () => {
@@ -639,6 +690,71 @@ describe('Assistant panel', () => {
       fireEvent.click(screen.getAllByTestId('assistant-proposal-undo')[0])
       await waitFor(() => expect(sideText('b1')).toBe(''))
       expect(sideText('b2')).toBe('አከራዩ ቤቱን ይጠግናል።')
+    })
+
+    it('Check the translation sends paragraphs with a translation and offers one fix per paragraph', async () => {
+      const { doc, template } = await createBilingual([
+        paragraph('b1', 'The employee, Dawit Haile, starts in May.', 'ሠራተኛው ዳዊት ኃይሌ በግንቦት ይጀምራል።'),
+        paragraph('b2', 'Dawit Haile is paid monthly.', 'ዳዊት ሀይሌ በየወሩ ይከፈለዋል።'),
+        paragraph('b3', 'Either party may end it with one month notice.', 'ማንኛውም ወገን ውሉን ማቋረጥ ይችላል።'),
+        paragraph('b4', 'Not translated yet.'),
+      ])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      checkTranslationMock.mockResolvedValueOnce({
+        ok: true,
+        terms: [
+          {
+            source: 'Dawit Haile',
+            preferred: 'ዳዊት ኃይሌ',
+            renderings: [
+              { text: 'ዳዊት ኃይሌ', blockIds: ['b1'] },
+              { text: 'ዳዊት ሀይሌ', blockIds: ['b2'] },
+            ],
+          },
+        ],
+        mismatches: [{ blockId: 'b3', problem: 'The one month notice is missing.', suggestedSide: 'ማንኛውም ወገን የአንድ ወር ማስታወቂያ በመስጠት ውሉን ማቋረጥ ይችላል።' }],
+      })
+
+      fireEvent.click(screen.getByTestId('assistant-side-check'))
+
+      await waitFor(() => expect(screen.getAllByTestId('assistant-proposal')).toHaveLength(2))
+      expect(checkTranslationMock.mock.calls[0][0]).toMatchObject({
+        documentId: doc.id,
+        mainLanguage: 'en',
+        sideLanguage: 'am',
+        replyLanguage: 'en',
+        blocks: [
+          { id: 'b1', main: 'The employee, Dawit Haile, starts in May.', side: 'ሠራተኛው ዳዊት ኃይሌ በግንቦት ይጀምራል።' },
+          { id: 'b2', main: 'Dawit Haile is paid monthly.', side: 'ዳዊት ሀይሌ በየወሩ ይከፈለዋል።' },
+          { id: 'b3', main: 'Either party may end it with one month notice.', side: 'ማንኛውም ወገን ውሉን ማቋረጥ ይችላል።' },
+        ],
+      })
+      const reply = screen.getAllByTestId('assistant-reply').at(-1) as HTMLElement
+      expect(reply).toHaveTextContent('I found 2 paragraphs whose translation should change.')
+      expect(reply).toHaveTextContent('“Dawit Haile” is written “ዳዊት ኃይሌ” elsewhere, not “ዳዊት ሀይሌ”.')
+      expect(reply).toHaveTextContent('The one month notice is missing.')
+      expect(sideText('b2')).toBe('ዳዊት ሀይሌ በየወሩ ይከፈለዋል።')
+
+      fireEvent.click(screen.getByTestId('assistant-accept-all'))
+      await waitFor(() => expect(sideText('b2')).toBe('ዳዊት ኃይሌ በየወሩ ይከፈለዋል።'))
+      expect(sideText('b3')).toBe('ማንኛውም ወገን የአንድ ወር ማስታወቂያ በመስጠት ውሉን ማቋረጥ ይችላል።')
+      expect(sideText('b1')).toBe('ሠራተኛው ዳዊት ኃይሌ በግንቦት ይጀምራል።')
+    })
+
+    it('says so when the translation check finds nothing, or cannot run', async () => {
+      const { doc, template } = await createBilingual([paragraph('b1', 'Rent.', 'ኪራይ።')])
+      renderWorkspace(doc, template)
+      fireEvent.click(await screen.findByTestId('editor-tab-assistant'))
+      checkTranslationMock.mockResolvedValueOnce({ ok: true, terms: [], mismatches: [] })
+      fireEvent.click(screen.getByTestId('assistant-side-check'))
+      await waitFor(() =>
+        expect(screen.getAllByTestId('assistant-reply').at(-1)).toHaveTextContent('I checked the translation: names and terms are written the same way'),
+      )
+      checkTranslationMock.mockResolvedValueOnce({ ok: false, reason: 'demo' })
+      fireEvent.click(screen.getByTestId('assistant-side-check'))
+      expect(await screen.findByText('Checking the translation needs the SenedDesk server. Nothing was changed.')).toBeInTheDocument()
+      expect(sideText('b1')).toBe('ኪራይ።')
     })
 
     it('translates only the selected block when the work is limited to it', async () => {

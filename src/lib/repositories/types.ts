@@ -233,6 +233,10 @@ export interface OrganizationMember {
  */
 export interface UsageInfo {
   documentsThisMonth: number
+  /** AI credits allowed per day (the plan's). */
+  dailyQuotaLimit?: number
+  /** AI credits spent today; the daily limit counts these. */
+  creditsUsedToday?: number
 }
 
 export interface SessionUser {

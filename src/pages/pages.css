@@ -55,6 +55,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  /* A target of at least 24px (WCAG 2.5.8) without changing the row's look. */
+  min-height: 24px;
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--color-text-secondary);

@@ -235,3 +235,80 @@ export async function translateSide(
     }
   }
 }
+
+/** One paragraph and its side translation, for the translation check. */
+export interface TranslationCheckBlock {
+  id: string
+  main: string
+  side: string
+}
+
+export interface TranslationCheckInput {
+  documentId: string
+  mainLanguage: string
+  sideLanguage: 'am' | 'en' | 'ar'
+  /** The language the problems are described in (the interface's). */
+  replyLanguage: 'en' | 'am' | 'om'
+  blocks: TranslationCheckBlock[]
+}
+
+export interface InconsistentTerm {
+  source: string
+  preferred: string
+  renderings: Array<{ text: string; blockIds: string[] }>
+}
+
+export interface TranslationMismatch {
+  blockId: string
+  problem: string
+  suggestedSide: string
+}
+
+export type TranslationCheckResult =
+  | { ok: true; terms: InconsistentTerm[]; mismatches: TranslationMismatch[] }
+  | { ok: false; reason: AssistantOfflineInfo['reason'] }
+
+const isText = (value: unknown): value is string => typeof value === 'string' && value.trim() !== ''
+
+/**
+ * Check a bilingual document's translation (POST /api/v1/ai/translation-check): terms
+ * translated two ways, and translations that say something else. Nothing is written.
+ */
+export async function checkTranslation(
+  input: TranslationCheckInput,
+  options: Pick<AskAssistantOptions, 'signal' | 'client' | 'dataSource'> = {},
+): Promise<TranslationCheckResult> {
+  const dataSource = options.dataSource ?? env.dataSource
+  if (dataSource !== 'http' && !options.client) return { ok: false, reason: 'demo' }
+  const client = options.client ?? apiClient
+  try {
+    const response = await client.post<{ terms?: unknown; mismatches?: unknown }>('/ai/translation-check', input, {
+      signal: options.signal,
+      auth: 'required',
+    })
+    const terms = (Array.isArray(response.terms) ? response.terms : []).flatMap((raw): InconsistentTerm[] => {
+      const term = raw as Partial<InconsistentTerm> | null
+      if (!term || !isText(term.source) || !isText(term.preferred) || !Array.isArray(term.renderings)) return []
+      const renderings = term.renderings.flatMap((rendering) =>
+        rendering && isText(rendering.text) && Array.isArray(rendering.blockIds)
+          ? [{ text: rendering.text, blockIds: rendering.blockIds.filter((id): id is string => typeof id === 'string') }]
+          : [],
+      )
+      return renderings.length >= 2 ? [{ source: term.source, preferred: term.preferred, renderings }] : []
+    })
+    const mismatches = (Array.isArray(response.mismatches) ? response.mismatches : []).flatMap((raw): TranslationMismatch[] => {
+      const mismatch = raw as Partial<TranslationMismatch> | null
+      return mismatch && isText(mismatch.blockId) && isText(mismatch.problem) && isText(mismatch.suggestedSide)
+        ? [{ blockId: mismatch.blockId, problem: mismatch.problem, suggestedSide: mismatch.suggestedSide }]
+        : []
+    })
+    return { ok: true, terms, mismatches }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    return {
+      ok: false,
+      reason:
+        error instanceof RateLimitError ? (error.code === 'QUOTA_EXCEEDED' ? 'quota' : 'rate-limit') : 'unavailable',
+    }
+  }
+}

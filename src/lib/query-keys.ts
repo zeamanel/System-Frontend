@@ -48,6 +48,10 @@ export const queryKeys = {
     detail: (id: string) => ['customers', 'detail', id] as const,
     documents: (id: string) => ['customers', 'documents', id] as const,
   },
+  clauses: {
+    all: ['clauses'] as const,
+    list: (query: string) => ['clauses', 'list', query] as const,
+  },
   organization: {
     all: ['organization'] as const,
     members: ['organization', 'members'] as const,

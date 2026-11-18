@@ -468,6 +468,16 @@ export function ShieldIcon({ size = 18, ...rest }: IconProps) {
   )
 }
 
+export function MoreIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </svg>
+  )
+}
+
 export function CloudOffIcon({ size = 18, ...rest }: IconProps) {
   return (
     <svg {...svgProps(size)} {...rest}>
@@ -616,6 +626,17 @@ export function RedoIcon({ size = 18, ...rest }: IconProps) {
     <svg {...svgProps(size)} {...rest}>
       <path d="m15 14 5-5-5-5" />
       <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+    </svg>
+  )
+}
+
+/** A page with a bookmark: saved clauses. */
+export function ClauseIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M6 3h9l4 4v14H6z" />
+      <path d="M9 3v7l2-1.5L13 10V3" />
+      <path d="M9 14h7M9 17.5h5" />
     </svg>
   )
 }

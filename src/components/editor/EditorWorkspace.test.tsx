@@ -77,6 +77,8 @@ describe('EditorWorkspace', () => {
     renderWorkspace(doc, template)
     await screen.findByTestId('editor-title-input')
 
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }))
+
     fireEvent.click(screen.getByTestId('editor-style'))
     const option = await screen.findByTestId('style-option-legal-frame')
     // The rental agreement suggests the legal frame.
@@ -89,6 +91,7 @@ describe('EditorWorkspace', () => {
     expect(saveStatus()).toHaveTextContent(/unsaved|saving|saved/i)
 
     // Back to the plain look.
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }))
     fireEvent.click(screen.getByTestId('editor-style'))
     fireEvent.click(await screen.findByTestId('style-option-standard'))
     await waitFor(() =>
@@ -676,6 +679,27 @@ describe('EditorWorkspace', () => {
       // refineBlockContent fills secondaryHtml for the active block.
       expect((secondaryEditable.textContent ?? '').length).toBeGreaterThan(0)
     })
+  })
+
+  it('keeps what is typed in a side cell as it is (a trailing space does not rewrite the cell and move the caret)', async () => {
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+    fireEvent.click(screen.getByLabelText(/bilingual side-by-side/i))
+    const side = await waitFor(() => {
+      const element = document.querySelector<HTMLElement>('[data-bilingual-secondary="true"]')
+      if (!element) throw new Error('no side cell yet')
+      return element
+    })
+    side.focus()
+    // The browser writes a typed trailing space as &nbsp;.
+    const typed = side.ownerDocument.createTextNode('ዳዊት\u00a0')
+    side.replaceChildren(typed)
+    fireEvent.input(side)
+    // Same text node: the cell was not rewritten, so the caret would stay after the space.
+    await act(async () => {})
+    expect(side.firstChild).toBe(typed)
+    expect(side.innerHTML).toBe('ዳዊት&nbsp;')
   })
 
   it('renders always-available additional details textarea and includes it in generated content', async () => {

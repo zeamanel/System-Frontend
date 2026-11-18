@@ -67,6 +67,7 @@ import type {
   SessionUser,
   TemplateCategory,
   TemplateDetail,
+  UsageInfo,
   TemplateFixture,
   TemplateListOptions,
   TemplatePreviewInfo,
@@ -931,7 +932,7 @@ class HttpUsageRepository implements UsageRepository {
     // GET /usage (documentsThisMonth) is not implemented on the backend;
     // real AI-generation usage is exposed via generation.usage() instead.
     return nullOnNotFound(() =>
-      apiClient.get<{ documentsThisMonth: number }>('/usage', { auth: 'required' }),
+      apiClient.get<UsageInfo>('/usage', { auth: 'required' }),
     )
   }
 }
