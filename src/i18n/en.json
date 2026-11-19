@@ -1006,6 +1006,9 @@
   "look.printAskBody": "This letter is not on the {name} letterhead yet.",
   "look.printAdd": "Add the letterhead and print",
   "look.printWithout": "Print without it",
+  "look.addCustomer": "Add {name}'s letterhead",
+  "look.removeCustomer": "{name}'s letterhead on · remove",
+  "look.askCustomer": "Ask {name} for their letterhead",
   "fieldFill.button": "Fill from a file",
   "fieldFill.title": "Fill “{field}” from a file",
   "fieldFill.lead": "Choose what you need from the items found in each file, or let AI search a file for “{field}”. Nothing changes until you choose to use it.",
@@ -1645,6 +1648,11 @@
   "data.accessRole.owner": "Owner",
   "data.accessRole.admin": "Admin",
   "data.accessRole.member": "Member",
+  "data.letterheadTitle": "Their letterhead",
+  "data.letterheadHint": "For a company you make documents for: its own header lines and logo. Put them on its documents with one click in the editor, or ask the customer to send them.",
+  "data.letterheadLogo": "Their logo",
+  "data.requestLetterhead": "Their letterhead and logo",
+  "data.requestLetterheadPurpose": "Your documents on your own letterhead",
   "share.title": "{requester} asks for your details",
   "share.purpose": "For: {purpose}",
   "share.hint": "Fill in what you want to share. Nothing is sent until you press Send. This link works until {date}.",
@@ -1661,5 +1669,10 @@
   "share.invalidBody": "It may have been cancelled. Ask the sender for a new one.",
   "share.unavailableBody": "Sharing details needs the SenedDesk server.",
   "share.expiredTitle": "This link has expired",
-  "share.expiredBody": "Ask the sender for a new one."
+  "share.expiredBody": "Ask the sender for a new one.",
+  "share.letterheadTitle": "Your letterhead",
+  "share.letterheadHint": "{requester} will put these on the documents they make for you. Type your header lines (name, address, phone) and add your logo.",
+  "share.letterheadNeeded": "Add your header lines or your logo.",
+  "share.logoChoose": "Logo (PNG, JPEG or WebP, up to 1 MB)",
+  "share.logoReceived": "Logo received ✓ (choose another to replace it)"
 }

@@ -71,7 +71,18 @@ import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
 import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/editor/styles'
-import { brandingOffers, missingLetterhead, templateStyle, toggleBranding, type BrandingKind } from '../../lib/editor/default-look'
+import {
+  brandingOffers,
+  customerLetterheadApplied,
+  lookMode,
+  missingLetterhead,
+  templateStyle,
+  toggleBranding,
+  toggleCustomerLetterhead,
+  type BrandingKind,
+} from '../../lib/editor/default-look'
+import { useDocumentRecords } from '../../hooks/use-data'
+import { RequestDialog } from '../data/RequestDialog'
 import { PreferencesContext } from '../../preferences/context'
 import type { DocumentStyleId } from '../../lib/editor/types'
 import { useOrganization } from '../../hooks/use-organization'
@@ -1258,21 +1269,49 @@ export function EditorWorkspace({
     [updateModel, toast, t],
   )
 
-  // ---- branding on demand (letterhead, own header, a print shop's footer line) ----
+  // ---- branding on demand (letterhead, own header, a print shop's footer line, a customer's letterhead) ----
+  const shopMode = lookMode(lookContext) === 'customers'
+  const linkedRecords = useDocumentRecords(shopMode && doc.access !== 'view' && doc.kind !== 'design' ? doc.id : undefined)
+  const [askLetterhead, setAskLetterhead] = useState<{ id: string; name: string } | null>(null)
   const brandingButtons = useMemo(() => {
     if (doc.access === 'view' || doc.kind === 'design') return []
+    // A print shop: each customer this document was made for, with their own letterhead (or a way to ask for it).
+    const seen = new Set<string>()
+    const customers = (shopMode ? (linkedRecords.data ?? []) : [])
+      .filter((link) => link.collection === 'customer' && !seen.has(link.recordId) && seen.add(link.recordId))
+      .map((link) => {
+        const branding = link.branding
+        if (!branding) {
+          return {
+            id: `ask-${link.recordId}`,
+            label: t('look.askCustomer', { name: link.displayName }),
+            pressed: false,
+            onClick: () => setAskLetterhead({ id: link.recordId, name: link.displayName }),
+          }
+        }
+        const applied = customerLetterheadApplied(model, branding)
+        return {
+          id: `customer-${link.recordId}`,
+          label: t(applied ? 'look.removeCustomer' : 'look.addCustomer', { name: link.displayName }),
+          pressed: applied,
+          onClick: () => updateModel((current) => toggleCustomerLetterhead(current, branding)),
+        }
+      })
     const labels: Record<BrandingKind, [MessageKey, MessageKey]> = {
       letterhead: ['look.addLetterhead', 'look.removeLetterhead'],
       'personal-header': ['look.addHeader', 'look.removeHeader'],
       'customer-footer': ['look.addFooter', 'look.removeFooter'],
     }
-    return brandingOffers(model, lookContext).map((offer) => ({
-      id: offer.kind,
-      label: t(labels[offer.kind][offer.applied ? 1 : 0]),
-      pressed: offer.applied,
-      onClick: () => updateModel((current) => toggleBranding(current, offer.kind, lookContext)),
-    }))
-  }, [doc.access, doc.kind, lookContext, model, t, updateModel])
+    return [
+      ...customers,
+      ...brandingOffers(model, lookContext).map((offer) => ({
+        id: offer.kind,
+        label: t(labels[offer.kind][offer.applied ? 1 : 0]),
+        pressed: offer.applied,
+        onClick: () => updateModel((current) => toggleBranding(current, offer.kind, lookContext)),
+      })),
+    ]
+  }, [doc.access, doc.kind, linkedRecords.data, lookContext, model, shopMode, t, updateModel])
 
   // ---- print (with pre-print check) ----
   const [printCheck, setPrintCheck] = useState<DocumentCheckResult | null>(null)
@@ -1992,6 +2031,17 @@ export function EditorWorkspace({
           data-testid="save-template-name"
         />
       </Dialog>
+
+      {askLetterhead ? (
+        <RequestDialog
+          open
+          onClose={() => setAskLetterhead(null)}
+          collection="customer"
+          canSeeSensitive={false}
+          record={askLetterhead}
+          letterhead
+        />
+      ) : null}
 
       <Dialog
         open={letterheadAsk}

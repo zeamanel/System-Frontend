@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { applyDefaultLook, brandingOffers, defaultStyleFor, lookMode, missingLetterhead, templateStyle, toggleBranding } from './default-look'
+import {
+  applyDefaultLook,
+  brandingOffers,
+  customerLetterheadApplied,
+  defaultStyleFor,
+  lookMode,
+  missingLetterhead,
+  templateStyle,
+  toggleBranding,
+  toggleCustomerLetterhead,
+} from './default-look'
 import { createEmptyDocument, parseDocumentContent } from './model'
 import { EMPTY_ORGANIZATION } from '../organization/profile'
 import type { OrganizationProfile } from '../repositories/types'
@@ -115,5 +125,25 @@ describe('Default look', () => {
     const bad = parseDocumentContent(JSON.stringify({ blocks: [{ type: 'paragraph', text: 'x' }], style: { id: 'gold' }, font: 'comic' }), 'en')
     expect(bad?.style).toBeUndefined()
     expect(bad?.font).toBe('sans')
+  })
+
+  it('puts a customer’s own letterhead on their document, with their logo, and takes it off', () => {
+    const sheba = { headerLines: ['Sheba Trading PLC', 'Merkato, Addis Ababa'], footerLine: 'Tel 0911 101010', logoMediaId: 'sheba-logo' }
+    const empty = createEmptyDocument('en')
+    expect(customerLetterheadApplied(empty, sheba)).toBe(false)
+    const stamped = toggleCustomerLetterhead(empty, sheba)
+    expect(stamped.style).toEqual({ id: 'executive-letterhead', logoMediaId: 'sheba-logo' })
+    expect(stamped.page.headerHtml).toBe('<strong>Sheba Trading PLC</strong><br>Merkato, Addis Ababa')
+    expect(stamped.page).toMatchObject({ footerEnabled: true, footerHtml: 'Tel 0911 101010' })
+    expect(customerLetterheadApplied(stamped, sheba)).toBe(true)
+    const removed = toggleCustomerLetterhead(stamped, sheba)
+    expect(removed.style).toBeUndefined()
+    expect(removed.page.headerEnabled).toBe(false)
+    // A framed lease keeps its frame.
+    const framed = applyDefaultLook(createEmptyDocument('en'), { template: lease, organization: shop })
+    expect(toggleCustomerLetterhead(framed, sheba).style).toEqual({ id: 'legal-frame' })
+    // A logo alone counts as the letterhead.
+    const logoOnly = { headerLines: [], logoMediaId: 'abay-logo' }
+    expect(customerLetterheadApplied(toggleCustomerLetterhead(empty, logoOnly), logoOnly)).toBe(true)
   })
 })

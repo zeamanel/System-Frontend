@@ -178,6 +178,34 @@ describe('Share page', () => {
     expect(answer).toHaveBeenCalledWith('abc', { full_name: 'Sara Tesfaye', phone: '0911 223344' })
   })
 
+  it('a company sends its letterhead lines and logo', async () => {
+    vi.spyOn(dataClient, 'getSharedRequest').mockResolvedValue({
+      requesterName: 'Tadesse Print Works',
+      recipientName: 'Abay Bakery',
+      purpose: 'Your documents on your own letterhead',
+      collection: 'customer',
+      fields: [{ key: 'full_name', type: 'text', required: false }],
+      status: 'open',
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      branding: { headerLines: ['Abay Bakery'], footerLine: '', logo: false },
+    })
+    const upload = vi.spyOn(dataClient, 'uploadSharedLogo').mockResolvedValue()
+    const answer = vi.spyOn(dataClient, 'answerSharedRequest').mockResolvedValue()
+    wrap(<SharePage />, '/share/brand')
+    const section = await screen.findByTestId('share-letterhead')
+    const lines = within(section).getAllByTestId('share-letterhead-line') as HTMLInputElement[]
+    expect(lines[0].value).toBe('Abay Bakery')
+    fireEvent.change(lines[1], { target: { value: 'Bahir Dar' } })
+    const logo = new File([new Uint8Array([137, 80, 78, 71])], 'logo.png', { type: 'image/png' })
+    fireEvent.change(within(section).getByTestId('share-logo'), { target: { files: [logo] } })
+    expect(await within(section).findByText(/Logo received/)).toBeInTheDocument()
+    expect(upload).toHaveBeenCalledWith('brand', logo)
+    fireEvent.click(screen.getByTestId('share-consent'))
+    fireEvent.click(screen.getByTestId('share-send'))
+    expect(await screen.findByText('Sent. Thank you.')).toBeInTheDocument()
+    expect(answer).toHaveBeenCalledWith('brand', {}, { headerLines: ['Abay Bakery', 'Bahir Dar'], footerLine: '' })
+  })
+
   it('says when the link does not work or has expired', async () => {
     vi.spyOn(dataClient, 'getSharedRequest').mockResolvedValueOnce('expired')
     wrap(<SharePage />, '/share/old')

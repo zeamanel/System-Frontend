@@ -1006,6 +1006,9 @@
   "look.printAskBody": "ይህ ደብዳቤ ገና በ{name} ራስጌ ላይ አይደለም።",
   "look.printAdd": "ራስጌውን ጨምረህ አትም",
   "look.printWithout": "ያለ ራስጌ አትም",
+  "look.addCustomer": "የ{name}ን ራስጌ ጨምር",
+  "look.removeCustomer": "የ{name} ራስጌ ተጨምሯል · አስወግድ",
+  "look.askCustomer": "{name}ን ራስጌውን ይጠይቁ",
   "fieldFill.button": "ከፋይል ሙላ",
   "fieldFill.title": "“{field}”ን ከፋይል ሙላ",
   "fieldFill.lead": "ከእያንዳንዱ ፋይል ውስጥ ከተገኙት የሚፈልጉትን ይምረጡ፣ ወይም AI ለ“{field}” ፋይል እንዲፈልግ ያድርጉ። እስኪጠቀሙበት ድረስ ምንም አይለወጥም።",
@@ -1645,6 +1648,11 @@
   "data.accessRole.owner": "ባለቤት",
   "data.accessRole.admin": "አስተዳዳሪ",
   "data.accessRole.member": "አባል",
+  "data.letterheadTitle": "የእነሱ ራስጌ",
+  "data.letterheadHint": "ሰነዶችን ለሚያዘጋጁለት ድርጅት፦ የራሱ የራስጌ መስመሮችና አርማ። በአርታዒው ውስጥ በአንድ ጠቅታ በሰነዶቹ ላይ ያስቀምጧቸው፣ ወይም ደንበኛውን እንዲልክልዎ ይጠይቁ።",
+  "data.letterheadLogo": "የእነሱ አርማ",
+  "data.requestLetterhead": "የእነሱ ራስጌና አርማ",
+  "data.requestLetterheadPurpose": "ሰነዶችዎ በራስዎ ራስጌ ላይ",
   "share.title": "{requester} መረጃዎን ይጠይቃል",
   "share.purpose": "ለ፦ {purpose}",
   "share.hint": "ማጋራት የሚፈልጉትን ይሙሉ። ላክ እስኪጫኑ ድረስ ምንም አይላክም። ይህ ሊንክ እስከ {date} ይሠራል።",
@@ -1661,5 +1669,10 @@
   "share.invalidBody": "ተሰርዞ ሊሆን ይችላል። ላኪውን አዲስ ይጠይቁ።",
   "share.unavailableBody": "መረጃ ማጋራት የSenedDesk ሰርቨር ያስፈልገዋል።",
   "share.expiredTitle": "የዚህ ሊንክ ጊዜ አልፏል",
-  "share.expiredBody": "ላኪውን አዲስ ይጠይቁ።"
+  "share.expiredBody": "ላኪውን አዲስ ይጠይቁ።",
+  "share.letterheadTitle": "የእርስዎ ራስጌ",
+  "share.letterheadHint": "{requester} ለእርስዎ በሚያዘጋጃቸው ሰነዶች ላይ እነዚህን ያስቀምጣል። የራስጌ መስመሮችዎን (ስም፣ አድራሻ፣ ስልክ) ይጻፉና አርማዎን ይጨምሩ።",
+  "share.letterheadNeeded": "የራስጌ መስመሮችዎን ወይም አርማዎን ይጨምሩ።",
+  "share.logoChoose": "አርማ (PNG፣ JPEG ወይም WebP፣ እስከ 1 MB)",
+  "share.logoReceived": "አርማው ደርሷል ✓ (ለመቀየር ሌላ ይምረጡ)"
 }

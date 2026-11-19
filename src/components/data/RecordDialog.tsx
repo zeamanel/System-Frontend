@@ -9,6 +9,8 @@ import { RequestDialog } from './RequestDialog'
 import { builtInDef, checkValue, isDataCollection, MAX_EXTRA_FIELDS, type CatalogField } from '../../lib/data/catalog'
 import type { ExtraField } from '../../lib/data/types'
 import { Button, Dialog, Input, PanelError, PanelLoading, Select, Textarea, useToast } from '../ui'
+import { ImagePicker } from '../media/ImagePicker'
+import { useMediaUrls } from '../../hooks/use-media'
 
 export interface RecordDialogProps {
   open: boolean
@@ -51,6 +53,14 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
   const [extra, setExtra] = useState<ExtraField[]>([])
   const [errors, setErrors] = useState<Record<string, keyof typeof ERROR_KEYS>>({})
   const [asking, setAsking] = useState(false)
+  /** Customers: their own letterhead (lines, footer, logo). */
+  const [letterhead, setLetterhead] = useState<{ headerLines: string[]; footerLine: string; logoMediaId: string | null }>({
+    headerLines: [],
+    footerLine: '',
+    logoMediaId: null,
+  })
+  const keepsLetterhead = collection === 'customer'
+  const { urls: logoUrls, failed: logoFailed } = useMediaUrls({ logo: keepsLetterhead ? letterhead.logoMediaId : null })
 
   const loaded = recordId ? record.data : null
   const readOnly = !canEdit || Boolean(loaded && !loaded.canManage)
@@ -63,9 +73,15 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
     if (!recordId) {
       setValues({})
       setExtra([])
+      setLetterhead({ headerLines: [], footerLine: '', logoMediaId: null })
     } else if (record.data) {
       setValues(record.data.values)
       setExtra(record.data.extraFields)
+      setLetterhead({
+        headerLines: record.data.branding?.headerLines ?? [],
+        footerLine: record.data.branding?.footerLine ?? '',
+        logoMediaId: record.data.branding?.logoMediaId ?? null,
+      })
     }
   }, [open, recordId, record.data])
 
@@ -90,7 +106,11 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
       await save.mutateAsync({
         id: recordId ?? undefined,
         collection,
-        input: { values: clean, extraFields: extra.filter((field) => field.label.trim() && field.value.trim()) },
+        input: {
+          values: clean,
+          extraFields: extra.filter((field) => field.label.trim() && field.value.trim()),
+          ...(keepsLetterhead ? { branding: letterheadInput(letterhead) } : {}),
+        },
       })
       toast.push(t('data.saved'), { variant: 'success' })
       onClose()
@@ -239,6 +259,51 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
             ) : null}
           </fieldset>
 
+          {keepsLetterhead ? (
+            <fieldset className="record-form__extra" data-testid="record-letterhead">
+              <legend>{t('data.letterheadTitle')}</legend>
+              <p className="record-form__note">{t('data.letterheadHint')}</p>
+              {Array.from({ length: Math.min(letterhead.headerLines.length + 1, 4) }, (_, index) => (
+                <Input
+                  key={index}
+                  label={t('organization.headerLine', { n: String(index + 1) })}
+                  value={letterhead.headerLines[index] ?? ''}
+                  maxLength={200}
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    setLetterhead((current) => {
+                      const headerLines = [...current.headerLines]
+                      headerLines[index] = event.target.value
+                      return { ...current, headerLines }
+                    })
+                  }
+                  data-testid="record-letterhead-line"
+                />
+              ))}
+              <Input
+                label={t('organization.footerLine')}
+                value={letterhead.footerLine}
+                maxLength={200}
+                disabled={readOnly}
+                onChange={(event) => setLetterhead((current) => ({ ...current, footerLine: event.target.value }))}
+              />
+              <ImagePicker
+                kind="logo"
+                imageUrl={logoUrls.logo}
+                failed={logoFailed.includes('logo')}
+                alt={t('data.letterheadLogo')}
+                uploadLabel={t('organization.logoUpload')}
+                replaceLabel={t('organization.logoReplace')}
+                removeLabel={t('organization.logoRemove')}
+                emptyLabel={t('data.letterheadLogo')}
+                disabled={readOnly}
+                onUploaded={(media) => setLetterhead((current) => ({ ...current, logoMediaId: media.id }))}
+                onRemove={readOnly ? undefined : () => setLetterhead((current) => ({ ...current, logoMediaId: null }))}
+                testId="record-letterhead-logo"
+              />
+            </fieldset>
+          ) : null}
+
           {recordId && loaded ? <RecordDocuments recordId={recordId} /> : null}
 
           <div className="record-form__actions">
@@ -275,6 +340,14 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
       ) : null}
     </Dialog>
   )
+}
+
+/** The letterhead form as the API takes it: null when nothing is left. */
+function letterheadInput(letterhead: { headerLines: string[]; footerLine: string; logoMediaId: string | null }) {
+  const headerLines = letterhead.headerLines.map((line) => line.trim()).filter(Boolean)
+  const footerLine = letterhead.footerLine.trim()
+  if (headerLines.length === 0 && !footerLine && !letterhead.logoMediaId) return null
+  return { headerLines, ...(footerLine ? { footerLine } : {}), ...(letterhead.logoMediaId ? { logoMediaId: letterhead.logoMediaId } : {}) }
 }
 
 /** The documents this record filled. */

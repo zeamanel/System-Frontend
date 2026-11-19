@@ -180,3 +180,46 @@ export function missingLetterhead(model: DocumentModel, context: LookContext): b
   const offer = brandingOffers(model, context).find((item) => item.kind === 'letterhead')
   return Boolean(offer && !offer.applied)
 }
+
+// ─── A customer's own letterhead (print shops) ──────────────────────────────
+
+export interface CustomerLetterhead {
+  headerLines: string[]
+  footerLine?: string
+  logoMediaId?: string
+}
+
+function customerSetup(letterhead: CustomerLetterhead) {
+  return letterheadPageSetup({ headerLines: letterhead.headerLines, footerLine: letterhead.footerLine ?? '' })
+}
+
+/** The customer's letterhead is on the page (its lines, or its logo when it has no lines). */
+export function customerLetterheadApplied(model: DocumentModel, letterhead: CustomerLetterhead): boolean {
+  const setup = customerSetup(letterhead)
+  if (setup.headerEnabled) return model.page.headerEnabled && model.page.headerHtml === setup.headerHtml
+  return Boolean(letterhead.logoMediaId && model.style?.logoMediaId === letterhead.logoMediaId)
+}
+
+/**
+ * Puts a customer's own letterhead on the page (a print shop making a
+ * document for a company), or takes it off. A plain page gets the letterhead
+ * style with the customer's logo; a framed page keeps its frame and gets the
+ * lines only.
+ */
+export function toggleCustomerLetterhead(model: DocumentModel, letterhead: CustomerLetterhead): DocumentModel {
+  const setup = customerSetup(letterhead)
+  if (customerLetterheadApplied(model, letterhead)) {
+    const cleared = { ...model, page: { ...model.page, headerEnabled: false, headerHtml: '', footerEnabled: false, footerHtml: '' } }
+    if (model.style?.id !== 'executive-letterhead') return cleared
+    const plain = { ...cleared }
+    delete plain.style
+    return plain
+  }
+  const framed = model.style?.id === 'legal-frame' || model.style?.id === 'formal-border'
+  if (framed) return { ...model, page: { ...model.page, ...setup } }
+  return {
+    ...model,
+    style: { id: 'executive-letterhead', ...(letterhead.logoMediaId ? { logoMediaId: letterhead.logoMediaId } : {}) },
+    page: { ...model.page, ...setup },
+  }
+}
