@@ -275,6 +275,45 @@ describe('EditorWorkspace', () => {
     await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1))
   })
 
+  it('adds the organization letterhead with one click, and asks before printing a letter without it', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const organization = await repos.organization.get()
+    await repos.organization.update({
+      ...(organization as NonNullable<typeof organization>),
+      type: 'office',
+      letterhead: { headerLines: ['Bole Consulting PLC', 'Bole, Addis Ababa'], footerLine: '' },
+    })
+    const created = await repos.documents.create({
+      title: 'Request letter',
+      templateId: 'letter',
+      documentTypeId: 'letter',
+      language: 'en',
+      answers: {},
+      content: 'Dear Sir, we request a meeting.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    // Clean page; the letterhead is one click away.
+    const add = await screen.findByTestId('branding-letterhead')
+    expect(add).toHaveTextContent('Add our letterhead')
+    expect(document.querySelector('.doc-paper__header-text, .doc-paper__header')?.textContent ?? '').not.toContain('Bole Consulting PLC')
+
+    // Printing a letter without it asks first.
+    fireEvent.click(screen.getByRole('button', { name: /print/i }))
+    expect(await screen.findByTestId('letterhead-ask')).toHaveTextContent('not on the')
+    expect(printSpy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('letterhead-ask-add'))
+    await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.getByTestId('branding-letterhead')).toHaveTextContent('Letterhead on · remove'))
+    expect(screen.getAllByText('Bole Consulting PLC').length).toBeGreaterThan(0)
+
+    // And off again with one click.
+    fireEvent.click(screen.getByTestId('branding-letterhead'))
+    await waitFor(() => expect(screen.getByTestId('branding-letterhead')).toHaveTextContent('Add our letterhead'))
+  })
+
   it('reports server PDF export honestly when the backend is missing', async () => {
     const { doc, template } = await loadDocument('doc-fixture-1')
     renderWorkspace(doc, template)

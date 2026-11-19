@@ -269,6 +269,21 @@ export default function OrganizationPage() {
                   />
                   <span>{t('look.autoStyle')}</span>
                 </label>
+                {profile.type !== 'print_shop' ? (
+                  <label className="org-check">
+                    <input
+                      type="checkbox"
+                      checked={profile.documentLook?.alwaysLetterhead === true}
+                      onChange={(event) =>
+                        update({
+                          documentLook: { autoStyle: true, customerFooter: '', ...profile.documentLook, alwaysLetterhead: event.target.checked },
+                        })
+                      }
+                      data-testid="org-look-always-letterhead"
+                    />
+                    <span>{t('look.alwaysLetterhead')}</span>
+                  </label>
+                ) : null}
                 {profile.type === 'print_shop' ? (
                   <Input
                     id="org-customer-footer"

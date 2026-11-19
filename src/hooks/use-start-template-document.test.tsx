@@ -64,7 +64,7 @@ describe('useStartTemplateDocument', () => {
     expect(doc?.content).toBe('')
   })
 
-  it('starts the document in its default look: an office’s letter on the letterhead, a print shop’s without it', async () => {
+  it('starts a letter clean (branding is added on demand) unless the organization opted in to its letterhead', async () => {
     const start = async (): Promise<string> => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
       const user = userEvent.setup()
@@ -88,6 +88,15 @@ describe('useStartTemplateDocument', () => {
       type: 'office',
       letterhead: { headerLines: ['Bole Consulting PLC'], footerLine: '' },
     })
+    expect(await start()).toBe('')
+
+    await getRepositories().organization.update({
+      ...EMPTY_ORGANIZATION,
+      name: 'Bole Consulting',
+      type: 'office',
+      letterhead: { headerLines: ['Bole Consulting PLC'], footerLine: '' },
+      documentLook: { autoStyle: true, alwaysLetterhead: true, customerFooter: '' },
+    })
     const office = JSON.parse(await start()) as { style?: { id: string }; page: { headerHtml: string } }
     expect(office.style?.id).toBe('executive-letterhead')
     expect(office.page.headerHtml).toContain('Bole Consulting PLC')
@@ -97,8 +106,9 @@ describe('useStartTemplateDocument', () => {
       name: 'Abebe Typing',
       type: 'print_shop',
       letterhead: { headerLines: ['Abebe Typing'], footerLine: '' },
-      documentLook: { autoStyle: true, customerFooter: '' },
+      documentLook: { autoStyle: true, alwaysLetterhead: true, customerFooter: 'Prepared at Abebe Typing' },
     })
+    // A print shop never gets its own letterhead, and its footer line waits for a click.
     expect(await start()).toBe('')
   })
 })

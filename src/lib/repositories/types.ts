@@ -237,8 +237,10 @@ export interface OrganizationProfile {
 }
 
 export interface OrganizationDocumentLook {
-  /** false: new documents start plain instead of in the template's look. */
+  /** false: new documents start plain instead of in the template's look (frames, borders). */
   autoStyle: boolean
+  /** Letters start on the letterhead (opt-in; otherwise it is added with one click). */
+  alwaysLetterhead?: boolean
   /** Print shops: an optional line at the foot of customers' documents. */
   customerFooter: string
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyDefaultLook, defaultStyleFor, lookMode, templateStyle } from './default-look'
+import { applyDefaultLook, brandingOffers, defaultStyleFor, lookMode, missingLetterhead, templateStyle, toggleBranding } from './default-look'
 import { createEmptyDocument, parseDocumentContent } from './model'
 import { EMPTY_ORGANIZATION } from '../organization/profile'
 import type { OrganizationProfile } from '../repositories/types'
@@ -29,45 +29,76 @@ describe('Default look', () => {
     expect(lookMode({ personal: { occupation: 'student' } })).toBe('personal')
   })
 
-  it('an organization’s letter starts on its letterhead with its logo', () => {
-    const model = applyDefaultLook(createEmptyDocument('en'), { template: letter, organization: office })
-    expect(model.style).toEqual({ id: 'executive-letterhead', logoMediaId: 'logo-1' })
-    expect(model.page.headerEnabled).toBe(true)
-    expect(model.page.headerHtml).toContain('Bole Consulting PLC')
-    // Contracts get the frame, without the letterhead.
-    const framed = applyDefaultLook(createEmptyDocument('en'), { template: lease, organization: office })
+  it('applies decoration, never branding: letters start clean, contracts framed', () => {
+    const empty = createEmptyDocument('en')
+    expect(applyDefaultLook(empty, { template: letter, organization: office })).toBe(empty)
+    expect(applyDefaultLook(empty, { template: letter, organization: shop })).toBe(empty)
+    expect(
+      applyDefaultLook(empty, {
+        template: letter,
+        personal: { occupation: 'employee', documentLook: { autoStyle: true, customerFooter: '', personalHeader: ['Sara Kebede'] } },
+      }),
+    ).toBe(empty)
+    const framed = applyDefaultLook(empty, { template: lease, organization: shop })
     expect(framed.style).toEqual({ id: 'legal-frame' })
+    expect(framed.page.footerEnabled).toBe(false)
     expect(framed.page.headerEnabled).toBe(false)
   })
 
-  it('a print shop never puts its own letterhead on a customer’s document; its footer line goes on', () => {
-    expect(defaultStyleFor({ template: letter, organization: shop })).toBe('standard')
-    const model = applyDefaultLook(createEmptyDocument('en'), { template: letter, organization: shop })
-    expect(model.style).toBeUndefined()
-    expect(model.page.headerEnabled).toBe(false)
-    expect(model.page).toMatchObject({ footerEnabled: true, footerHtml: 'Prepared at Abebe Typing' })
-    const framed = applyDefaultLook(createEmptyDocument('en'), { template: lease, organization: shop })
-    expect(framed.style).toEqual({ id: 'legal-frame' })
-    expect(framed.style?.logoMediaId).toBeUndefined()
+  it('an organization that opted in starts letters on its letterhead (never a print shop)', () => {
+    const always = { ...office, documentLook: { autoStyle: true, alwaysLetterhead: true, customerFooter: '' } }
+    const model = applyDefaultLook(createEmptyDocument('en'), { template: letter, organization: always })
+    expect(model.style).toEqual({ id: 'executive-letterhead', logoMediaId: 'logo-1' })
+    expect(model.page.headerHtml).toContain('Bole Consulting PLC')
+    expect(defaultStyleFor({ template: letter, organization: { ...shop, documentLook: { autoStyle: true, alwaysLetterhead: true, customerFooter: '' } } })).toBe('standard')
   })
 
-  it('a person’s letter carries their own header, or starts plain without one', () => {
-    const own = applyDefaultLook(createEmptyDocument('en'), {
-      template: letter,
-      personal: { occupation: 'employee', documentLook: { autoStyle: true, customerFooter: '', personalHeader: ['Sara Kebede', '0911 000000'] } },
-    })
-    expect(own.style).toEqual({ id: 'executive-letterhead' })
-    expect(own.page.headerHtml).toBe('<strong>Sara Kebede</strong><br>0911 000000')
+  it('offers each space its own branding, one click to add and one to remove', () => {
     const empty = createEmptyDocument('en')
-    expect(applyDefaultLook(empty, { template: letter, personal: { occupation: 'student' } })).toBe(empty)
+    expect(brandingOffers(empty, { organization: office })).toEqual([{ kind: 'letterhead', applied: false }])
+    expect(brandingOffers(empty, { organization: shop })).toEqual([{ kind: 'customer-footer', applied: false }])
+    expect(brandingOffers(empty, { personal: { occupation: 'student' } })).toEqual([])
+    const sara = { occupation: 'employee', documentLook: { autoStyle: true, customerFooter: '', personalHeader: ['Sara Kebede', '0911 000000'] } }
+    expect(brandingOffers(empty, { personal: sara })).toEqual([{ kind: 'personal-header', applied: false }])
+
+    const stamped = toggleBranding(empty, 'letterhead', { organization: office })
+    expect(stamped.style).toEqual({ id: 'executive-letterhead', logoMediaId: 'logo-1' })
+    expect(stamped.page).toMatchObject({ headerEnabled: true, footerEnabled: true, footerHtml: 'Tel 0911 223344' })
+    expect(stamped.font).toBe(empty.font)
+    expect(brandingOffers(stamped, { organization: office })).toEqual([{ kind: 'letterhead', applied: true }])
+    const removed = toggleBranding(stamped, 'letterhead', { organization: office })
+    expect(removed.style).toBeUndefined()
+    expect(removed.page).toMatchObject({ headerEnabled: false, footerEnabled: false })
+
+    const header = toggleBranding(empty, 'personal-header', { personal: sara })
+    expect(header.page.headerHtml).toBe('<strong>Sara Kebede</strong><br>0911 000000')
+    expect(header.style?.logoMediaId).toBeUndefined()
+
+    const footer = toggleBranding(empty, 'customer-footer', { organization: shop })
+    expect(footer.page).toMatchObject({ footerEnabled: true, footerHtml: 'Prepared at Abebe Typing' })
+    expect(toggleBranding(footer, 'customer-footer', { organization: shop }).page.footerEnabled).toBe(false)
   })
 
-  it('starts plain when the space switched it off', () => {
+  it('a framed contract keeps its frame when the letterhead is added', () => {
+    const framed = applyDefaultLook(createEmptyDocument('en'), { template: lease, organization: office })
+    const stamped = toggleBranding(framed, 'letterhead', { organization: office })
+    expect(stamped.style).toEqual({ id: 'legal-frame' })
+    expect(stamped.page.headerHtml).toContain('Bole Consulting PLC')
+    expect(toggleBranding(stamped, 'letterhead', { organization: office }).style).toEqual({ id: 'legal-frame' })
+  })
+
+  it('reminds an organization before printing a letter without its letterhead', () => {
+    const empty = createEmptyDocument('en')
+    expect(missingLetterhead(empty, { template: letter, organization: office })).toBe(true)
+    expect(missingLetterhead(toggleBranding(empty, 'letterhead', { organization: office }), { template: letter, organization: office })).toBe(false)
+    expect(missingLetterhead(empty, { template: lease, organization: office })).toBe(false)
+    expect(missingLetterhead(empty, { template: letter, organization: shop })).toBe(false)
+    expect(missingLetterhead(empty, { template: letter, personal: { occupation: 'employee' } })).toBe(false)
+  })
+
+  it('starts plain when the space switched decoration off', () => {
     const empty = createEmptyDocument('en')
     expect(applyDefaultLook(empty, { template: lease, organization: { ...office, documentLook: { autoStyle: false, customerFooter: '' } } })).toBe(empty)
-    expect(
-      applyDefaultLook(empty, { template: lease, personal: { documentLook: { autoStyle: false, customerFooter: '', personalHeader: [] } } }),
-    ).toBe(empty)
   })
 
   it('generated text stored with the document’s look opens in that look', () => {
