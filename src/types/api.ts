@@ -189,6 +189,13 @@ export interface UserPreferences {
    * Absent when the backend does not say (demo mode, old backend): then none are asked.
    */
   onboarded?: boolean
+  /** How new documents start when the user works alone (an organization's settings apply to its members). */
+  documentLook?: {
+    autoStyle: boolean
+    customerFooter: string
+    /** Lines at the top of the person's own letters (name, phone, address). */
+    personalHeader: string[]
+  }
 }
 
 export type UpdateUserPreferencesInput = Partial<{
@@ -202,5 +209,6 @@ export type UpdateUserPreferencesInput = Partial<{
   occupation: string | null
   /** Only `true` is meaningful: the questions are answered or skipped. */
   onboarded: boolean
+  documentLook: { autoStyle?: boolean; customerFooter?: string; personalHeader?: string[] }
 }>
 

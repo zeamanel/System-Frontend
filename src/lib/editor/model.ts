@@ -1573,7 +1573,19 @@ export function parseDocumentContent(
       if (rawBlocks) {
         const blocks = mapBackendBlocks(rawBlocks)
         if (blocks.length > 0) {
-          return sanitizeModel({ ...createEmptyDocument(language), blocks })
+          const base = createEmptyDocument(language)
+          // Generated text the server stored with the document's look (style, font, page set-up).
+          const look = isRecord(parsed) ? parsed : {}
+          return sanitizeModel({
+            ...base,
+            ...(typeof look.font === 'string' && ['sans', 'serif', 'mono', 'abyssinica', 'washra'].includes(look.font)
+              ? { font: look.font as DocumentModel['font'] }
+              : {}),
+            ...(look.fontSize !== undefined ? { fontSize: clampFontSize(Number(look.fontSize)) } : {}),
+            ...(isRecord(look.page) ? { page: { ...base.page, ...(look.page as unknown as PageSetup) } } : {}),
+            ...(look.style !== undefined ? { style: look.style as DocumentModel['style'] } : {}),
+            blocks,
+          })
         }
       }
     } catch {

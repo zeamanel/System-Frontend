@@ -251,6 +251,41 @@ export default function OrganizationPage() {
             </CardBody>
           </Card>
 
+          <Card data-testid="org-document-look">
+            <CardTitle info={t('look.orgHint')}>{t('look.title')}</CardTitle>
+            <CardBody>
+              <div className="org-form__stack">
+                <p className="org-note org-note--inline" data-testid="org-look-mode">
+                  {t(profile.type === 'print_shop' ? 'look.modeShop' : 'look.modeOrganization')}
+                </p>
+                <label className="org-check">
+                  <input
+                    type="checkbox"
+                    checked={profile.documentLook?.autoStyle !== false}
+                    onChange={(event) =>
+                      update({ documentLook: { customerFooter: '', ...profile.documentLook, autoStyle: event.target.checked } })
+                    }
+                    data-testid="org-look-auto"
+                  />
+                  <span>{t('look.autoStyle')}</span>
+                </label>
+                {profile.type === 'print_shop' ? (
+                  <Input
+                    id="org-customer-footer"
+                    label={t('look.customerFooter')}
+                    hint={t('look.customerFooterHint')}
+                    value={profile.documentLook?.customerFooter ?? ''}
+                    onChange={(event) =>
+                      update({ documentLook: { autoStyle: true, ...profile.documentLook, customerFooter: event.target.value } })
+                    }
+                    maxLength={200}
+                    data-testid="org-look-footer"
+                  />
+                ) : null}
+              </div>
+            </CardBody>
+          </Card>
+
           <Card>
             <CardTitle info={t('organization.signatoriesHint')}>{t('organization.section.signatories')}</CardTitle>
             <CardBody>

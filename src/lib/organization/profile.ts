@@ -11,6 +11,7 @@ export const EMPTY_ORGANIZATION: OrganizationProfile = {
   letterhead: { headerLines: [], footerLine: '' },
   bankDetails: { bankName: '', accountNumber: '', swift: '' },
   signatories: [],
+  documentLook: { autoStyle: true, customerFooter: '' },
 }
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '')
@@ -45,6 +46,10 @@ export function normalizeOrganization(raw: Partial<OrganizationProfile> | null |
       : [],
     ...(source.role ? { role: source.role } : {}),
     ...(typeof source.logoMediaId === 'string' ? { logoMediaId: source.logoMediaId } : {}),
+    documentLook: {
+      autoStyle: source.documentLook?.autoStyle !== false,
+      customerFooter: text(source.documentLook?.customerFooter),
+    },
   }
 }
 

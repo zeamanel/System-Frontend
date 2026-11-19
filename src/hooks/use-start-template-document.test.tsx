@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { getRepositories } from '../lib/repositories'
+import { EMPTY_ORGANIZATION } from '../lib/organization/profile'
 import { useStartTemplateDocument } from './use-start-template-document'
 
 function TestComponent() {
@@ -61,5 +62,43 @@ describe('useStartTemplateDocument', () => {
     expect(doc?.title).toBe('Formal Business Letter')
     // Blank A4 initial paper
     expect(doc?.content).toBe('')
+  })
+
+  it('starts the document in its default look: an office’s letter on the letterhead, a print shop’s without it', async () => {
+    const start = async (): Promise<string> => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      const user = userEvent.setup()
+      const view = render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/templates']}>
+            <TestComponent />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      )
+      await user.click(screen.getByRole('button', { name: 'Start Letter' }))
+      await waitFor(() => expect(screen.getByTestId('current-path').textContent).toMatch(/^\/documents\/doc-/))
+      const id = (screen.getByTestId('current-path').textContent ?? '').replace('/documents/', '')
+      view.unmount()
+      return (await getRepositories().documents.get(id))?.content ?? ''
+    }
+
+    await getRepositories().organization.update({
+      ...EMPTY_ORGANIZATION,
+      name: 'Bole Consulting',
+      type: 'office',
+      letterhead: { headerLines: ['Bole Consulting PLC'], footerLine: '' },
+    })
+    const office = JSON.parse(await start()) as { style?: { id: string }; page: { headerHtml: string } }
+    expect(office.style?.id).toBe('executive-letterhead')
+    expect(office.page.headerHtml).toContain('Bole Consulting PLC')
+
+    await getRepositories().organization.update({
+      ...EMPTY_ORGANIZATION,
+      name: 'Abebe Typing',
+      type: 'print_shop',
+      letterhead: { headerLines: ['Abebe Typing'], footerLine: '' },
+      documentLook: { autoStyle: true, customerFooter: '' },
+    })
+    expect(await start()).toBe('')
   })
 })

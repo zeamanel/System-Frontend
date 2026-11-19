@@ -83,6 +83,8 @@ export interface TemplateSummary {
   metadataLanguage: DocumentLanguage
   generatedDocumentLanguage: DocumentLanguage
   htmlTemplateVersion: string
+  /** The look new documents start in (set in the Template Factory, else the one the document type suits). */
+  defaultStyle?: import('../editor/types').DocumentStyleId
   region?: string
   institution?: string
   version: string
@@ -230,6 +232,15 @@ export interface OrganizationProfile {
   role?: OrganizationRole
   /** Uploaded logo (media id); changed with OrganizationRepository.setLogo. */
   logoMediaId?: string | null
+  /** How members' new documents start (owners and admins change it). */
+  documentLook?: OrganizationDocumentLook
+}
+
+export interface OrganizationDocumentLook {
+  /** false: new documents start plain instead of in the template's look. */
+  autoStyle: boolean
+  /** Print shops: an optional line at the foot of customers' documents. */
+  customerFooter: string
 }
 
 export interface OrganizationMember {

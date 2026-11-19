@@ -71,6 +71,8 @@ import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
 import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/editor/styles'
+import { templateStyle } from '../../lib/editor/default-look'
+import type { DocumentStyleId } from '../../lib/editor/types'
 import { useOrganization } from '../../hooks/use-organization'
 import { useFeatures } from '../../hooks/use-features'
 import { designLinkFor } from '../../designs/links'
@@ -142,6 +144,7 @@ export interface NewCustomerDocumentInput {
   templateId: string
   title: string
   documentTypeId?: string
+  defaultStyle?: DocumentStyleId
   language: string
 }
 
@@ -560,6 +563,7 @@ export function EditorWorkspace({
         templateId: template?.id ?? editor.templateId,
         title: template?.title ?? doc.title,
         documentTypeId: template?.documentTypeId,
+        ...(template?.defaultStyle ? { defaultStyle: template.defaultStyle } : {}),
         language: editor.language,
       })
     } catch {
@@ -1683,7 +1687,7 @@ export function EditorWorkspace({
         open={styleOpen}
         onClose={() => setStyleOpen(false)}
         current={documentStyleId(editor.model)}
-        suggested={suggestedStyles(template?.documentTypeId)}
+        suggested={template ? [templateStyle(template)].filter((id) => id !== 'standard') : suggestedStyles(undefined)}
         letterheadIncomplete={
           !organizationProfile?.logoMediaId ||
           !organizationProfile.letterhead.headerLines.some((line) => line.trim())
