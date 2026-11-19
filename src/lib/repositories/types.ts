@@ -234,6 +234,17 @@ export interface OrganizationProfile {
   logoMediaId?: string | null
   /** How members' new documents start (owners and admins change it). */
   documentLook?: OrganizationDocumentLook
+  /** What the bot may do for members who link their own Telegram (owners and admins change it). */
+  telegram?: OrganizationTelegram
+}
+
+export interface OrganizationTelegram {
+  /** Members may link Telegram (off: every linked chat goes back to standalone). */
+  enabled: boolean
+  /** /ask: send customers requests from Telegram. */
+  ask: boolean
+  /** /files: send files to SenedDesk from Telegram. */
+  files: boolean
 }
 
 export interface OrganizationDocumentLook {

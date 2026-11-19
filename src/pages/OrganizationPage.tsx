@@ -301,6 +301,37 @@ export default function OrganizationPage() {
             </CardBody>
           </Card>
 
+          <Card data-testid="org-telegram">
+            <CardTitle info={t('telegramLink.orgHint')}>{t('telegramLink.title')}</CardTitle>
+            <CardBody>
+              <div className="org-form__stack">
+                <p className="org-note org-note--inline">{t('telegramLink.orgNote')}</p>
+                {(
+                  [
+                    ['enabled', 'telegramLink.orgEnabled'],
+                    ['ask', 'telegramLink.orgAsk'],
+                    ['files', 'telegramLink.orgFiles'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="org-check">
+                    <input
+                      type="checkbox"
+                      checked={profile.telegram?.[key] !== false}
+                      disabled={key !== 'enabled' && profile.telegram?.enabled === false}
+                      onChange={(event) =>
+                        update({
+                          telegram: { enabled: true, ask: true, files: true, ...profile.telegram, [key]: event.target.checked },
+                        })
+                      }
+                      data-testid={`org-telegram-${key}`}
+                    />
+                    <span>{t(label)}</span>
+                  </label>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+
           <Card>
             <CardTitle info={t('organization.signatoriesHint')}>{t('organization.section.signatories')}</CardTitle>
             <CardBody>

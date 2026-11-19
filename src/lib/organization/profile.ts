@@ -12,6 +12,7 @@ export const EMPTY_ORGANIZATION: OrganizationProfile = {
   bankDetails: { bankName: '', accountNumber: '', swift: '' },
   signatories: [],
   documentLook: { autoStyle: true, alwaysLetterhead: false, customerFooter: '' },
+  telegram: { enabled: true, ask: true, files: true },
 }
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '')
@@ -50,6 +51,11 @@ export function normalizeOrganization(raw: Partial<OrganizationProfile> | null |
       autoStyle: source.documentLook?.autoStyle !== false,
       alwaysLetterhead: source.documentLook?.alwaysLetterhead === true,
       customerFooter: text(source.documentLook?.customerFooter),
+    },
+    telegram: {
+      enabled: source.telegram?.enabled !== false,
+      ask: source.telegram?.ask !== false,
+      files: source.telegram?.files !== false,
     },
   }
 }
