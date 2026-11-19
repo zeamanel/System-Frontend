@@ -1627,6 +1627,11 @@ export function EditorWorkspace({
           onOutlineSelect={handleOutlineSelect}
           onNewCustomer={onNewCustomer ? () => void handleNewCustomer() : undefined}
           documentId={doc.id}
+          onReplaceInDocument={(oldText, newText) => {
+            editor.breakUndoGroup()
+            updateModel((current) => fillGap(current, oldText, newText))
+            editor.breakUndoGroup()
+          }}
         >
         {telegramMedia ? (
           <div className="telegram-media-tray" data-testid="telegram-media-tray">

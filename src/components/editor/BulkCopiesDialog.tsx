@@ -10,7 +10,12 @@ import { serializeModel } from '../../lib/editor/model'
 import type { DocumentModel } from '../../lib/editor/types'
 import { queryKeys } from '../../lib/query-keys'
 import { getRepositories } from '../../lib/repositories'
-import { Badge, Button, Dialog, Select, Textarea } from '../ui'
+import { useCollections, useRecords } from '../../hooks/use-data'
+import { useDebouncedValue } from '../../hooks/use-debounced-value'
+import { markRecordUsed, readRecords } from '../../lib/data/client'
+import { recordsTable } from '../../lib/data/bulk'
+import { collectionLabel, collectionText, fieldLabel, optionLabel } from '../../lib/data/labels'
+import { Badge, Button, Dialog, SearchInput, Select, Textarea } from '../ui'
 
 export interface BulkCopiesDialogProps {
   open: boolean
@@ -29,6 +34,8 @@ type Made = { row: number; title: string; id: string } | { row: number; title: s
 
 type Step =
   | { kind: 'source'; error?: string }
+  /** Choosing records of the organization's data, one document each. */
+  | { kind: 'records' }
   | { kind: 'map' }
   | { kind: 'creating'; done: number; total: number }
   | { kind: 'done'; made: Made[]; stopped: boolean }
@@ -50,6 +57,8 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
   const stopRef = useRef(false)
   const runRef = useRef('')
   const fileRef = useRef<HTMLInputElement>(null)
+  /** With a table made from records: the record of each row (each copy is linked to it). */
+  const [rowRecords, setRowRecords] = useState<string[] | null>(null)
 
   const gaps = useMemo(() => (open ? listGaps(model) : []), [model, open])
 
@@ -59,9 +68,11 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
     setStep((current) => (current.kind === 'creating' ? current : { kind: 'source' }))
     setTable(null)
     setPasted('')
+    setRowRecords(null)
   }, [open])
 
-  const applyTable = (next: Table): void => {
+  const applyTable = (next: Table, records: string[] | null = null): void => {
+    setRowRecords(records)
     const matched = matchColumns(gaps, next.headers)
     setTable(next)
     setMapping(matched)
@@ -128,6 +139,9 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
             idempotencyKey: `bulk-${run}-${copy.row}`,
           })
           made.push({ row: copy.row, title: copy.title, id: record.id })
+          // A copy made from a record is linked to it (the record's documents list shows it).
+          const recordId = rowRecords?.[copy.row]
+          if (recordId) void markRecordUsed(recordId, { documentId: record.id })
         } catch {
           made.push({ row: copy.row, title: copy.title, error: true })
         }
@@ -210,6 +224,12 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
                   {t('bulk.usePasted')}
                 </Button>
               </div>
+              <div className="bulk-copies__or">
+                <p className="bulk-copies__hint">{t('bulk.fromDataHint')}</p>
+                <Button variant="secondary" onClick={() => setStep({ kind: 'records' })} data-testid="bulk-from-data">
+                  {t('bulk.fromData')}
+                </Button>
+              </div>
             </>
           )}
           {step.error ? (
@@ -218,6 +238,14 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
             </p>
           ) : null}
         </div>
+      ) : null}
+
+      {step.kind === 'records' ? (
+        <RecordsSource
+          onBack={() => setStep({ kind: 'source' })}
+          onUse={(next, ids) => applyTable(next, ids)}
+          onError={(message) => setStep({ kind: 'source', error: message })}
+        />
       ) : null}
 
       {step.kind === 'map' && table ? (
@@ -270,7 +298,7 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
             </p>
           ) : null}
           <div className="bulk-copies__actions">
-            <Button variant="ghost" onClick={() => setStep({ kind: 'source' })}>
+            <Button variant="ghost" onClick={() => setStep(rowRecords ? { kind: 'records' } : { kind: 'source' })}>
               {t('bulk.back')}
             </Button>
             <Button
@@ -339,5 +367,135 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
         </div>
       ) : null}
     </Dialog>
+  )
+}
+
+/**
+ * Records of the organization's data as the table: choose a record type,
+ * search, tick the records (one document each). Sensitive values come only
+ * for those allowed to see them; reading them is audited.
+ */
+function RecordsSource({
+  onBack,
+  onUse,
+  onError,
+}: {
+  onBack: () => void
+  onUse: (table: Table, recordIds: string[]) => void
+  onError: (message: string) => void
+}) {
+  const { t } = useI18n()
+  const defs = useCollections()
+  const [collection, setCollection] = useState('employee')
+  const [query, setQuery] = useState('')
+  const debounced = useDebouncedValue(query, 250)
+  const records = useRecords(collection, debounced)
+  const [chosen, setChosen] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(false)
+  const items = records.data?.items ?? []
+  const def = defs.find((item) => item.key === collection)
+
+  const toggle = (id: string, on: boolean): void =>
+    setChosen((current) => {
+      const next = new Set(current)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
+
+  const use = async (): Promise<void> => {
+    if (!def || chosen.size === 0) return
+    setLoading(true)
+    try {
+      // In the list's order, so the copies follow it.
+      const ids = items.map((item) => item.id).filter((id) => chosen.has(id)).slice(0, MAX_COPIES)
+      const list = await readRecords(ids)
+      if (list.length === 0) return onError(t('bulk.noRows'))
+      onUse(
+        recordsTable(list, def, (key) => fieldLabel(t, collection, key), (key, value) => optionLabel(t, collection, key, value)),
+        list.map((record) => record.id),
+      )
+    } catch {
+      onError(t('data.loadFailed'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const allShown = items.length > 0 && items.every((item) => chosen.has(item.id))
+
+  return (
+    <div className="bulk-copies" data-testid="bulk-records">
+      <p className="bulk-copies__hint">{t('bulk.fromDataPick')}</p>
+      <Select
+        label={t('data.tabsLabel')}
+        value={collection}
+        onChange={(event) => {
+          setCollection(event.target.value)
+          setChosen(new Set())
+          setQuery('')
+        }}
+        options={defs.map((item) => ({ value: item.key, label: collectionLabel(t, item.key) }))}
+        data-testid="bulk-records-type"
+      />
+      <SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder={collectionText(t, collection, 'search')}
+        ariaLabel={collectionText(t, collection, 'search')}
+        clearLabel={t('search.clear')}
+        loading={records.isFetching && Boolean(debounced)}
+      />
+      {items.length === 0 ? (
+        <p className="bulk-copies__hint">{records.isPending ? t('data.loading') : collectionText(t, collection, 'empty')}</p>
+      ) : (
+        <>
+          <label className="bulk-copies__check">
+            <input
+              type="checkbox"
+              checked={allShown}
+              onChange={(event) =>
+                setChosen((current) => {
+                  const next = new Set(current)
+                  for (const item of items) {
+                    if (event.target.checked) next.add(item.id)
+                    else next.delete(item.id)
+                  }
+                  return next
+                })
+              }
+              data-testid="bulk-records-all"
+            />
+            {t('bulk.fromDataAll', { count: String(items.length) })}
+          </label>
+          <ul className="bulk-copies__records">
+            {items.map((item) => (
+              <li key={item.id}>
+                <label className="bulk-copies__check">
+                  <input
+                    type="checkbox"
+                    checked={chosen.has(item.id)}
+                    onChange={(event) => toggle(item.id, event.target.checked)}
+                    data-testid="bulk-record"
+                  />
+                  <span>
+                    {item.displayName}
+                    {Object.values(item.summary).length > 0 ? <small> · {Object.values(item.summary).join(' · ')}</small> : null}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <div className="bulk-copies__actions">
+        <Button variant="ghost" onClick={onBack}>
+          {t('bulk.back')}
+        </Button>
+        <Button variant="primary" disabled={chosen.size === 0} loading={loading} onClick={() => void use()} data-testid="bulk-records-use">
+          {t(chosen.size === 1 ? 'bulk.fromDataUseOne' : 'bulk.fromDataUse', { count: String(Math.min(chosen.size, MAX_COPIES)) })}
+        </Button>
+      </div>
+    </div>
   )
 }

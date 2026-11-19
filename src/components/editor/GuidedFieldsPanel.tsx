@@ -11,6 +11,8 @@ import { DatePicker, SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
 import { useOrganization } from '../../hooks/use-organization'
 import { SavedCustomers, SaveCustomerButton } from '../customers'
+import { FillFromData } from '../data/FillFromData'
+import { LinkedRecords } from '../data/LinkedRecords'
 import { customerTargets, type FieldFill } from '../../lib/customers/fill'
 import { organizationSuggestionsForField } from '../../lib/organization/autofill'
 import type { TemplateDetail, TemplateQuestion } from '../../lib/repositories'
@@ -45,6 +47,8 @@ export interface GuidedFieldsPanelProps {
    */
   onNewCustomer?: () => void
   /** The open document (links a customer used or saved here to it). */
+  /** Writes a new value in place of an old one in the document's text (refreshing from a record). */
+  onReplaceInDocument?: (oldText: string, newText: string) => void
   documentId?: string
   children?: React.ReactNode
 }
@@ -163,6 +167,7 @@ export function GuidedFieldsPanel({
   onGenerate,
   onNewCustomer,
   documentId,
+  onReplaceInDocument,
   children,
 }: GuidedFieldsPanelProps) {
   const { t } = useI18n()
@@ -654,11 +659,25 @@ export function GuidedFieldsPanel({
           </div>
         ) : null}
         <div className="guided-fields-panel__list">
+          <LinkedRecords
+            documentId={documentId}
+            questions={questions}
+            answers={answers}
+            onAnswerChange={onAnswerChange}
+            onReplaceInDocument={onReplaceInDocument}
+          />
           <SavedCustomers
             questions={questions}
             answers={answers}
             onFill={(fills) => handleCustomerFill(fills, fills[0]?.questionId ?? '')}
             onAppendInstructions={handleAppendInstructions}
+            documentId={documentId}
+          />
+          <FillFromData
+            questions={questions}
+            answers={answers}
+            documentLanguage={language}
+            onFill={(fills, nameQuestionId) => handleCustomerFill(fills, nameQuestionId)}
             documentId={documentId}
           />
           {questions.map((question) => {

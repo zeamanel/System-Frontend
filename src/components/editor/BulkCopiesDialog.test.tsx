@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n'
 import { createEmptyDocument, createParagraph, parseDocumentContent } from '../../lib/editor/model'
 import { getRepositories } from '../../lib/repositories'
+import * as dataClient from '../../lib/data/client'
 import { BulkCopiesDialog } from './BulkCopiesDialog'
 
 function renderDialog(model = createEmptyDocument('en')) {
@@ -94,5 +95,46 @@ describe('BulkCopiesDialog', () => {
     fireEvent.change(screen.getByTestId('bulk-paste'), { target: { value: 'Employee name' } })
     fireEvent.click(screen.getByTestId('bulk-use-pasted'))
     expect(await screen.findByTestId('bulk-error')).toHaveTextContent('No rows were found.')
+  })
+
+  it('makes one copy per chosen record of your data, linked to it', async () => {
+    window.localStorage.clear()
+    await dataClient.getDataSpace()
+    await dataClient.createRecord('employee', { values: { full_name: 'Dawit Haile', position: 'Accountant', monthly_salary: '20000' } })
+    await dataClient.createRecord('employee', { values: { full_name: 'Sara Tesfaye', position: 'Clerk' } })
+    await dataClient.createRecord('employee', { values: { full_name: 'Meron Alemu', position: 'Driver' } })
+    const used = vi.spyOn(dataClient, 'markRecordUsed')
+    const create = vi.spyOn(getRepositories().documents, 'create')
+    create.mockClear()
+    renderDialog(contract())
+    fireEvent.click(screen.getByTestId('bulk-from-data'))
+    const picker = await screen.findByTestId('bulk-records')
+    const boxes = (await within(picker).findAllByTestId('bulk-record')) as HTMLInputElement[]
+    expect(boxes).toHaveLength(3)
+    const names = within(picker).getAllByText(/Dawit Haile|Sara Tesfaye/)
+    fireEvent.click(names[0])
+    fireEvent.click(names[1])
+    fireEvent.click(within(picker).getByTestId('bulk-records-use'))
+
+    expect(await screen.findByTestId('bulk-rows')).toHaveTextContent('2 rows in the table.')
+    const [name, position, salary] = screen.getAllByTestId('bulk-map') as HTMLSelectElement[]
+    const options = Array.from(name.options).map((option) => option.textContent)
+    expect(options).toEqual(expect.arrayContaining(['Full name', 'Position', 'Monthly salary (ETB)']))
+    fireEvent.change(name, { target: { value: String(options.indexOf('Full name') - 1) } })
+    expect(position.value).not.toBe('')
+    fireEvent.change(salary, { target: { value: String(options.indexOf('Monthly salary (ETB)') - 1) } })
+    fireEvent.click(screen.getByTestId('bulk-create'))
+    expect(await screen.findByTestId('bulk-done')).toHaveTextContent('Made 2 documents.')
+    expect(create).toHaveBeenCalledTimes(2)
+    const texts = create.mock.calls.map((call) => parseDocumentContent(call[0].content ?? '', 'en')?.blocks[0])
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ html: 'Dawit Haile is hired as Accountant for 20,000 birr.' }),
+        expect.objectContaining({ html: 'Sara Tesfaye is hired as Clerk for [salary] birr.' }),
+      ]),
+    )
+    create.mockRestore()
+    await waitFor(() => expect(used).toHaveBeenCalledTimes(2))
+    expect(used.mock.calls.every(([, options]) => typeof options?.documentId === 'string')).toBe(true)
   })
 })

@@ -45,6 +45,7 @@ type FallbackTemplates = TemplateFixture[] | (() => Promise<TemplateFixture[]>)
 const loadBuiltInTemplates = (): Promise<TemplateFixture[]> =>
   import('../fixtures/templates').then((module) => module.FIXTURE_TEMPLATES)
 import type {
+  DataSourceTag,
   AppNotification,
   CreateDocumentPayload,
   DocumentDetailRecord,
@@ -180,6 +181,7 @@ interface TemplateDetailApiRecord extends TemplateApiRecord {
     type?: string
     fills?: string
     options?: { value: string; label: string }[]
+    dataSource?: DataSourceTag
   }[]
 }
 
@@ -550,6 +552,7 @@ class HttpTemplatesRepository implements TemplatesRepository {
             type: question.type,
             ...(question.fills ? { fills: question.fills } : {}),
             ...(question.options?.length ? { options: question.options } : {}),
+            ...(question.dataSource ? { dataSource: question.dataSource } : {}),
           })),
         } satisfies TemplateDetail
         void offlineWrite(keptKey, detail).catch(() => undefined)
