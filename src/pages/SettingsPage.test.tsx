@@ -10,6 +10,7 @@ import type { SessionUser } from '../lib/repositories'
 import { ToastProvider } from '../components/ui'
 import { saveCustomer } from '../lib/customers/client'
 import { TIP_KEYS } from '../lib/tips'
+import { getRepositories } from '../lib/repositories'
 import SettingsPage from './SettingsPage'
 
 const user: SessionUser = { id: 'u1', name: 'Abebe Bekele', email: 'abebe@example.com', role: 'user' }
@@ -104,5 +105,27 @@ describe('SettingsPage', () => {
       expect(within(help).getByRole('link', { name })).toBeInTheDocument()
     }
     expect(help).toHaveTextContent(/SenedDesk version \d+\.\d+\.\d+/)
+  })
+
+  it('members of an organization are pointed to its settings for new documents', async () => {
+    renderSettings()
+    expect(await screen.findByTestId('settings-look-org')).toHaveTextContent('Your new documents follow the settings of')
+  })
+
+  it('sets how new documents start: the template look, and a personal header for letters', async () => {
+    vi.spyOn(getRepositories().organization, 'get').mockResolvedValue(null)
+    const user = userEvent.setup()
+    renderSettings()
+    const card = await screen.findByTestId('settings-look')
+    expect(card).toHaveTextContent('New documents')
+    const auto = within(card).getByTestId('settings-look-auto') as HTMLInputElement
+    expect(auto.checked).toBe(true)
+    await user.type(within(card).getByLabelText('Header line 1'), 'Sara Kebede')
+    await user.tab()
+    // The next line opens once the first one has text.
+    expect(within(card).getByLabelText('Header line 2')).toBeInTheDocument()
+    await user.click(auto)
+    await waitFor(() => expect((within(card).getByTestId('settings-look-auto') as HTMLInputElement).checked).toBe(false))
+    expect((within(card).getByLabelText('Header line 1') as HTMLInputElement).value).toBe('Sara Kebede')
   })
 })

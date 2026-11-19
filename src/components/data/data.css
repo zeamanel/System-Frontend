@@ -598,3 +598,17 @@
     align-items: stretch;
   }
 }
+
+/* ── A customer's letterhead (share page) ─────────────────────────────── */
+
+.share-page__letterhead {
+  grid-template-columns: 1fr;
+}
+
+.share-page__logo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}

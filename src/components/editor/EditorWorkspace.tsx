@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useI18n, tForLocale } from '../../i18n'
 import type { MessageKey, MessageVars } from '../../i18n'
 import { useCreateExportRequest, useDuplicateDocument, useSaveAsTemplate } from '../../hooks/use-documents'
@@ -71,6 +71,20 @@ import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
 import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/editor/styles'
+import {
+  brandingOffers,
+  customerLetterheadApplied,
+  lookMode,
+  missingLetterhead,
+  templateStyle,
+  toggleBranding,
+  toggleCustomerLetterhead,
+  type BrandingKind,
+} from '../../lib/editor/default-look'
+import { useDocumentRecords } from '../../hooks/use-data'
+import { RequestDialog } from '../data/RequestDialog'
+import { PreferencesContext } from '../../preferences/context'
+import type { DocumentStyleId } from '../../lib/editor/types'
 import { useOrganization } from '../../hooks/use-organization'
 import { useFeatures } from '../../hooks/use-features'
 import { designLinkFor } from '../../designs/links'
@@ -142,6 +156,7 @@ export interface NewCustomerDocumentInput {
   templateId: string
   title: string
   documentTypeId?: string
+  defaultStyle?: DocumentStyleId
   language: string
 }
 
@@ -214,6 +229,14 @@ export function EditorWorkspace({
   const [styleOpen, setStyleOpen] = useState(false)
   const organization = useOrganization()
   const organizationProfile = organization.data ?? null
+  const preferences = useContext(PreferencesContext)?.preferences
+  const lookContext = useMemo(
+    () => ({
+      organization: organizationProfile,
+      personal: { occupation: preferences?.occupation, documentLook: preferences?.documentLook },
+    }),
+    [organizationProfile, preferences?.documentLook, preferences?.occupation],
+  )
   const features = useFeatures()
   const designLink = features.designs ? designLinkFor(template?.documentTypeId) : null
   const linkedDesign = designLink ? DESIGN_CATALOG.find((entry) => entry.id === designLink.designId) : undefined
@@ -560,6 +583,7 @@ export function EditorWorkspace({
         templateId: template?.id ?? editor.templateId,
         title: template?.title ?? doc.title,
         documentTypeId: template?.documentTypeId,
+        ...(template?.defaultStyle ? { defaultStyle: template.defaultStyle } : {}),
         language: editor.language,
       })
     } catch {
@@ -1245,12 +1269,69 @@ export function EditorWorkspace({
     [updateModel, toast, t],
   )
 
+  // ---- branding on demand (letterhead, own header, a print shop's footer line, a customer's letterhead) ----
+  const shopMode = lookMode(lookContext) === 'customers'
+  const linkedRecords = useDocumentRecords(shopMode && doc.access !== 'view' && doc.kind !== 'design' ? doc.id : undefined)
+  const [askLetterhead, setAskLetterhead] = useState<{ id: string; name: string } | null>(null)
+  const brandingButtons = useMemo(() => {
+    if (doc.access === 'view' || doc.kind === 'design') return []
+    // A print shop: each customer this document was made for, with their own letterhead (or a way to ask for it).
+    const seen = new Set<string>()
+    const customers = (shopMode ? (linkedRecords.data ?? []) : [])
+      .filter((link) => link.collection === 'customer' && !seen.has(link.recordId) && seen.add(link.recordId))
+      .map((link) => {
+        const branding = link.branding
+        if (!branding) {
+          return {
+            id: `ask-${link.recordId}`,
+            label: t('look.askCustomer', { name: link.displayName }),
+            pressed: false,
+            onClick: () => setAskLetterhead({ id: link.recordId, name: link.displayName }),
+          }
+        }
+        const applied = customerLetterheadApplied(model, branding)
+        return {
+          id: `customer-${link.recordId}`,
+          label: t(applied ? 'look.removeCustomer' : 'look.addCustomer', { name: link.displayName }),
+          pressed: applied,
+          onClick: () => updateModel((current) => toggleCustomerLetterhead(current, branding)),
+        }
+      })
+    const labels: Record<BrandingKind, [MessageKey, MessageKey]> = {
+      letterhead: ['look.addLetterhead', 'look.removeLetterhead'],
+      'personal-header': ['look.addHeader', 'look.removeHeader'],
+      'customer-footer': ['look.addFooter', 'look.removeFooter'],
+    }
+    return [
+      ...customers,
+      ...brandingOffers(model, lookContext).map((offer) => ({
+        id: offer.kind,
+        label: t(labels[offer.kind][offer.applied ? 1 : 0]),
+        pressed: offer.applied,
+        onClick: () => updateModel((current) => toggleBranding(current, offer.kind, lookContext)),
+      })),
+    ]
+  }, [doc.access, doc.kind, linkedRecords.data, lookContext, model, shopMode, t, updateModel])
+
   // ---- print (with pre-print check) ----
   const [printCheck, setPrintCheck] = useState<DocumentCheckResult | null>(null)
+  /** An organization's letter about to be printed without its letterhead (asked once per document). */
+  const [letterheadAsk, setLetterheadAsk] = useState(false)
+  const letterheadAskedRef = useRef(false)
   const issueText = useIssueText()
   const { runCheck, postCheck } = assistant
 
-  const handlePrint = useCallback(async (): Promise<void> => {
+  const handlePrint = useCallback(async (options?: { skipLetterhead?: boolean }): Promise<void> => {
+    if (
+      !options?.skipLetterhead &&
+      !letterheadAskedRef.current &&
+      template &&
+      missingLetterhead(editor.model, { ...lookContext, template: { defaultStyle: template.defaultStyle, documentTypeId: template.documentTypeId } })
+    ) {
+      letterheadAskedRef.current = true
+      setLetterheadAsk(true)
+      return
+    }
     // Carry pending field edits into the text and let React render them
     // before checking and before the browser snapshots the page.
     editor.flushFieldSync()
@@ -1271,7 +1352,7 @@ export function EditorWorkspace({
       return
     }
     triggerPrint()
-  }, [editor, runCheck])
+  }, [editor, lookContext, runCheck, template])
 
   const reviewPrintProblems = useCallback((): void => {
     if (printCheck) postCheck(printCheck)
@@ -1683,7 +1764,7 @@ export function EditorWorkspace({
         open={styleOpen}
         onClose={() => setStyleOpen(false)}
         current={documentStyleId(editor.model)}
-        suggested={suggestedStyles(template?.documentTypeId)}
+        suggested={template ? [templateStyle(template)].filter((id) => id !== 'standard') : suggestedStyles(undefined)}
         letterheadIncomplete={
           !organizationProfile?.logoMediaId ||
           !organizationProfile.letterhead.headerLines.some((line) => line.trim())
@@ -1763,6 +1844,7 @@ export function EditorWorkspace({
         blockTones={streamPreview?.tones}
         streamTailId={streamPreview?.tailId ?? null}
         askAi={askAiLabels}
+        branding={previewMode || pageLocked ? undefined : { label: t('look.brandingLabel'), buttons: brandingButtons }}
         tip={
           blockTipVisible
             ? { text: t('editor.tipBlocks'), dismissLabel: t('editor.tipDismiss'), onDismiss: dismissBlockTip, highlightBlockId: tipBlockId }
@@ -1948,6 +2030,52 @@ export function EditorWorkspace({
           }}
           data-testid="save-template-name"
         />
+      </Dialog>
+
+      {askLetterhead ? (
+        <RequestDialog
+          open
+          onClose={() => setAskLetterhead(null)}
+          collection="customer"
+          canSeeSensitive={false}
+          record={askLetterhead}
+          letterhead
+        />
+      ) : null}
+
+      <Dialog
+        open={letterheadAsk}
+        onClose={() => setLetterheadAsk(false)}
+        title={t('look.printAskTitle')}
+        closeLabel={t('common.close')}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setLetterheadAsk(false)
+                void handlePrint({ skipLetterhead: true })
+              }}
+              data-testid="letterhead-ask-without"
+            >
+              {t('look.printWithout')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setLetterheadAsk(false)
+                updateModel((current) => toggleBranding(current, 'letterhead', lookContext))
+                // Let the letterhead render before the page is checked and printed.
+                window.setTimeout(() => void handlePrint({ skipLetterhead: true }), 80)
+              }}
+              data-testid="letterhead-ask-add"
+            >
+              {t('look.printAdd')}
+            </Button>
+          </>
+        }
+      >
+        <p data-testid="letterhead-ask">{t('look.printAskBody', { name: organizationProfile?.name ?? '' })}</p>
       </Dialog>
 
       <Dialog

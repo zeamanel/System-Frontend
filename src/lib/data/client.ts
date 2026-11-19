@@ -26,6 +26,7 @@ import type {
   ExtraField,
   ImportResult,
   MemberAccess,
+  RecordBranding,
   RecordDetail,
   RecordDocument,
   RecordInput,
@@ -49,6 +50,7 @@ const CUSTOMER_RETENTION_MS = 365 * 24 * 60 * 60_000
 interface DemoCustomer extends Customer {
   dataValues?: Record<string, string>
   dataExtra?: ExtraField[]
+  dataBranding?: RecordBranding | null
   useCount?: number
   createdAt?: string
 }
@@ -85,6 +87,7 @@ function customerToRecord(customer: DemoCustomer): RecordDetail {
     updatedAt: customer.lastUsedAt,
     values,
     extraFields: customer.dataExtra ?? [],
+    branding: customer.dataBranding ?? null,
     sensitiveHidden: false,
     source: 'entered',
     expiresAt: customer.expiresAt,
@@ -107,6 +110,7 @@ function recordToCustomer(record: RecordDetail): DemoCustomer {
     expiresAt: record.expiresAt ?? (getDef('customer')?.retentionDays === null ? null : new Date(now.getTime() + CUSTOMER_RETENTION_MS).toISOString()),
     dataValues: rest,
     dataExtra: record.extraFields,
+    dataBranding: record.branding ?? null,
     useCount: record.useCount,
     createdAt: record.createdAt,
   }
@@ -128,10 +132,11 @@ function writeDemo(list: RecordDetail[]): void {
 const matchKey = (name: string): string => name.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim()
 
 function toSummary(record: RecordDetail): RecordSummary {
-  const { values, extraFields: _extra, sensitiveHidden: _hidden, source: _source, expiresAt: _expires, createdAt: _created, ...summary } = record
+  const { values, extraFields: _extra, sensitiveHidden: _hidden, source: _source, expiresAt: _expires, createdAt: _created, branding: _branding, ...summary } = record
   return {
     ...summary,
     summary: Object.fromEntries((getDef(record.collection)?.summaryFields ?? []).flatMap((key) => (values[key] ? [[key, values[key]]] : []))),
+    hasLetterhead: Boolean(record.branding),
   }
 }
 
@@ -149,6 +154,18 @@ function demoValues(collection: string, input: Record<string, string>, base: Rec
   const nameKey = nameFieldOf(collection)
   if (!next[nameKey]) throw new Error(`values.${nameKey}: Required`)
   return next
+}
+
+/** Demo: a letterhead without empty lines; null when nothing is left. */
+function demoBranding(input: NonNullable<RecordInput['branding']>): RecordBranding | null {
+  const headerLines = input.headerLines.map((line) => line.trim()).filter(Boolean).slice(0, 4)
+  const footerLine = input.footerLine?.trim()
+  const branding: RecordBranding = {
+    headerLines,
+    ...(footerLine ? { footerLine } : {}),
+    ...(input.logoMediaId ? { logoMediaId: input.logoMediaId } : {}),
+  }
+  return headerLines.length > 0 || footerLine || input.logoMediaId ? branding : null
 }
 
 const cleanExtra = (extra: ExtraField[] = []): ExtraField[] =>
@@ -384,6 +401,7 @@ export async function createRecord(collection: string, input: RecordInput): Prom
     source: 'entered',
     expiresAt: null,
     createdAt: now,
+    ...(input.branding ? { branding: demoBranding(input.branding) } : {}),
   }
   writeDemo([record, ...readDemo()])
   return record
@@ -400,6 +418,7 @@ export async function updateRecord(id: string, input: Partial<RecordInput>): Pro
     values,
     displayName: values[nameFieldOf(current.collection)],
     extraFields: input.extraFields ? cleanExtra(input.extraFields) : current.extraFields,
+    ...(input.branding !== undefined ? { branding: input.branding ? demoBranding(input.branding) : null } : {}),
     updatedAt: new Date().toISOString(),
   }
   writeDemo(list.map((r) => (r.id === id ? updated : r)))
@@ -490,6 +509,7 @@ export async function getDocumentRecords(documentId: string, signal?: AbortSigna
         recordUpdatedAt: record.updatedAt,
         linkedAt: link.linkedAt,
         canManage: true,
+        branding: record.branding ?? null,
       }
     })
 }
@@ -523,6 +543,8 @@ export interface DataRequestInput {
   recipientName: string
   purpose: string
   recordId?: string
+  /** Also ask for their letterhead and logo (customers). */
+  branding?: boolean
 }
 
 export async function createDataRequest(input: DataRequestInput): Promise<CreatedDataRequest> {
@@ -552,8 +574,25 @@ export async function getSharedRequest(token: string, signal?: AbortSignal): Pro
   }
 }
 
-export async function answerSharedRequest(token: string, values: Record<string, string>): Promise<void> {
-  await apiClient.post(`/data-requests/${encodeURIComponent(token)}/answer`, { values, consent: true })
+export async function answerSharedRequest(
+  token: string,
+  values: Record<string, string>,
+  branding?: { headerLines: string[]; footerLine: string },
+): Promise<void> {
+  await apiClient.post(`/data-requests/${encodeURIComponent(token)}/answer`, { values, consent: true, ...(branding ? { branding } : {}) })
+}
+
+/** The logo for a letterhead request (PNG, JPEG or WebP, at most 1 MB), sent as the raw image. */
+export async function uploadSharedLogo(token: string, file: File): Promise<void> {
+  const response = await fetch(`${env.apiBaseUrl.replace(/\/+$/, '')}/data-requests/${encodeURIComponent(token)}/logo`, {
+    method: 'PUT',
+    headers: { 'content-type': file.type },
+    body: file,
+  })
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string; error?: { message?: string } } | null
+    throw new Error(body?.error?.message ?? body?.message ?? 'The logo could not be sent')
+  }
 }
 
 export async function declineSharedRequest(token: string): Promise<void> {

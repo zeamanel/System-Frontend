@@ -251,6 +251,87 @@ export default function OrganizationPage() {
             </CardBody>
           </Card>
 
+          <Card data-testid="org-document-look">
+            <CardTitle info={t('look.orgHint')}>{t('look.title')}</CardTitle>
+            <CardBody>
+              <div className="org-form__stack">
+                <p className="org-note org-note--inline" data-testid="org-look-mode">
+                  {t(profile.type === 'print_shop' ? 'look.modeShop' : 'look.modeOrganization')}
+                </p>
+                <label className="org-check">
+                  <input
+                    type="checkbox"
+                    checked={profile.documentLook?.autoStyle !== false}
+                    onChange={(event) =>
+                      update({ documentLook: { customerFooter: '', ...profile.documentLook, autoStyle: event.target.checked } })
+                    }
+                    data-testid="org-look-auto"
+                  />
+                  <span>{t('look.autoStyle')}</span>
+                </label>
+                {profile.type !== 'print_shop' ? (
+                  <label className="org-check">
+                    <input
+                      type="checkbox"
+                      checked={profile.documentLook?.alwaysLetterhead === true}
+                      onChange={(event) =>
+                        update({
+                          documentLook: { autoStyle: true, customerFooter: '', ...profile.documentLook, alwaysLetterhead: event.target.checked },
+                        })
+                      }
+                      data-testid="org-look-always-letterhead"
+                    />
+                    <span>{t('look.alwaysLetterhead')}</span>
+                  </label>
+                ) : null}
+                {profile.type === 'print_shop' ? (
+                  <Input
+                    id="org-customer-footer"
+                    label={t('look.customerFooter')}
+                    hint={t('look.customerFooterHint')}
+                    value={profile.documentLook?.customerFooter ?? ''}
+                    onChange={(event) =>
+                      update({ documentLook: { autoStyle: true, ...profile.documentLook, customerFooter: event.target.value } })
+                    }
+                    maxLength={200}
+                    data-testid="org-look-footer"
+                  />
+                ) : null}
+              </div>
+            </CardBody>
+          </Card>
+
+          <Card data-testid="org-telegram">
+            <CardTitle info={t('telegramLink.orgHint')}>{t('telegramLink.title')}</CardTitle>
+            <CardBody>
+              <div className="org-form__stack">
+                <p className="org-note org-note--inline">{t('telegramLink.orgNote')}</p>
+                {(
+                  [
+                    ['enabled', 'telegramLink.orgEnabled'],
+                    ['ask', 'telegramLink.orgAsk'],
+                    ['files', 'telegramLink.orgFiles'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="org-check">
+                    <input
+                      type="checkbox"
+                      checked={profile.telegram?.[key] !== false}
+                      disabled={key !== 'enabled' && profile.telegram?.enabled === false}
+                      onChange={(event) =>
+                        update({
+                          telegram: { enabled: true, ask: true, files: true, ...profile.telegram, [key]: event.target.checked },
+                        })
+                      }
+                      data-testid={`org-telegram-${key}`}
+                    />
+                    <span>{t(label)}</span>
+                  </label>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+
           <Card>
             <CardTitle info={t('organization.signatoriesHint')}>{t('organization.section.signatories')}</CardTitle>
             <CardBody>

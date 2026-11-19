@@ -1,5 +1,12 @@
 import { useCallback, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { PreferencesContext } from '../preferences/context'
+import { getRepositories } from '../lib/repositories'
+import { queryKeys } from '../lib/query-keys'
+import { createEmptyDocument, serializeModel } from '../lib/editor/model'
+import { applyDefaultLook } from '../lib/editor/default-look'
+import type { DocumentStyleId } from '../lib/editor/types'
 import { I18nContext } from '../i18n/context'
 import { DEFAULT_LOCALE } from '../i18n/locales'
 import { useCreateDocument } from './use-documents'
@@ -12,6 +19,8 @@ export interface StartTemplateInput {
   documentTypeId?: string
   language?: string
   languageCode?: string
+  /** The template's look (from the API); guessed from the document type when absent. */
+  defaultStyle?: DocumentStyleId
 }
 
 /**
@@ -24,7 +33,36 @@ export function useStartTemplateDocument() {
   const createDocument = useCreateDocument()
   const i18n = useContext(I18nContext)
   const toast = useContext(ToastContext)
+  const preferences = useContext(PreferencesContext)?.preferences
+  const queryClient = useQueryClient()
   const locale = i18n?.locale ?? DEFAULT_LOCALE
+
+  /**
+   * The new document's first content: empty, in the look the template and the
+   * space call for (an organization's letterhead, a person's own header, a
+   * print shop's customer footer...). Never blocks starting the document.
+   */
+  const startingContent = useCallback(
+    async (template: StartTemplateInput | TemplateSummary, language: string): Promise<string> => {
+      try {
+        const organization = await queryClient.fetchQuery({
+          queryKey: queryKeys.organization.all,
+          queryFn: () => getRepositories().organization.get(),
+          staleTime: 60_000,
+        })
+        const empty = createEmptyDocument(language)
+        const model = applyDefaultLook(empty, {
+          template: { defaultStyle: template.defaultStyle, documentTypeId: template.documentTypeId },
+          organization,
+          personal: { occupation: preferences?.occupation, documentLook: preferences?.documentLook },
+        })
+        return model === empty ? '' : serializeModel(model)
+      } catch {
+        return ''
+      }
+    },
+    [preferences?.documentLook, preferences?.occupation, queryClient],
+  )
 
   const startTemplateDocument = useCallback(
     async (
@@ -43,7 +81,7 @@ export function useStartTemplateDocument() {
           templateId: template.id,
           documentTypeId: template.documentTypeId,
           language,
-          content: '',
+          content: await startingContent(template, language),
         })
         navigate(`/documents/${encodeURIComponent(doc.id)}`)
         return doc.id
@@ -55,7 +93,7 @@ export function useStartTemplateDocument() {
         return null
       }
     },
-    [createDocument, i18n, locale, navigate, toast],
+    [createDocument, i18n, locale, navigate, startingContent, toast],
   )
 
   return {

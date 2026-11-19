@@ -50,7 +50,7 @@ export default function EditorPage() {
   const handleNewCustomer = useCallback(
     async (input: NewCustomerDocumentInput): Promise<void> => {
       await startTemplateDocument(
-        { id: input.templateId, title: input.title, documentTypeId: input.documentTypeId },
+        { id: input.templateId, title: input.title, documentTypeId: input.documentTypeId, defaultStyle: input.defaultStyle },
         input.language,
       )
     },

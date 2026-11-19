@@ -1,5 +1,12 @@
 import type { CollectionDef } from './catalog'
 
+/** A customer's own letterhead (a print shop puts it on their documents with one click). */
+export interface RecordBranding {
+  headerLines: string[]
+  footerLine?: string
+  logoMediaId?: string
+}
+
 export interface ExtraField {
   label: string
   value: string
@@ -55,6 +62,8 @@ export interface RecordSummary {
   useCount: number
   lastUsedAt: string | null
   updatedAt: string
+  /** The record keeps its own letterhead (customers). */
+  hasLetterhead?: boolean
 }
 
 export interface RecordDetail extends RecordSummary {
@@ -65,11 +74,15 @@ export interface RecordDetail extends RecordSummary {
   source: string
   expiresAt: string | null
   createdAt: string
+  /** Customers: their own letterhead and logo, or null. */
+  branding?: RecordBranding | null
 }
 
 export interface RecordInput {
   values: Record<string, string>
   extraFields?: ExtraField[]
+  /** Customers: their letterhead (null clears it). */
+  branding?: { headerLines: string[]; footerLine?: string; logoMediaId?: string | null } | null
 }
 
 export interface ImportResult {
@@ -95,6 +108,8 @@ export interface DocumentRecordLink {
   recordUpdatedAt: string
   linkedAt: string
   canManage: boolean
+  /** A customer's own letterhead, or null. */
+  branding?: RecordBranding | null
 }
 
 /** GET /data/records/:id/documents */
@@ -121,6 +136,8 @@ export interface DataRequest {
   answeredAt: string | null
   expiresAt: string
   createdAt: string
+  /** Also asks for the letterhead and logo. */
+  branding?: boolean
 }
 
 /** POST /data/requests: the request with its links (the token is shown once). */
@@ -139,4 +156,6 @@ export interface SharedRequest {
   fields: Array<{ key: string; type: string; required: boolean; options?: string[] }>
   status: 'open' | 'submitted' | 'declined'
   expiresAt: string
+  /** Asks for the letterhead lines and logo too (what was sent so far). */
+  branding?: { headerLines: string[]; footerLine: string; logo: boolean } | null
 }

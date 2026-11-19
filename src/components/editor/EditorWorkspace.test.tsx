@@ -6,6 +6,7 @@ import { ToastProvider } from '../ui'
 import { getRepositories } from '../../lib/repositories'
 import type { DocumentDetailRecord, TemplateDetail } from '../../lib/repositories'
 import { EditorWorkspace } from './EditorWorkspace'
+import * as dataClient from '../../lib/data/client'
 
 const repos = getRepositories()
 
@@ -273,6 +274,71 @@ describe('EditorWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /print/i }))
     fireEvent.click(await screen.findByTestId('print-check-anyway'))
     await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1))
+  })
+
+  it('adds the organization letterhead with one click, and asks before printing a letter without it', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const organization = await repos.organization.get()
+    await repos.organization.update({
+      ...(organization as NonNullable<typeof organization>),
+      type: 'office',
+      letterhead: { headerLines: ['Bole Consulting PLC', 'Bole, Addis Ababa'], footerLine: '' },
+    })
+    const created = await repos.documents.create({
+      title: 'Request letter',
+      templateId: 'letter',
+      documentTypeId: 'letter',
+      language: 'en',
+      answers: {},
+      content: 'Dear Sir, we request a meeting.',
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    // Clean page; the letterhead is one click away.
+    const add = await screen.findByTestId('branding-letterhead')
+    expect(add).toHaveTextContent('Add our letterhead')
+    expect(document.querySelector('.doc-paper__header-text, .doc-paper__header')?.textContent ?? '').not.toContain('Bole Consulting PLC')
+
+    // Printing a letter without it asks first.
+    fireEvent.click(screen.getByRole('button', { name: /print/i }))
+    expect(await screen.findByTestId('letterhead-ask')).toHaveTextContent('not on the')
+    expect(printSpy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('letterhead-ask-add'))
+    await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.getByTestId('branding-letterhead')).toHaveTextContent('Letterhead on · remove'))
+    expect(screen.getAllByText('Bole Consulting PLC').length).toBeGreaterThan(0)
+
+    // And off again with one click.
+    fireEvent.click(screen.getByTestId('branding-letterhead'))
+    await waitFor(() => expect(screen.getByTestId('branding-letterhead')).toHaveTextContent('Add our letterhead'))
+  })
+
+  it('a print shop puts a customer’s own letterhead on their document, or asks them for it', async () => {
+    await dataClient.getDataSpace()
+    const sheba = await dataClient.createRecord('customer', {
+      values: { full_name: 'Sheba Trading PLC' },
+      branding: { headerLines: ['Sheba Trading PLC', 'Merkato, Addis Ababa'] },
+    })
+    const abay = await dataClient.createRecord('customer', { values: { full_name: 'Abay Bakery' } })
+    const created = await repos.documents.create({ title: 'Sheba letter', language: 'en', answers: {}, content: 'Dear Sir, please find attached.' })
+    await dataClient.markRecordUsed(sheba.id, { documentId: created.id, party: 'customer' })
+    await dataClient.markRecordUsed(abay.id, { documentId: created.id, party: 'customer' })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    const add = await screen.findByTestId(`branding-customer-${sheba.id}`)
+    expect(add).toHaveTextContent("Add Sheba Trading PLC's letterhead")
+    fireEvent.click(add)
+    await waitFor(() => expect(screen.getByTestId(`branding-customer-${sheba.id}`)).toHaveTextContent("Sheba Trading PLC's letterhead on · remove"))
+    expect(screen.getAllByText('Merkato, Addis Ababa').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByTestId(`branding-ask-${abay.id}`))
+    const dialog = await screen.findByRole('dialog', { name: /Ask a customer/ })
+    expect((within(dialog).getByTestId('data-request-letterhead') as HTMLInputElement).checked).toBe(true)
+    expect((within(dialog).getByTestId('data-request-recipient') as HTMLInputElement).value).toBe('Abay Bakery')
   })
 
   it('reports server PDF export honestly when the backend is missing', async () => {

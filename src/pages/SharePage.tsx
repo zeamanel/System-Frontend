@@ -6,7 +6,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
-import { answerSharedRequest, declineSharedRequest, getSharedRequest } from '../lib/data/client'
+import { answerSharedRequest, declineSharedRequest, getSharedRequest, uploadSharedLogo } from '../lib/data/client'
 import { checkValue, catalogField } from '../lib/data/catalog'
 import { fieldLabel } from '../lib/data/labels'
 import { formatDate } from '../lib/datetime'
@@ -29,6 +29,11 @@ export default function SharePage() {
   const [sending, setSending] = useState(false)
   const [outcome, setOutcome] = useState<'submitted' | 'declined' | null>(null)
   const [failure, setFailure] = useState('')
+  /** A letterhead request: the lines (null until edited: the ones already sent to the bot), footer and logo. */
+  const [lines, setLines] = useState<string[] | null>(null)
+  const [footer, setFooter] = useState<string | null>(null)
+  const [logoSent, setLogoSent] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   const header = (
     <header className="review-page__bar">
@@ -60,6 +65,24 @@ export default function SharePage() {
   if (outcome === 'submitted' || data.status === 'submitted') return gone('share.sentTitle', 'share.sentBody')
   if (outcome === 'declined' || data.status === 'declined') return gone('share.declinedTitle', 'share.declinedBody')
 
+  const branding = data.branding ?? null
+  const headerLines = lines ?? branding?.headerLines ?? []
+  const footerLine = footer ?? branding?.footerLine ?? ''
+  const hasLogo = logoSent || Boolean(branding?.logo)
+
+  const sendLogo = async (file: File): Promise<void> => {
+    setUploading(true)
+    setFailure('')
+    try {
+      await uploadSharedLogo(token, file)
+      setLogoSent(true)
+    } catch (error) {
+      setFailure(error instanceof Error && error.message ? error.message : t('share.failed'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const submit = async (): Promise<void> => {
     const next: Record<string, string> = {}
     for (const field of data.fields) {
@@ -71,12 +94,17 @@ export default function SharePage() {
         if ('error' in checked) next[field.key] = t(`data.error.${checked.error}` as MessageKey)
       }
     }
+    if (branding && !headerLines.some((line) => line.trim()) && !hasLogo && !footerLine.trim()) next.letterhead = t('share.letterheadNeeded')
     setErrors(next)
     if (Object.keys(next).length > 0 || !consent) return
     setSending(true)
     setFailure('')
     try {
-      await answerSharedRequest(token, values)
+      if (branding) {
+        await answerSharedRequest(token, values, { headerLines: headerLines.map((line) => line.trim()).filter(Boolean), footerLine: footerLine.trim() })
+      } else {
+        await answerSharedRequest(token, values)
+      }
       setOutcome('submitted')
     } catch (error) {
       setFailure(error instanceof Error && error.message ? error.message : t('share.failed'))
@@ -135,6 +163,46 @@ export default function SharePage() {
               />
             ),
           )}
+          {branding ? (
+            <fieldset className="data-request__fields share-page__letterhead" data-testid="share-letterhead">
+              <legend>{t('share.letterheadTitle')}</legend>
+              <p className="data-request__hint">{t('share.letterheadHint', { requester: data.requesterName })}</p>
+              {Array.from({ length: Math.min(headerLines.length + 1, 4) }, (_, index) => (
+                <Input
+                  key={index}
+                  label={t('organization.headerLine', { n: String(index + 1) })}
+                  value={headerLines[index] ?? ''}
+                  maxLength={200}
+                  onChange={(event) => {
+                    const next = [...headerLines]
+                    next[index] = event.target.value
+                    setLines(next)
+                  }}
+                  data-testid="share-letterhead-line"
+                />
+              ))}
+              <Input label={t('organization.footerLine')} value={footerLine} maxLength={200} onChange={(event) => setFooter(event.target.value)} />
+              <label className="share-page__logo">
+                <span>{hasLogo ? t('share.logoReceived') : t('share.logoChoose')}</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  disabled={uploading}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    event.target.value = ''
+                    if (file) void sendLogo(file)
+                  }}
+                  data-testid="share-logo"
+                />
+              </label>
+              {errors.letterhead ? (
+                <p className="data-import__error" role="alert">
+                  {errors.letterhead}
+                </p>
+              ) : null}
+            </fieldset>
+          ) : null}
           <label className="share-page__consent">
             <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} data-testid="share-consent" />
             <span>{t('share.consent', { requester: data.requesterName })}</span>

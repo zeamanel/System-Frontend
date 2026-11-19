@@ -52,6 +52,8 @@ export interface A4PagesCanvasProps {
   askAi?: { label: string; shortLabel: string; title: string; onAsk: (blockId: string) => void }
   /** A one-time tip shown above the page; `highlightBlockId` gets a brief outline. */
   tip?: { text: string; dismissLabel: string; onDismiss: () => void; highlightBlockId?: string | null }
+  /** One-click branding above the page ("Add our letterhead"); each button adds or removes it. */
+  branding?: { label: string; buttons: Array<{ id: string; label: string; pressed: boolean; onClick: () => void }> }
 }
 
 /** Blocks the assistant can work on (paragraphs, headings, list items, table description cells). */
@@ -94,6 +96,7 @@ export function A4PagesCanvas({
   streamTailId,
   askAi,
   tip,
+  branding,
 }: A4PagesCanvasProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const pagesWrapRef = useRef<HTMLDivElement | null>(null)
@@ -449,6 +452,22 @@ export function A4PagesCanvas({
           <button type="button" className="doc-canvas-tip__dismiss" onClick={tip.onDismiss} data-testid="canvas-tip-dismiss">
             {tip.dismissLabel}
           </button>
+        </div>
+      ) : null}
+      {branding && branding.buttons.length > 0 && !lockedNotice ? (
+        <div className="doc-branding" role="group" aria-label={branding.label} data-testid="canvas-branding">
+          {branding.buttons.map((button) => (
+            <button
+              key={button.id}
+              type="button"
+              className={['doc-branding__button', button.pressed ? 'doc-branding__button--on' : null].filter(Boolean).join(' ')}
+              aria-pressed={button.pressed}
+              onClick={button.onClick}
+              data-testid={`branding-${button.id}`}
+            >
+              {button.label}
+            </button>
+          ))}
         </div>
       ) : null}
       <div

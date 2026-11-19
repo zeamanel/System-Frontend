@@ -83,6 +83,8 @@ export interface TemplateSummary {
   metadataLanguage: DocumentLanguage
   generatedDocumentLanguage: DocumentLanguage
   htmlTemplateVersion: string
+  /** The look new documents start in (set in the Template Factory, else the one the document type suits). */
+  defaultStyle?: import('../editor/types').DocumentStyleId
   region?: string
   institution?: string
   version: string
@@ -230,6 +232,28 @@ export interface OrganizationProfile {
   role?: OrganizationRole
   /** Uploaded logo (media id); changed with OrganizationRepository.setLogo. */
   logoMediaId?: string | null
+  /** How members' new documents start (owners and admins change it). */
+  documentLook?: OrganizationDocumentLook
+  /** What the bot may do for members who link their own Telegram (owners and admins change it). */
+  telegram?: OrganizationTelegram
+}
+
+export interface OrganizationTelegram {
+  /** Members may link Telegram (off: every linked chat goes back to standalone). */
+  enabled: boolean
+  /** /ask: send customers requests from Telegram. */
+  ask: boolean
+  /** /files: send files to SenedDesk from Telegram. */
+  files: boolean
+}
+
+export interface OrganizationDocumentLook {
+  /** false: new documents start plain instead of in the template's look (frames, borders). */
+  autoStyle: boolean
+  /** Letters start on the letterhead (opt-in; otherwise it is added with one click). */
+  alwaysLetterhead?: boolean
+  /** Print shops: an optional line at the foot of customers' documents. */
+  customerFooter: string
 }
 
 export interface OrganizationMember {

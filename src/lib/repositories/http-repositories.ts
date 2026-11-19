@@ -106,6 +106,7 @@ import {
 } from '../api/endpoints/organization'
 import { normalizeOrganization } from '../organization/profile'
 import { deleteMedia, getMediaBlob, uploadMedia } from '../api/endpoints/media'
+import { isDocumentStyleId } from '../editor/default-look'
 
 /**
  * API-backed repositories over the live Cloud Run backend
@@ -153,6 +154,7 @@ interface TemplateApiRecord {
   id: string
   slug?: string
   documentTypeId?: string
+  defaultStyle?: string
   category: string
   title: string
   description: string
@@ -241,6 +243,7 @@ function mapTemplate(record: TemplateApiRecord): TemplateSummary {
     metadataLanguage: (record.language as DocumentLanguage) ?? 'en',
     generatedDocumentLanguage: (record.language as DocumentLanguage) ?? 'en',
     htmlTemplateVersion: record.version ? `html5-a4-v${record.version}` : 'html5-a4-v1.0',
+    ...(isDocumentStyleId(record.defaultStyle) ? { defaultStyle: record.defaultStyle } : {}),
     region: record.region,
     institution: record.institution,
     version: record.version ?? '1.0',

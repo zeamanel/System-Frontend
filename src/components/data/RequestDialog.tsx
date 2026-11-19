@@ -17,6 +17,8 @@ export interface RequestDialogProps {
   canSeeSensitive: boolean
   /** Updating an existing record: its id and name. */
   record?: { id: string; name: string } | null
+  /** Ask for the customer's letterhead and logo (from the editor, for a print shop): starts ticked, no other details. */
+  letterhead?: boolean
 }
 
 /** Fields asked by default. */
@@ -29,7 +31,7 @@ const DEFAULT_FIELDS: Partial<Record<DataCollection, string[]>> = {
  * Ask one person for their own details: they answer on a web page or approve
  * in Telegram, and only their answer goes into your data.
  */
-export function RequestDialog({ open, onClose, collection, canSeeSensitive, record }: RequestDialogProps) {
+export function RequestDialog({ open, onClose, collection, canSeeSensitive, record, letterhead = false }: RequestDialogProps) {
   const { t } = useI18n()
   const toast = useToast()
   const create = useCreateDataRequest()
@@ -38,14 +40,16 @@ export function RequestDialog({ open, onClose, collection, canSeeSensitive, reco
   const [fields, setFields] = useState<Set<string>>(new Set())
   const [created, setCreated] = useState<CreatedDataRequest | null>(null)
   const [error, setError] = useState('')
+  const [branding, setBranding] = useState(false)
 
   const choices = CATALOG[collection].filter((field) => field.key !== NAME_FIELD[collection] && (canSeeSensitive || !field.sensitive))
 
   useEffect(() => {
     if (!open) return
     setRecipient(record?.name ?? '')
-    setPurpose('')
-    setFields(new Set((DEFAULT_FIELDS[collection] ?? []).filter((key) => choices.some((field) => field.key === key))))
+    setPurpose(letterhead ? t('data.requestLetterheadPurpose') : '')
+    setBranding(letterhead)
+    setFields(letterhead ? new Set() : new Set((DEFAULT_FIELDS[collection] ?? []).filter((key) => choices.some((field) => field.key === key))))
     setCreated(null)
     setError('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,6 +65,7 @@ export function RequestDialog({ open, onClose, collection, canSeeSensitive, reco
           recipientName: recipient.trim(),
           purpose: purpose.trim(),
           ...(record ? { recordId: record.id } : {}),
+          ...(branding ? { branding: true } : {}),
         }),
       )
     } catch (failure) {
@@ -154,6 +159,12 @@ export function RequestDialog({ open, onClose, collection, canSeeSensitive, reco
                 {field.sensitive ? <small> · {t('data.sensitiveTitle')}</small> : null}
               </label>
             ))}
+            {collection === 'customer' ? (
+              <label className="record-form__check">
+                <input type="checkbox" checked={branding} onChange={(event) => setBranding(event.target.checked)} data-testid="data-request-letterhead" />
+                {t('data.requestLetterhead')}
+              </label>
+            ) : null}
           </fieldset>
           {error ? (
             <p className="data-import__error" role="alert" data-testid="data-request-error">

@@ -25,6 +25,8 @@ import { useSession } from '../session'
 import { useAiCredits } from '../hooks/use-ai-credits'
 import { useAllCustomers, useDeleteAllCustomers } from '../hooks/use-customers'
 import { AiCreditsToday } from '../components/usage/AiCreditsToday'
+import { DocumentLookCard } from '../components/settings/DocumentLookCard'
+import { TelegramLinkCard } from '../components/settings/TelegramLinkCard'
 import {
   Badge,
   Button,
@@ -256,6 +258,10 @@ export default function SettingsPage() {
             ) : null}
           </CardBody>
         </Card>
+
+        <DocumentLookCard />
+
+        <TelegramLinkCard />
 
         {/* What the plan gives, and what is left today. */}
         <Card className="settings-card" data-testid="settings-plan">
