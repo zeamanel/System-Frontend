@@ -10,9 +10,9 @@ import { serializeModel } from '../../lib/editor/model'
 import type { DocumentModel } from '../../lib/editor/types'
 import { queryKeys } from '../../lib/query-keys'
 import { getRepositories } from '../../lib/repositories'
-import { useCollections, useRecords } from '../../hooks/use-data'
+import { useCollections, useRecordPages } from '../../hooks/use-data'
 import { useDebouncedValue } from '../../hooks/use-debounced-value'
-import { markRecordUsed, readRecords } from '../../lib/data/client'
+import { listRecords, markRecordUsed, readRecords } from '../../lib/data/client'
 import { recordsTable } from '../../lib/data/bulk'
 import { collectionLabel, collectionText, fieldLabel, optionLabel } from '../../lib/data/labels'
 import { Badge, Button, Dialog, SearchInput, Select, Textarea } from '../ui'
@@ -389,10 +389,13 @@ function RecordsSource({
   const [collection, setCollection] = useState('employee')
   const [query, setQuery] = useState('')
   const debounced = useDebouncedValue(query, 250)
-  const records = useRecords(collection, debounced)
+  const records = useRecordPages(collection, debounced)
+  /** In the order chosen (the list's order when all are chosen): the copies follow it. */
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
-  const items = records.data?.items ?? []
+  const [selectingAll, setSelectingAll] = useState(false)
+  const items = records.data?.pages.flatMap((page) => page.items) ?? []
+  const total = records.data?.pages[0]?.total ?? 0
   const def = defs.find((item) => item.key === collection)
 
   const toggle = (id: string, on: boolean): void =>
@@ -407,8 +410,7 @@ function RecordsSource({
     if (!def || chosen.size === 0) return
     setLoading(true)
     try {
-      // In the list's order, so the copies follow it.
-      const ids = items.map((item) => item.id).filter((id) => chosen.has(id)).slice(0, MAX_COPIES)
+      const ids = [...chosen].slice(0, MAX_COPIES)
       const list = await readRecords(ids)
       if (list.length === 0) return onError(t('bulk.noRows'))
       onUse(
@@ -423,6 +425,21 @@ function RecordsSource({
   }
 
   const allShown = items.length > 0 && items.every((item) => chosen.has(item.id))
+  const more = total - items.length
+
+  /** Every record matching the search, up to the most copies made at once (more than one page reads the rest). */
+  const selectAll = async (): Promise<void> => {
+    setSelectingAll(true)
+    try {
+      const all =
+        total > items.length ? (await listRecords(collection, debounced, { limit: MAX_COPIES })).items.map((item) => item.id) : items.map((item) => item.id)
+      setChosen(new Set(all.slice(0, MAX_COPIES)))
+    } catch {
+      onError(t('data.loadFailed'))
+    } finally {
+      setSelectingAll(false)
+    }
+  }
 
   return (
     <div className="bulk-copies" data-testid="bulk-records">
@@ -486,6 +503,23 @@ function RecordsSource({
               </li>
             ))}
           </ul>
+          {more > 0 ? (
+            <div className="bulk-copies__more">
+              <span className="bulk-copies__hint">{t('bulk.fromDataMore', { shown: String(items.length), total: String(total) })}</span>
+              <Button variant="ghost" size="sm" loading={records.isFetchingNextPage} onClick={() => void records.fetchNextPage()} data-testid="bulk-records-more">
+                {t('bulk.fromDataShowMore')}
+              </Button>
+              <Button variant="secondary" size="sm" loading={selectingAll} onClick={() => void selectAll()} data-testid="bulk-records-every">
+                {t('bulk.fromDataEvery', { count: String(Math.min(total, MAX_COPIES)) })}
+              </Button>
+            </div>
+          ) : null}
+          {chosen.size > 0 ? (
+            <p className="bulk-copies__hint" data-testid="bulk-records-chosen">
+              {t('bulk.fromDataChosen', { count: String(chosen.size) })}
+              {chosen.size > MAX_COPIES ? ` ${t('bulk.firstOnly', { count: String(MAX_COPIES) })}` : ''}
+            </p>
+          ) : null}
         </>
       )}
       <div className="bulk-copies__actions">

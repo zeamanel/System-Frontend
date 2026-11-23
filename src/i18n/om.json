@@ -1790,5 +1790,10 @@
   "data.party.tenant": "Kireeffataa",
   "data.party.testator": "Dhaamsa dhaamaa",
   "data.party.transferee": "Dabarsee fudhataa",
-  "data.party.transferor": "Dabarsaa"
+  "data.party.transferor": "Dabarsaa",
+  "data.requestCustom": "Odeeffannoo gaafadhaa: {name}",
+  "bulk.fromDataMore": "{total} keessaa {shown} mul’ataniiru.",
+  "bulk.fromDataShowMore": "Dabalata agarsiisi",
+  "bulk.fromDataEvery": "Hunda {count} filadhu",
+  "bulk.fromDataChosen": "{count} filatamaniiru."
 }

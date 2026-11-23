@@ -13,7 +13,6 @@ import {
   setDefs,
   type CatalogField,
   type CollectionDef,
-  type DataCollection,
   type FieldType,
 } from './catalog'
 import type { Customer } from '../customers/types'
@@ -357,12 +356,14 @@ export async function readRecords(ids: readonly string[]): Promise<RecordDetail[
 export async function listRecords(
   collection: string,
   query = '',
-  options: { limit?: number; signal?: AbortSignal } = {},
+  options: { limit?: number; offset?: number; signal?: AbortSignal } = {},
 ): Promise<{ items: RecordSummary[]; total: number }> {
   const q = query.trim()
+  const offset = Math.max(options.offset ?? 0, 0)
   if (isHttp()) {
     const params = new URLSearchParams({ collection, limit: String(options.limit ?? 100) })
     if (q) params.set('q', q)
+    if (offset) params.set('offset', String(offset))
     return apiClient.get(`/data/records?${params.toString()}`, { signal: options.signal, auth: 'required' })
   }
   const needle = q.toLowerCase()
@@ -378,7 +379,7 @@ export async function listRecords(
       return text.toLowerCase().includes(needle)
     })
     .sort((a, b) => (b.lastUsedAt ?? b.updatedAt).localeCompare(a.lastUsedAt ?? a.updatedAt))
-  return { items: items.slice(0, options.limit ?? 100).map(toSummary), total: items.length }
+  return { items: items.slice(offset, offset + (options.limit ?? 100)).map(toSummary), total: items.length }
 }
 
 export async function getRecord(id: string, signal?: AbortSignal): Promise<RecordDetail> {
@@ -552,7 +553,7 @@ export class DataRequestsUnavailable extends Error {
 }
 
 export interface DataRequestInput {
-  collection: DataCollection
+  collection: string
   fields: string[]
   recipientName: string
   purpose: string

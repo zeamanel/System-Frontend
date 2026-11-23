@@ -1790,5 +1790,10 @@
   "data.party.tenant": "ተከራይ",
   "data.party.testator": "ተናዛዥ",
   "data.party.transferee": "ተቀባይ",
-  "data.party.transferor": "አስተላላፊ"
+  "data.party.transferor": "አስተላላፊ",
+  "data.requestCustom": "ዝርዝር ይጠይቁ፦ {name}",
+  "bulk.fromDataMore": "ከ{total} ውስጥ {shown} ታይተዋል።",
+  "bulk.fromDataShowMore": "ተጨማሪ አሳይ",
+  "bulk.fromDataEvery": "ሁሉንም {count} ምረጥ",
+  "bulk.fromDataChosen": "{count} ተመርጠዋል።"
 }

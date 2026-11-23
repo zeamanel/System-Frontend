@@ -49,7 +49,6 @@ export default function DataPage() {
   const canSeeSensitive = space.data?.canSeeSensitive ?? false
   const canEdit = space.data?.canEdit ?? true
   const canAdminister = space.data?.canAdminister ?? false
-  const askable = collection === 'customer' || collection === 'employee'
   const items = records.data?.items ?? []
 
   const choose = (next: string): void => {
@@ -137,7 +136,7 @@ export default function DataPage() {
               </Button>
             </>
           ) : null}
-          {askable && canEdit ? (
+          {canEdit ? (
             <Button variant="secondary" onClick={() => setRequesting(true)} data-testid="data-ask">
               {t('data.requestButton')}
             </Button>
@@ -257,7 +256,7 @@ export default function DataPage() {
         </section>
       ) : null}
 
-      {requesting && (collection === 'customer' || collection === 'employee') ? (
+      {requesting ? (
         <RequestDialog open onClose={() => setRequesting(false)} collection={collection} canSeeSensitive={canSeeSensitive} />
       ) : null}
 

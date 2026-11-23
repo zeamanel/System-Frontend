@@ -1790,5 +1790,10 @@
   "data.party.tenant": "Tenant",
   "data.party.testator": "Testator",
   "data.party.transferee": "Transferee",
-  "data.party.transferor": "Transferor"
+  "data.party.transferor": "Transferor",
+  "data.requestCustom": "Ask for details: {name}",
+  "bulk.fromDataMore": "{shown} of {total} shown.",
+  "bulk.fromDataShowMore": "Show more",
+  "bulk.fromDataEvery": "Choose all {count}",
+  "bulk.fromDataChosen": "{count} chosen."
 }

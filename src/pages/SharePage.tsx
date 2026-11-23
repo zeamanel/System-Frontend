@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
 import { answerSharedRequest, declineSharedRequest, getSharedRequest, uploadSharedLogo } from '../lib/data/client'
-import { checkValue, catalogField } from '../lib/data/catalog'
+import { checkValue, catalogField, type CatalogField } from '../lib/data/catalog'
 import { fieldLabel } from '../lib/data/labels'
 import { formatDate } from '../lib/datetime'
 import { Logo } from '../components/layout/Logo'
@@ -86,7 +86,7 @@ export default function SharePage() {
   const submit = async (): Promise<void> => {
     const next: Record<string, string> = {}
     for (const field of data.fields) {
-      const catalog = catalogField(data.collection, field.key)
+      const catalog = catalogField(data.collection, field.key) ?? ({ key: field.key, type: field.type, options: field.options } as CatalogField)
       const raw = values[field.key] ?? ''
       if (field.required && !raw.trim()) next[field.key] = t('data.error.required')
       else if (catalog) {
@@ -142,17 +142,21 @@ export default function SharePage() {
             field.type === 'choice' && field.options ? (
               <Select
                 key={field.key}
-                label={fieldLabel(t, data.collection, field.key)}
+                label={field.label ?? fieldLabel(t, data.collection, field.key)}
                 value={values[field.key] ?? ''}
                 required={field.required}
                 error={errors[field.key]}
                 onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}
-                options={[{ value: '', label: t('data.notSet') }, ...field.options.map((option) => ({ value: option, label: t(`data.option.${option}` as MessageKey) }))]}
+                options={[
+                  { value: '', label: t('data.notSet') },
+                  // The organization's own choices are shown as written; the catalog's are translated.
+                  ...field.options.map((option) => ({ value: option, label: field.label ? option : t(`data.option.${option}` as MessageKey) })),
+                ]}
               />
             ) : (
               <Input
                 key={field.key}
-                label={fieldLabel(t, data.collection, field.key)}
+                label={field.label ?? fieldLabel(t, data.collection, field.key)}
                 type={field.type === 'email' ? 'email' : field.type === 'date' ? 'date' : field.type === 'phone' ? 'tel' : 'text'}
                 inputMode={field.type === 'money' || field.type === 'number' ? 'decimal' : undefined}
                 value={values[field.key] ?? ''}

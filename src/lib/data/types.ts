@@ -163,7 +163,8 @@ export type DataRequestStatus = 'open' | 'submitted' | 'declined' | 'revoked' | 
 
 export interface DataRequest {
   id: string
-  collection: import('./catalog').DataCollection
+  /** Any record type of the space (built-in or the organization's own). */
+  collection: string
   fields: string[]
   recipientName: string
   purpose: string
@@ -190,8 +191,9 @@ export interface SharedRequest {
   requesterName: string
   recipientName: string
   purpose: string
-  collection: import('./catalog').DataCollection
-  fields: Array<{ key: string; type: string; required: boolean; options?: string[] }>
+  collection: string
+  /** `label`: the organization's own name for its own fields. */
+  fields: Array<{ key: string; type: string; required: boolean; options?: string[]; label?: string }>
   status: 'open' | 'submitted' | 'declined'
   expiresAt: string
   /** Asks for the letterhead lines and logo too (what was sent so far). */

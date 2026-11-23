@@ -3,17 +3,18 @@ import './data.css'
 import { useEffect, useState } from 'react'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n'
-import { useCreateDataRequest } from '../../hooks/use-data'
-import { CATALOG, NAME_FIELD, type DataCollection } from '../../lib/data/catalog'
+import { useCollections, useCreateDataRequest } from '../../hooks/use-data'
+import { builtInDef, isDataCollection } from '../../lib/data/catalog'
 import { DataRequestsUnavailable } from '../../lib/data/client'
-import { fieldLabel } from '../../lib/data/labels'
+import { collectionLabel, fieldLabel } from '../../lib/data/labels'
 import type { CreatedDataRequest } from '../../lib/data/types'
 import { Button, Dialog, Input, useToast } from '../ui'
 
 export interface RequestDialogProps {
   open: boolean
   onClose: () => void
-  collection: DataCollection
+  /** Any record type of the space: built-in or the organization's own. */
+  collection: string
   canSeeSensitive: boolean
   /** Updating an existing record: its id and name. */
   record?: { id: string; name: string } | null
@@ -22,7 +23,7 @@ export interface RequestDialogProps {
 }
 
 /** Fields asked by default. */
-const DEFAULT_FIELDS: Partial<Record<DataCollection, string[]>> = {
+const DEFAULT_FIELDS: Partial<Record<string, string[]>> = {
   customer: ['phone', 'address'],
   employee: ['phone', 'address', 'id_number'],
 }
@@ -42,7 +43,11 @@ export function RequestDialog({ open, onClose, collection, canSeeSensitive, reco
   const [error, setError] = useState('')
   const [branding, setBranding] = useState(false)
 
-  const choices = CATALOG[collection].filter((field) => field.key !== NAME_FIELD[collection] && (canSeeSensitive || !field.sensitive))
+  const defs = useCollections()
+  // The space's version of the type: the organization's own fields too.
+  const def = defs.find((item) => item.key === collection) ?? (isDataCollection(collection) ? builtInDef(collection, canSeeSensitive) : null)
+  const nameField = def?.nameField ?? 'full_name'
+  const choices = (def?.fields ?? []).filter((field) => field.key !== nameField && (canSeeSensitive || !field.sensitive))
 
   useEffect(() => {
     if (!open) return
@@ -83,7 +88,17 @@ export function RequestDialog({ open, onClose, collection, canSeeSensitive, reco
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={t(`data.request.${collection}` as MessageKey)} closeLabel={t('common.close')} width="md">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={
+        isDataCollection(collection)
+          ? t(`data.request.${collection}` as MessageKey)
+          : t('data.requestCustom', { name: collectionLabel(t, collection, 'kind') })
+      }
+      closeLabel={t('common.close')}
+      width="md"
+    >
       {created ? (
         <div className="data-request" data-testid="data-request-created">
           <p className="data-request__hint" role="status">
@@ -139,7 +154,7 @@ export function RequestDialog({ open, onClose, collection, canSeeSensitive, reco
           />
           <fieldset className="data-request__fields">
             <legend>{t('data.requestFields')}</legend>
-            <p className="data-request__hint">{t('data.requestNameAlways', { field: fieldLabel(t, collection, NAME_FIELD[collection]) })}</p>
+            <p className="data-request__hint">{t('data.requestNameAlways', { field: fieldLabel(t, collection, nameField) })}</p>
             {choices.map((field) => (
               <label key={field.key} className="record-form__check">
                 <input

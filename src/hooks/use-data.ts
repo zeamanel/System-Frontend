@@ -51,6 +51,23 @@ export function useRecords(collection: string, query = '', enabled = true) {
   })
 }
 
+/** Records page by page (100 at a time), for lists longer than one page. */
+export const RECORD_PAGE = 100
+
+export function useRecordPages(collection: string, query = '', enabled = true) {
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.data.list(collection, query.trim()), 'pages'],
+    queryFn: ({ pageParam, signal }) => listRecords(collection, query, { limit: RECORD_PAGE, offset: pageParam, signal }),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.items.length, 0)
+      return last.items.length === RECORD_PAGE && loaded < last.total ? loaded : undefined
+    },
+    enabled,
+    staleTime: 15_000,
+  })
+}
+
 /** One record with every field the caller may see (each read is audited on the server). */
 export function useRecord(id: string | null) {
   return useQuery({

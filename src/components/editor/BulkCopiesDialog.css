@@ -120,3 +120,10 @@
 .bulk-copies__check small {
   color: var(--color-text-secondary);
 }
+
+.bulk-copies__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

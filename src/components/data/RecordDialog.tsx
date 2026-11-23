@@ -40,8 +40,6 @@ const ERROR_KEYS = {
   required: 'data.error.required',
 } as const
 
-/** Record types a person can be asked to share their own details for. */
-const ASKABLE = new Set(['customer', 'employee'])
 
 /**
  * Adds or edits a record: its type's fields (the catalog's and the
@@ -390,7 +388,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
           ) : null}
 
           <div className="record-form__actions">
-            {loaded && ASKABLE.has(collection) && !readOnly ? (
+            {loaded && !readOnly ? (
               <Button variant="ghost" onClick={() => setAsking(true)} data-testid="record-ask">
                 {t('data.requestButton')}
               </Button>
@@ -418,7 +416,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
       {loaded && privacy === 'forget' ? (
         <ForgetDialog open onClose={() => setPrivacy(null)} record={{ id: loaded.id, name: loaded.displayName }} onForgotten={onClose} />
       ) : null}
-      {loaded && asking && (collection === 'customer' || collection === 'employee') ? (
+      {loaded && asking ? (
         <RequestDialog
           open={asking}
           onClose={() => setAsking(false)}
