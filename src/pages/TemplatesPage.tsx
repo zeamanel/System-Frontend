@@ -42,6 +42,7 @@ const CATEGORIES: { value: CategoryFilter; key: MessageKey }[] = [
   { value: 'personal_social', key: 'category.personal_social' },
   { value: 'applications_certificates', key: 'category.applications_certificates' },
   { value: 'translation_rewriting', key: 'category.translation_rewriting' },
+  { value: 'books_publishing', key: 'category.books_publishing' },
 ]
 
 const DOC_TYPES = [

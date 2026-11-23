@@ -24,6 +24,7 @@ export type TemplateCategory =
   | 'personal_social'
   | 'applications_certificates'
   | 'translation_rewriting'
+  | 'books_publishing'
   // Legacy aliases for backward compatibility:
   | 'business'
   | 'personal'
@@ -47,12 +48,17 @@ export interface TemplateQuestion {
   /** The Arabic label, shown for documents written in Arabic (templates that have one). */
   labelAr?: string
   required: boolean
-  /** 'text', 'textarea', 'select' (pick one of `options`), or 'file' (attach a file whose text goes into the field named by `fills`). */
+  /**
+   * 'text', 'textarea', 'select' (pick one of `options`), 'file' (attach a file whose text goes into
+   * the field named by `fills`), or 'documents' (pick some of your own documents; the answer is their ids).
+   */
   type?: string
   /** A select field's choices; the answer is the chosen option's `value`. */
   options?: Array<{ value: string; label: string }>
   /** A file field: the id of the field its text goes into. */
   fills?: string
+  /** A "documents" field (pick some of your own documents; their text goes to the AI): the document types offered first. */
+  accepts?: string[]
   /**
    * Where the answer comes from in the organization's data (set in the template factory):
    * a record type's field or the organization's own, and the party it belongs to.

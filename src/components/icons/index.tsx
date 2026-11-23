@@ -533,6 +533,16 @@ export function FolderIcon({ size = 18, ...rest }: IconProps) {
   )
 }
 
+/** An open book (books & publishing templates). */
+export function BookIcon({ size = 18, ...rest }: IconProps) {
+  return (
+    <svg {...svgProps(size)} {...rest}>
+      <path d="M12 6.5c-2-1.5-4.8-2-8-1.5v13c3.2-.5 6 0 8 1.5 2-1.5 4.8-2 8-1.5V5c-3.2-.5-6 0-8 1.5z" />
+      <path d="M12 6.5v13" />
+    </svg>
+  )
+}
+
 export function ChatIcon({ size = 18, ...rest }: IconProps) {
   return (
     <svg {...svgProps(size)} {...rest}>

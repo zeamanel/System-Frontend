@@ -1807,5 +1807,15 @@
   "data.tagsOwn": "Dirreewwan {count} walsimoo keessaniin guutamu.",
   "data.tagsForget": "Irraanfadhu",
   "data.tagsForgotten": "Walsimoon keessan unka kanaaf haqameera",
-  "privacy.action.template_tags.updated": "Walsimoon unkaa jijjiirame"
+  "privacy.action.template_tags.updated": "Walsimoon unkaa jijjiirame",
+  "category.books_publishing": "Kitaabota fi maxxansa",
+  "docsField.hint": "AI-n sanadoota kana dubbisa, kanaaf wanti inni barreessu isaan waliin walsima. Dabaluuf tokko tuqi.",
+  "docsField.none": "Ammaaf sanadni gosa kanaa hin jiru. Jalqaba unkaalee karooraatiin qopheessi.",
+  "docsField.allChosen": "Hundi filatamaniiru.",
+  "docsField.showAll": "Sanadoota koo hunda agarsiisi",
+  "docsField.showSuggested": "Kanneen yaada keessa galan qofa agarsiisi",
+  "docsField.unavailable": "Sanada kana booda banuu hin dandeenye",
+  "docsField.moveUp": "{name} ol kaasi",
+  "docsField.moveDown": "{name} gadi buusi",
+  "docsField.remove": "{name} haqi"
 }

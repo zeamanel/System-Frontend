@@ -1807,5 +1807,15 @@
   "data.tagsOwn": "{count} መስኮች በራስዎ ማዛመጃዎች ይሞላሉ።",
   "data.tagsForget": "እርሳቸው",
   "data.tagsForgotten": "ለዚህ አብነት የራስዎ ማዛመጃዎች ተሰርዘዋል",
-  "privacy.action.template_tags.updated": "የአብነት ማዛመጃዎች ተቀየሩ"
+  "privacy.action.template_tags.updated": "የአብነት ማዛመጃዎች ተቀየሩ",
+  "category.books_publishing": "መጻሕፍትና ሕትመት",
+  "docsField.hint": "AI እነዚህን ሰነዶች ያነባቸዋል፤ የሚጽፈውም ከእነሱ ጋር ወጥ ይሆናል። ለመጨመር አንዱን ይንኩ።",
+  "docsField.none": "የዚህ ዓይነት ሰነድ እስካሁን የለም። መጀመሪያ በዕቅድ አብነቶቹ ያዘጋጁ።",
+  "docsField.allChosen": "ሁሉም ተመርጠዋል።",
+  "docsField.showAll": "ሁሉንም ሰነዶቼን አሳይ",
+  "docsField.showSuggested": "የተጠቆሙትን ብቻ አሳይ",
+  "docsField.unavailable": "ከእንግዲህ መክፈት የማይችሉት ሰነድ",
+  "docsField.moveUp": "{name}ን ወደ ላይ አንቀሳቅስ",
+  "docsField.moveDown": "{name}ን ወደ ታች አንቀሳቅስ",
+  "docsField.remove": "{name}ን አስወግድ"
 }

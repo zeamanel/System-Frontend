@@ -1,6 +1,9 @@
 import type { ComponentType } from 'react'
 import {
+  BookIcon,
   DocumentIcon,
+  GlobeIcon,
+  ListIcon,
   EditIcon,
   PrinterIcon,
   ReceiptIcon,
@@ -12,6 +15,11 @@ import type { IconProps } from '../icons'
 
 /** Maps fixture/backend icon keys to the restrained inline icon set. */
 const ICONS: Record<string, ComponentType<IconProps>> = {
+  book: BookIcon,
+  graduation: BookIcon,
+  globe: GlobeIcon,
+  list: ListIcon,
+  sparkles: SparkIcon,
   document: DocumentIcon,
   edit: EditIcon,
   printer: PrinterIcon,

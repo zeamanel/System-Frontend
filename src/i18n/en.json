@@ -1807,5 +1807,15 @@
   "data.tagsOwn": "{count} fields fill by your own matches.",
   "data.tagsForget": "Forget them",
   "data.tagsForgotten": "Your own matches for this template are gone",
-  "privacy.action.template_tags.updated": "Template matches changed"
+  "privacy.action.template_tags.updated": "Template matches changed",
+  "category.books_publishing": "Books & publishing",
+  "docsField.hint": "The AI reads these documents, so what it writes stays consistent with them. Tap one to add it.",
+  "docsField.none": "No documents of this kind yet. Make them first with the planning templates.",
+  "docsField.allChosen": "All of them are chosen.",
+  "docsField.showAll": "Show all my documents",
+  "docsField.showSuggested": "Show only the suggested ones",
+  "docsField.unavailable": "A document you can no longer open",
+  "docsField.moveUp": "Move {name} up",
+  "docsField.moveDown": "Move {name} down",
+  "docsField.remove": "Remove {name}"
 }
