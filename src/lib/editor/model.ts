@@ -21,6 +21,7 @@ import type {
   PageMargins,
   PageOrientation,
   PageSetup,
+  PageSize,
   ParagraphBlock,
   ParagraphSpacing,
   SideColumnPct,
@@ -34,6 +35,7 @@ import type {
 import {
   A4_HEIGHT_MM,
   A4_WIDTH_MM,
+  PAGE_SIZES_MM,
   MAX_FONT_SIZE_PT,
   MAX_MARGIN_MM,
   MIN_FONT_SIZE_PT,
@@ -178,14 +180,18 @@ export function createEmptyDocument(language = 'en'): DocumentModel {
 }
 
 /** Page geometry helpers used by the canvas and the print stylesheet. */
-export function contentWidthMm(margins: PageMargins, orientation: PageOrientation = 'portrait'): number {
-  const width = orientation === 'landscape' ? A4_HEIGHT_MM : A4_WIDTH_MM
-  return width - margins.left - margins.right
+/** The sheet's width and height in millimetres (size and orientation). */
+export function pageSizeMm(orientation: PageOrientation = 'portrait', size: PageSize = 'a4'): { width: number; height: number } {
+  const paper = PAGE_SIZES_MM[size] ?? { width: A4_WIDTH_MM, height: A4_HEIGHT_MM }
+  return orientation === 'landscape' ? { width: paper.height, height: paper.width } : paper
 }
 
-export function contentHeightMm(margins: PageMargins, orientation: PageOrientation = 'portrait'): number {
-  const height = orientation === 'landscape' ? A4_WIDTH_MM : A4_HEIGHT_MM
-  return height - margins.top - margins.bottom
+export function contentWidthMm(margins: PageMargins, orientation: PageOrientation = 'portrait', size: PageSize = 'a4'): number {
+  return pageSizeMm(orientation, size).width - margins.left - margins.right
+}
+
+export function contentHeightMm(margins: PageMargins, orientation: PageOrientation = 'portrait', size: PageSize = 'a4'): number {
+  return pageSizeMm(orientation, size).height - margins.top - margins.bottom
 }
 
 // ---------- Generic immutable operations ----------
@@ -1118,6 +1124,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
             ? { secondaryHtml: sanitizeInlineHtml(raw.secondaryHtml) }
             : {}),
           ...sanitizeSideCell(raw),
+          ...(raw.dropCap === true ? { dropCap: true } : {}),
         })
         break
       case 'list':
@@ -1144,7 +1151,15 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
 
   const style = sanitizeDocumentStyle(input.style)
   const { style: _unchecked, ...rest } = input
-  const { showPageNumbers: _show, pageNumberStart: _start, draft: _draft, ...pageRest } = (input.page ?? {}) as Partial<PageSetup>
+  const {
+    showPageNumbers: _show,
+    pageNumberStart: _start,
+    draft: _draft,
+    size: _size,
+    mirrorMargins: _mirror,
+    runningHeader: _running,
+    ...pageRest
+  } = (input.page ?? {}) as Partial<PageSetup>
   return {
     ...rest,
     ...(style ? { style } : {}),
@@ -1163,6 +1178,9 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
         ? { orientation: input.page.orientation }
         : {}),
       ...(input.page?.draft === true ? { draft: true } : {}),
+      ...(input.page?.size === 'a5' ? { size: 'a5' as const } : {}),
+      ...(input.page?.mirrorMargins === true ? { mirrorMargins: true } : {}),
+      ...(input.page?.runningHeader === true ? { runningHeader: true } : {}),
     },
     blocks,
   }
@@ -1357,6 +1375,7 @@ export function mapBackendBlock(raw: unknown): Block | null {
           : typeof raw.secondaryText === 'string'
             ? { secondaryHtml: raw.secondaryText }
             : {}),
+        ...(raw.dropCap === true ? { dropCap: true } : {}),
       }
     }
     case 'list': {

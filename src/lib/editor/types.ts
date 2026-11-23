@@ -56,6 +56,8 @@ export interface ParagraphBlock extends BlockBase {
   secondaryImage?: SideImage
   sideColumnPct?: SideColumnPct
   sideHidden?: boolean
+  /** Books: the paragraph opens with a large first letter two lines tall (the first of a chapter). */
+  dropCap?: boolean
 }
 
 export interface ListItem {
@@ -151,6 +153,14 @@ export interface PageMargins {
 
 export type PageOrientation = 'portrait' | 'landscape'
 
+/** Paper size: A4 (documents), A5 (books and booklets). */
+export type PageSize = 'a4' | 'a5'
+
+export const PAGE_SIZES_MM: Record<PageSize, { width: number; height: number }> = {
+  a4: { width: 210, height: 297 },
+  a5: { width: 148, height: 210 },
+}
+
 export interface PageSetup {
   margins: PageMargins
   /**
@@ -168,10 +178,19 @@ export interface PageSetup {
   orientation?: PageOrientation
   /** A faint "DRAFT" across every page (editor, print, PDF) until the document is final. Absent: no mark. */
   draft?: boolean
+  /** Paper size; absent: A4. */
+  size?: PageSize
+  /**
+   * Bound pages (books): `margins.left` is the inside (binding) margin and `margins.right` the
+   * outside one; they swap on left-hand (even) pages. Absent: the same margins on every page.
+   */
+  mirrorMargins?: boolean
+  /** Books: each page's header shows the current chapter's title (none on the page a chapter starts). */
+  runningHeader?: boolean
 }
 
 /** A named look for a text document (frames, letterhead band, fonts). */
-export type DocumentStyleId = 'standard' | 'legal-frame' | 'executive-letterhead' | 'formal-border'
+export type DocumentStyleId = 'standard' | 'legal-frame' | 'executive-letterhead' | 'formal-border' | 'book-interior'
 
 export interface DocumentStyle {
   id: Exclude<DocumentStyleId, 'standard'>

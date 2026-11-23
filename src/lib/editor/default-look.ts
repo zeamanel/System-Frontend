@@ -35,7 +35,7 @@ export interface PersonalLook {
   personalHeader: string[]
 }
 
-const STYLE_IDS: readonly DocumentStyleId[] = ['standard', 'legal-frame', 'executive-letterhead', 'formal-border']
+const STYLE_IDS: readonly DocumentStyleId[] = ['standard', 'legal-frame', 'executive-letterhead', 'formal-border', 'book-interior']
 export const isDocumentStyleId = (value: unknown): value is DocumentStyleId =>
   typeof value === 'string' && (STYLE_IDS as readonly string[]).includes(value)
 

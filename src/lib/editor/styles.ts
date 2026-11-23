@@ -1,4 +1,5 @@
 import type { OrganizationProfile } from '../repositories/types'
+import { bookInteriorLook } from './book'
 import { letterheadPageSetup } from '../organization/letterhead'
 import type { DocumentModel, DocumentStyle, DocumentStyleId, PageMargins } from './types'
 
@@ -22,6 +23,7 @@ export const DOCUMENT_STYLES: readonly DocumentStyleOption[] = [
   { id: 'legal-frame', titleKey: 'styles.legalFrame.title', descriptionKey: 'styles.legalFrame.description' },
   { id: 'executive-letterhead', titleKey: 'styles.letterhead.title', descriptionKey: 'styles.letterhead.description' },
   { id: 'formal-border', titleKey: 'styles.formalBorder.title', descriptionKey: 'styles.formalBorder.description' },
+  { id: 'book-interior', titleKey: 'styles.bookInterior.title', descriptionKey: 'styles.bookInterior.description' },
 ]
 
 const STYLE_IDS = new Set<string>(DOCUMENT_STYLES.map((style) => style.id))
@@ -33,6 +35,8 @@ const STYLE_PAGE: Record<DocumentStyleId, { font: DocumentModel['font']; margins
   // The letterhead band sits above the content and takes its own height.
   'executive-letterhead': { font: 'sans', margins: { top: 12, right: 20, bottom: 20, left: 20 } },
   'formal-border': { font: 'serif', margins: { top: 24, right: 26, bottom: 24, left: 26 } },
+  // A5 book page: the left margin is the inside (binding) one and swaps on left-hand pages.
+  'book-interior': { font: 'serif', margins: { top: 16, right: 14, bottom: 18, left: 20 } },
 }
 
 export function documentStyleId(model: Pick<DocumentModel, 'style'>): DocumentStyleId {
@@ -75,6 +79,17 @@ export function applyDocumentStyle(
     font: page.font,
     page: { ...model.page, margins: { ...page.margins } },
   }
+  if (id === 'book-interior') return bookInteriorLook(next)
+  if (model.style?.id === 'book-interior') {
+    // Leaving the book look: back to an A4 page, without the book's running header, mirrored margins and drop caps.
+    const { size: _size, mirrorMargins: _mirror, runningHeader: _running, ...pageRest } = next.page
+    next.page = pageRest
+    next.blocks = next.blocks.map((block) => {
+      if (block.type !== 'paragraph' || !block.dropCap) return block
+      const { dropCap: _drop, ...rest } = block
+      return rest
+    })
+  }
   if (id === 'standard') {
     delete next.style
     return next
@@ -82,7 +97,7 @@ export function applyDocumentStyle(
   if (id !== 'executive-letterhead') {
     next.style = { id }
     // Framed pages read best with the title centred (still editable afterwards).
-    next.blocks = model.blocks.map((block) =>
+    next.blocks = next.blocks.map((block) =>
       block.type === 'heading' && block.level === 1 ? { ...block, align: 'center' } : block,
     )
     return next
@@ -105,6 +120,7 @@ export function applyDocumentStyle(
  */
 export function suggestedStyles(documentTypeId: string | null | undefined): DocumentStyleId[] {
   const type = (documentTypeId ?? '').toLowerCase()
+  if (type === 'book_typeset_interior') return ['book-interior']
   if (/receipt|invoice|proforma/.test(type)) return []
   if (/certificate|award|appreciation/.test(type) && !/work_experience/.test(type)) return ['formal-border']
   if (/letter|application|warning|work_experience|notice|request/.test(type)) return ['executive-letterhead']

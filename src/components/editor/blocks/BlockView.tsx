@@ -121,7 +121,13 @@ function BlockViewInner({
     if (text) insertPlainText(text)
   }
 
-  const blockClass = ['doc-block', `doc-block--${block.type}`, active ? 'doc-block--active' : null, tone ? `doc-block--${tone}` : null]
+  const blockClass = [
+    'doc-block',
+    `doc-block--${block.type}`,
+    active ? 'doc-block--active' : null,
+    tone ? `doc-block--${tone}` : null,
+    block.type === 'paragraph' && block.dropCap ? 'doc-block--dropcap' : null,
+  ]
     .filter(Boolean)
     .join(' ')
 

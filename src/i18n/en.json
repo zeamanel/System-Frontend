@@ -977,6 +977,8 @@
   "styles.letterheadHint": "Add a logo and letterhead lines under Organization to fill the band.",
   "styles.formalBorder.title": "Formal border",
   "styles.formalBorder.description": "A gold double border with a centred title. For certificates and formal notices.",
+  "styles.bookInterior.title": "Book page (A5)",
+  "styles.bookInterior.description": "A5 book pages: a binding margin on the inside, the chapter title at the top of each page, page numbers and drop caps. For books and booklets.",
   "styles.design.title": "Prefer a graphic design?",
   "styles.design.body": "Opens the {design} with the answers you already entered. This document stays as it is.",
   "styles.design.open": "Open in graphic design",

@@ -977,6 +977,8 @@
   "styles.letterheadHint": "ባንዱን ለመሙላት በድርጅት ገጽ ላይ አርማና የደብዳቤ ራስጌ መስመሮችን ያክሉ።",
   "styles.formalBorder.title": "መደበኛ ድንበር",
   "styles.formalBorder.description": "ወርቃማ ድርብ ድንበር፣ መሃል ላይ ርዕስ። ለምስክር ወረቀቶችና መደበኛ ማስታወቂያዎች።",
+  "styles.bookInterior.title": "የመጽሐፍ ገጽ (A5)",
+  "styles.bookInterior.description": "የA5 የመጽሐፍ ገጾች፦ ከውስጥ በኩል የመጠረዣ ኅዳግ፣ በየገጹ አናት የምዕራፉ ርዕስ፣ የገጽ ቁጥሮችና ጎላ ያለ የመጀመሪያ ፊደል። ለመጻሕፍትና ለአነስተኛ መጽሐፎች።",
   "styles.design.title": "ግራፊክ ዲዛይን ይመርጣሉ?",
   "styles.design.body": "{design}ን አስቀድመው ባስገቡት መልስ ተሞልቶ ይከፍታል። ይህ ሰነድ እንዳለ ይቆያል።",
   "styles.design.open": "በግራፊክ ዲዛይን ክፈት",

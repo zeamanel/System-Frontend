@@ -676,6 +676,12 @@
   min-height: 210mm;
 }
 
+/* A5 book and booklet pages. */
+.a4-sheet--a5 {
+  width: 148mm;
+  min-height: 210mm;
+}
+
 .doc-paper__content {
   flex: 1;
   display: flex;
@@ -1594,6 +1600,12 @@ figure.doc-block--image-right {
     min-height: 210mm;
   }
 
+  .a4-sheet--a5 {
+    width: 148mm;
+    height: 210mm;
+    min-height: 210mm;
+  }
+
   .doc-paper:last-child,
   .a4-sheet:last-child {
     break-after: auto;
@@ -2068,3 +2080,50 @@ figure.doc-block--image-right {
     display: none !important;
   }
 }
+
+/* ── Book interior (typeset-interior template) ───────────────────────────── */
+
+/* The chapter's title at the top of each page (empty where a chapter starts). */
+.doc-paper__header--running {
+  min-height: 1.6em;
+  padding: 7mm 0 0;
+  margin: 0 14mm;
+  border-bottom: none;
+  text-align: center;
+  font-style: italic;
+  font-size: 0.8em;
+  letter-spacing: 0.02em;
+}
+
+.doc-paper__page-number--book {
+  margin: 0 auto;
+}
+
+.doc-paper--style-book-interior .doc-paper__footer {
+  justify-content: center;
+  border-top: none;
+}
+
+.doc-paper--style-book-interior .doc-block--heading h1,
+.doc-paper--style-book-interior .doc-block--heading [data-level='1'] {
+  margin-top: 14mm;
+  margin-bottom: 8mm;
+  font-size: 1.7em;
+  letter-spacing: 0.01em;
+}
+
+/* Book paragraphs follow on with an indent; the first after a title does not. */
+.doc-paper--style-book-interior .doc-block--paragraph + .doc-block--paragraph:not(.doc-block--dropcap) [contenteditable],
+.doc-paper--style-book-interior .doc-block--paragraph + .doc-block--paragraph:not(.doc-block--dropcap) [data-block-id] {
+  text-indent: 1.4em;
+}
+
+/* A drop cap: the chapter's first letter, two lines tall. */
+.doc-block--dropcap [data-block-id]::first-letter {
+  float: left;
+  font-size: 3.2em;
+  line-height: 0.82;
+  padding: 0.06em 0.08em 0 0;
+  font-weight: 700;
+}
+

@@ -977,6 +977,8 @@
   "styles.letterheadHint": "Baandii kana guutuuf, Dhaabbata jalatti asxaa fi sarara mataa xalayaa dabalaa.",
   "styles.formalBorder.title": "Daangaa idilee",
   "styles.formalBorder.description": "Daangaa dachaa warqee fakkaatu, mata-dureen gidduu irratti. Waraqaa ragaa fi beeksisa idileetiif.",
+  "styles.bookInterior.title": "Fuula kitaabaa (A5)",
+  "styles.bookInterior.description": "Fuulota kitaabaa A5: qarqara hidhaa gara keessaatiin, mata-duree boqonnaa fuula hunda gubbaatti, lakkoofsa fuulaa fi qubee jalqabaa guddaa. Kitaabotaa fi kitaabota xixiqqaaf.",
   "styles.design.title": "Dizaayinii giraafikii filattuu?",
   "styles.design.body": "{design} deebii duraan galchitaniin guutamee bana. Galmeen kun akkuma jiru ta'a.",
   "styles.design.open": "Dizaayinii giraafikiin bani",
