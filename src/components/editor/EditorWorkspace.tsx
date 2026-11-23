@@ -74,6 +74,7 @@ import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/
 import {
   brandingOffers,
   customerLetterheadApplied,
+  lookLocked,
   lookMode,
   missingLetterhead,
   templateStyle,
@@ -229,6 +230,8 @@ export function EditorWorkspace({
   const [styleOpen, setStyleOpen] = useState(false)
   const organization = useOrganization()
   const organizationProfile = organization.data ?? null
+  /** The organization sets the look: this member keeps the style, font and text size. */
+  const lookIsLocked = lookLocked(organizationProfile)
   const preferences = useContext(PreferencesContext)?.preferences
   const lookContext = useMemo(
     () => ({
@@ -1438,8 +1441,12 @@ export function EditorWorkspace({
 
   const formatCallbacks = useMemo<FormatPanelCallbacks>(
     () => ({
-      onSetFont: (font) => updateModel((current) => setDocumentFont(current, font)),
-      onSetFontSize: (size) => updateModel((current) => setDocumentFontSize(current, size)),
+      onSetFont: (font) => {
+        if (!lookIsLocked) updateModel((current) => setDocumentFont(current, font))
+      },
+      onSetFontSize: (size) => {
+        if (!lookIsLocked) updateModel((current) => setDocumentFontSize(current, size))
+      },
       onInlineCommand: (command) => handleInlineCommand(command),
       onSetAlign: (align: TextAlign) => {
         if (activeRef) updateModel((current) => setAlignment(current, activeRef.blockId, align))
@@ -1559,6 +1566,7 @@ export function EditorWorkspace({
       handleInlineCommand,
       handleInsertImage,
       insertAfterActive,
+      lookIsLocked,
       model,
       queueFocus,
       tDoc,
@@ -1769,7 +1777,9 @@ export function EditorWorkspace({
           !organizationProfile?.logoMediaId ||
           !organizationProfile.letterhead.headerLines.some((line) => line.trim())
         }
+        locked={lookIsLocked}
         onChoose={(id) => {
+          if (lookIsLocked) return
           editor.updateModel((current) => applyDocumentStyle(current, id, organizationProfile))
           toast.push(t('styles.applied'))
         }}
@@ -1925,6 +1935,7 @@ export function EditorWorkspace({
               ethiopicSupport={ethiopicSupport}
               imageError={imageError}
               callbacks={formatCallbacks}
+              lookLocked={lookIsLocked}
             />
           </div>
         )}

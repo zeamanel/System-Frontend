@@ -110,6 +110,8 @@ export interface FormatPanelProps {
   ethiopicSupport: Record<FontKey, EthiopicSupport>
   imageError: string | null
   callbacks: FormatPanelCallbacks
+  /** The organization locks the font and text size for this member. */
+  lookLocked?: boolean
 }
 
 const SPACING_OPTIONS: { value: ParagraphSpacing; labelKey: string }[] = [
@@ -130,6 +132,7 @@ export function FormatPanel({
   ethiopicSupport,
   imageError,
   callbacks,
+  lookLocked = false,
 }: FormatPanelProps) {
   const { t } = useI18n()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -162,12 +165,18 @@ export function FormatPanel({
           {t('editor.panelFormat')}
         </h2>
 
+        {lookLocked ? (
+          <p className="editor-panel__hint" role="note" data-testid="format-look-locked">
+            {t('look.lockedNote')}
+          </p>
+        ) : null}
         <Select
           id="format-font"
           label={t('editor.font')}
           hint={fontSupportNote(model.font)}
           hintMode="always"
           value={model.font}
+          disabled={lookLocked}
           options={FONT_OPTIONS.map((option) => ({
             value: option.key,
             label: t(`editor.font_${option.key}` as never),
@@ -186,6 +195,7 @@ export function FormatPanel({
             max={MAX_FONT_SIZE_PT}
             step={0.5}
             value={model.fontSize}
+            disabled={lookLocked}
             onChange={(event) => callbacks.onSetFontSize(Number(event.target.value))}
           />
           <span className="editor-panel__value" data-testid="font-size-value">

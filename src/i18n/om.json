@@ -1795,5 +1795,11 @@
   "bulk.fromDataMore": "{total} keessaa {shown} mul’ataniiru.",
   "bulk.fromDataShowMore": "Dabalata agarsiisi",
   "bulk.fromDataEvery": "Hunda {count} filadhu",
-  "bulk.fromDataChosen": "{count} filatamaniiru."
+  "bulk.fromDataChosen": "{count} filatamaniiru.",
+  "look.lockedNote": "Bifa sanadootaa dhaabbanni keessan murteessa: akkaataan, qubeen fi hammi barreeffamaa akkuma jiranitti hafu.",
+  "look.houseFont": "Qubee dhaabbataa",
+  "look.houseFontNone": "Qubee unkaa",
+  "look.houseFontHint": "Sanadoonni haaraan qubee kanaan jalqabu.",
+  "look.lockLook": "Miseensonni bifa dhaabbataa eegu",
+  "look.lockLookHint": "Miseensonni akkaataa, qubee ykn hamma barreeffama sanadoota isaanii jijjiiruu hin danda’an. Abbootiin fi bulchitoonni ni danda’u."
 }

@@ -1,3 +1,4 @@
+import type { FontKey } from '../editor/types'
 import type { Locale } from '../../i18n/locales'
 import type {
   DocumentStatus,
@@ -254,6 +255,10 @@ export interface OrganizationDocumentLook {
   alwaysLetterhead?: boolean
   /** Print shops: an optional line at the foot of customers' documents. */
   customerFooter: string
+  /** The font new documents start in ('' : the template's). */
+  houseFont?: FontKey | ''
+  /** Members cannot change the style, font or text size of their documents (owners and admins can). */
+  lockLook?: boolean
 }
 
 export interface OrganizationMember {

@@ -19,6 +19,8 @@ export interface StylePickerDialogProps {
   onChoose: (id: DocumentStyleId) => void
   /** A graphic design made for this template (absent: no such design, or designs are off). */
   graphicDesign?: GraphicDesignLink
+  /** The organization locks the look for this member: the styles are shown, not chosen. */
+  locked?: boolean
 }
 
 export interface GraphicDesignLink {
@@ -45,12 +47,18 @@ export function StylePickerDialog({
   letterheadIncomplete,
   onChoose,
   graphicDesign,
+  locked = false,
 }: StylePickerDialogProps) {
   const { t } = useI18n()
 
   return (
     <Dialog open={open} onClose={onClose} title={t('styles.title')} closeLabel={t('common.close')} width="md">
       <p className="style-picker__intro">{t('styles.intro')}</p>
+      {locked ? (
+        <p className="style-picker__intro" role="note" data-testid="style-locked">
+          {t('look.lockedNote')}
+        </p>
+      ) : null}
       <ul className="style-picker" role="list">
         {DOCUMENT_STYLES.map((style) => {
           const selected = style.id === current
@@ -62,6 +70,7 @@ export function StylePickerDialog({
                   .filter(Boolean)
                   .join(' ')}
                 aria-pressed={selected}
+                disabled={locked}
                 data-testid={`style-option-${style.id}`}
                 onClick={() => {
                   onChoose(style.id)

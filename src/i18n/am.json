@@ -1795,5 +1795,11 @@
   "bulk.fromDataMore": "ከ{total} ውስጥ {shown} ታይተዋል።",
   "bulk.fromDataShowMore": "ተጨማሪ አሳይ",
   "bulk.fromDataEvery": "ሁሉንም {count} ምረጥ",
-  "bulk.fromDataChosen": "{count} ተመርጠዋል።"
+  "bulk.fromDataChosen": "{count} ተመርጠዋል።",
+  "look.lockedNote": "የሰነዶችን መልክ ድርጅትዎ ይወስናል፦ ቅጡ፣ ፊደሉ እና የጽሑፉ መጠን እንዳሉ ይቆያሉ።",
+  "look.houseFont": "የድርጅቱ ፊደል",
+  "look.houseFontNone": "የአብነቱ ፊደል",
+  "look.houseFontHint": "አዳዲስ ሰነዶች በዚህ ፊደል ይጀምራሉ።",
+  "look.lockLook": "አባላት የድርጅቱን መልክ ይጠብቁ",
+  "look.lockLookHint": "አባላት የሰነዶቻቸውን ቅጥ፣ ፊደል ወይም የጽሑፍ መጠን መቀየር አይችሉም። ባለቤቶች እና አስተዳዳሪዎች ይችላሉ።"
 }
