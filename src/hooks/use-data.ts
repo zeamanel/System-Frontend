@@ -19,6 +19,8 @@ import {
   setMemberAccess,
   updateCollection,
   forgetRecord,
+  getTemplateTags,
+  setTemplateTags,
   getDataActivity,
   getRecordActivity,
   type DataRequestInput,
@@ -207,3 +209,24 @@ export function useForgetRecord() {
   const invalidate = useInvalidate()
   return useMutation({ mutationFn: (id: string) => forgetRecord(id), onSuccess: invalidate })
 }
+
+// ─── The organization's own tags on a template ───────────────────────────────
+
+/** This space's own tags on a template's questions (empty without a template). */
+export function useTemplateTags(templateId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.data.templateTags(templateId ?? ''),
+    queryFn: ({ signal }) => getTemplateTags(templateId as string, signal),
+    enabled: Boolean(templateId),
+    staleTime: 60_000,
+  })
+}
+
+export function useSaveTemplateTags(templateId: string | undefined) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (tags: Parameters<typeof setTemplateTags>[1]) => setTemplateTags(templateId as string, tags),
+    onSuccess: (saved) => queryClient.setQueryData(queryKeys.data.templateTags(templateId ?? ''), saved),
+  })
+}
+

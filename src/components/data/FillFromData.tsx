@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n'
 import { useDebouncedValue } from '../../hooks/use-debounced-value'
-import { useCollections, useMarkRecordUsed, useRecords } from '../../hooks/use-data'
+import { useCollections, useDataSpace, useMarkRecordUsed, useRecords, useSaveTemplateTags, useTemplateTags } from '../../hooks/use-data'
 import { useOrganization } from '../../hooks/use-organization'
 import { getRecord } from '../../lib/data/client'
 import { planRecordFill, type FillQuestion, type PlannedFill } from '../../lib/data/fill'
+import { isDataCollection } from '../../lib/data/catalog'
 import { collectionLabel, collectionText, fieldLabel } from '../../lib/data/labels'
 import { organizationValues, partySlots, planSlotFill, type PartySlot } from '../../lib/data/tags'
 import type { DataSourceTag } from '../../lib/repositories/types'
@@ -25,6 +26,8 @@ export interface FillFromDataProps {
   /** Writes the chosen values into the fields (`nameQuestionId` holds the record's name). */
   onFill: (fills: Array<{ questionId: string; value: string }>, nameQuestionId: string) => void
   documentId?: string
+  /** The template: the organization's own tags on it take the place of the template's. */
+  templateId?: string
 }
 
 type View =
@@ -39,6 +42,8 @@ interface Plan {
   name: string
   slot: PartySlot | null
   fills: PlannedFill[]
+  /** The record type the record is (free filling: what "remember" tags the fields with). */
+  collection?: string
 }
 
 const humanize = (party: string): string => {
@@ -53,10 +58,21 @@ const humanize = (party: string): string => {
  * be matched by their words. Either way the user sees what goes where first,
  * and the document keeps its own copy of the values.
  */
-export function FillFromData({ questions, answers, documentLanguage, onFill, documentId }: FillFromDataProps) {
+export function FillFromData({ questions: templateQuestions, answers, documentLanguage, onFill, documentId, templateId }: FillFromDataProps) {
   const { t } = useI18n()
   const toast = useToast()
-  const slots = useMemo(() => partySlots(questions as Parameters<typeof partySlots>[0]), [questions])
+  const space = useDataSpace()
+  const canAdminister = space.data?.canAdminister ?? false
+  const ownTags = useTemplateTags(templateId)
+  const saveTags = useSaveTemplateTags(templateId)
+  const own = useMemo(() => ownTags.data ?? {}, [ownTags.data])
+  // The organization's own tags take the place of the template's, question by question.
+  const questions = useMemo(
+    () => templateQuestions.map((question) => (own[question.id] ? { ...question, dataSource: own[question.id] } : question)),
+    [templateQuestions, own],
+  )
+  const [remember, setRemember] = useState(false)
+  const slots = useMemo(() => partySlots(questions as unknown as Parameters<typeof partySlots>[0]), [questions])
   const untagged = useMemo(() => questions.filter((question) => !question.dataSource), [questions])
   const tagged = slots.length > 0
   const [view, setView] = useState<View>({ kind: 'closed' })
@@ -75,7 +91,7 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
   const [loadingId, setLoadingId] = useState<string | null>(null)
 
   const slotTitle = (slot: PartySlot): string => {
-    const kind = t(`data.kind.${slot.collection}` as MessageKey)
+    const kind = isDataCollection(slot.collection) || slot.collection === 'organization' ? t(`data.kind.${slot.collection}` as MessageKey) : collectionLabel(t, slot.collection, 'kind')
     if (!slot.party || slot.party === slot.collection) return kind
     // The built-in templates' parties are named in every language; others as written.
     const key = `data.party.${slot.party}` as MessageKey
@@ -83,10 +99,21 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
     return `${named === key ? humanize(slot.party) : named} (${kind.toLowerCase()})`
   }
 
+  /** Owners and admins can keep a free match as the organization's own tags on this template. */
+  const canRemember = Boolean(templateId && canAdminister && plan && !plan.slot && plan.recordId)
+  const ownCount = Object.keys(own).length
+  const forgetOwn = (): void => {
+    saveTags.mutate(Object.fromEntries(Object.keys(own).map((questionId) => [questionId, null])), {
+      onSuccess: () => toast.push(t('data.tagsForgotten'), { variant: 'success' }),
+      onError: () => toast.push(t('data.saveFailed'), { variant: 'error' }),
+    })
+  }
+
   const showPlan = (next: Plan): void => {
     setPlan(next)
     // Empty fields are ticked; fields that already hold something are left for the user to choose.
     setTicked(new Set(next.fills.filter((fill) => !fill.current).map((fill) => fill.questionId)))
+    setRemember(false)
   }
 
   const pick = async (id: string, name: string, slot: PartySlot | null): Promise<void> => {
@@ -96,7 +123,7 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
       const fills = slot
         ? planSlotFill(slot, record.values, answers, documentLanguage)
         : planRecordFill(record, tagged ? untagged : questions, answers, documentLanguage)
-      showPlan({ recordId: id, name, slot, fills })
+      showPlan({ recordId: id, name, slot, fills, collection: record.collection })
     } catch {
       toast.push(t('data.loadFailed'), { variant: 'error' })
     } finally {
@@ -131,6 +158,16 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
         party: plan.slot?.party || undefined,
         fields: Object.fromEntries(chosen.map((fill) => [fill.questionId, fill.fieldKey])),
       })
+    }
+    // Remember these matches: next time the questions fill from this record type exactly, without guessing.
+    if (remember && canRemember && plan.collection) {
+      const recordType = plan.collection
+      saveTags.mutate(
+        Object.fromEntries(
+          chosen.map((fill) => [fill.questionId, { collection: recordType, key: fill.fieldKey === 'full_name_am' ? 'full_name' : fill.fieldKey }]),
+        ),
+        { onError: () => toast.push(t('data.saveFailed'), { variant: 'error' }) },
+      )
     }
     toast.push(t('data.filled', { count: String(chosen.length), name: plan.name }), { variant: 'success' })
     setPlan(null)
@@ -199,6 +236,15 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
                 </li>
               ))}
             </ul>
+            {canRemember ? (
+              <label className="fill-data__check fill-data__remember">
+                <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} data-testid="fill-data-remember" />
+                <span>
+                  {t('data.tagsRemember')}
+                  <small className="fill-data__current">{t('data.tagsRememberHint', { kind: collectionLabel(t, plan.collection ?? collection, 'kind') })}</small>
+                </span>
+              </label>
+            ) : null}
             <Button variant="primary" size="sm" disabled={ticked.size === 0} onClick={apply} data-testid="fill-data-apply">
               {t('data.fillApply', { count: String(ticked.size) })}
             </Button>
@@ -226,6 +272,14 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
             <Button variant="ghost" size="sm" onClick={() => setView({ kind: 'pick', slot: null })} data-testid="fill-data-other">
               {t('data.fillOther')}
             </Button>
+          ) : null}
+          {canAdminister && templateId && ownCount > 0 ? (
+            <p className="fill-data__hint" data-testid="fill-data-own-tags">
+              {t('data.tagsOwn', { count: String(ownCount) })}{' '}
+              <Button variant="ghost" size="sm" loading={saveTags.isPending} onClick={forgetOwn} data-testid="fill-data-forget-tags">
+                {t('data.tagsForget')}
+              </Button>
+            </p>
           ) : null}
         </>
       ) : (

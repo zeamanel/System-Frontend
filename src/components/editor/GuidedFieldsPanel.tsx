@@ -679,6 +679,7 @@ export function GuidedFieldsPanel({
             documentLanguage={language}
             onFill={(fills, nameQuestionId) => handleCustomerFill(fills, nameQuestionId)}
             documentId={documentId}
+            templateId={template?.id}
           />
           {questions.map((question) => {
             if (question.type === 'file_upload') {

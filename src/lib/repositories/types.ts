@@ -62,7 +62,8 @@ export interface TemplateQuestion {
 
 /** A template question's link to the organization's data (backend docs/ORGANIZATION_DATA.md). */
 export interface DataSourceTag {
-  collection: 'customer' | 'employee' | 'property' | 'organization'
+  /** A built-in record type, the organization's own (`x_…`, from its own tags), or `organization`. */
+  collection: 'customer' | 'employee' | 'property' | 'organization' | (string & {})
   key: string
   /** Questions with the same party fill from one record ("buyer", "seller"). */
   party?: string

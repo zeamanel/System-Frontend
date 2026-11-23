@@ -1801,5 +1801,11 @@
   "look.houseFontNone": "Qubee unkaa",
   "look.houseFontHint": "Sanadoonni haaraan qubee kanaan jalqabu.",
   "look.lockLook": "Miseensonni bifa dhaabbataa eegu",
-  "look.lockLookHint": "Miseensonni akkaataa, qubee ykn hamma barreeffama sanadoota isaanii jijjiiruu hin danda’an. Abbootiin fi bulchitoonni ni danda’u."
+  "look.lockLookHint": "Miseensonni akkaataa, qubee ykn hamma barreeffama sanadoota isaanii jijjiiruu hin danda’an. Abbootiin fi bulchitoonni ni danda’u.",
+  "data.tagsRemember": "Walsimoo kana unka kanaaf yaadadhu",
+  "data.tagsRememberHint": "Yeroo itti aanu dirreewwan kun kallattiin {kind} irraa guutamu, hojii keessan keessatti nama hundaaf.",
+  "data.tagsOwn": "Dirreewwan {count} walsimoo keessaniin guutamu.",
+  "data.tagsForget": "Irraanfadhu",
+  "data.tagsForgotten": "Walsimoon keessan unka kanaaf haqameera",
+  "privacy.action.template_tags.updated": "Walsimoon unkaa jijjiirame"
 }

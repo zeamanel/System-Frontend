@@ -1801,5 +1801,11 @@
   "look.houseFontNone": "የአብነቱ ፊደል",
   "look.houseFontHint": "አዳዲስ ሰነዶች በዚህ ፊደል ይጀምራሉ።",
   "look.lockLook": "አባላት የድርጅቱን መልክ ይጠብቁ",
-  "look.lockLookHint": "አባላት የሰነዶቻቸውን ቅጥ፣ ፊደል ወይም የጽሑፍ መጠን መቀየር አይችሉም። ባለቤቶች እና አስተዳዳሪዎች ይችላሉ።"
+  "look.lockLookHint": "አባላት የሰነዶቻቸውን ቅጥ፣ ፊደል ወይም የጽሑፍ መጠን መቀየር አይችሉም። ባለቤቶች እና አስተዳዳሪዎች ይችላሉ።",
+  "data.tagsRemember": "እነዚህን ማዛመጃዎች ለዚህ አብነት አስታውስ",
+  "data.tagsRememberHint": "በሚቀጥለው ጊዜ እነዚህ መስኮች በቀጥታ ከ{kind} ይሞላሉ፣ ለሥራ ቦታዎ ሁሉ።",
+  "data.tagsOwn": "{count} መስኮች በራስዎ ማዛመጃዎች ይሞላሉ።",
+  "data.tagsForget": "እርሳቸው",
+  "data.tagsForgotten": "ለዚህ አብነት የራስዎ ማዛመጃዎች ተሰርዘዋል",
+  "privacy.action.template_tags.updated": "የአብነት ማዛመጃዎች ተቀየሩ"
 }

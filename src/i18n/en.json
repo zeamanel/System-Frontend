@@ -1801,5 +1801,11 @@
   "look.houseFontNone": "The template's font",
   "look.houseFontHint": "New documents start in this font.",
   "look.lockLook": "Members keep the house look",
-  "look.lockLookHint": "Members cannot change the style, font or text size of their documents. Owners and admins still can."
+  "look.lockLookHint": "Members cannot change the style, font or text size of their documents. Owners and admins still can.",
+  "data.tagsRemember": "Remember these matches for this template",
+  "data.tagsRememberHint": "Next time these fields fill from a {kind} straight away, for everyone in your workspace.",
+  "data.tagsOwn": "{count} fields fill by your own matches.",
+  "data.tagsForget": "Forget them",
+  "data.tagsForgotten": "Your own matches for this template are gone",
+  "privacy.action.template_tags.updated": "Template matches changed"
 }

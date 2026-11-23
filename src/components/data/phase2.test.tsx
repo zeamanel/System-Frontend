@@ -276,3 +276,52 @@ describe('Share page', () => {
     expect(await screen.findByText('This link has expired')).toBeInTheDocument()
   })
 })
+
+describe('The organization’s own matches on a template', () => {
+  it('remembers a free match as its own tags, then fills those fields from that record type straight away', async () => {
+    await dataClient.getDataSpace()
+    const students = await dataClient.createCollection({
+      name: 'Students',
+      fields: [
+        { label: 'Student name', type: 'text' },
+        { label: 'Guardian phone', type: 'phone' },
+      ],
+    })
+    const [nameKey, phoneKey] = students.fields.map((field) => field.key)
+    await dataClient.getDataSpace()
+    await dataClient.createRecord(students.key, { values: { [nameKey]: 'Liya Abebe', [phoneKey]: '0911 555666' } })
+    const questions: TemplateQuestion[] = [
+      { id: 'student', label: 'Student name', required: true },
+      { id: 'guardian', label: 'Guardian phone', required: false },
+      { id: 'school', label: 'School', required: false, dataSource: { collection: 'organization', key: 'name' } },
+    ]
+    const onFill = vi.fn()
+    const { unmount } = wrap(<FillFromData questions={questions} answers={{}} documentLanguage="en" onFill={onFill} templateId="tpl-cert" />)
+    fireEvent.click(screen.getByTestId('fill-data-open'))
+    fireEvent.click(await screen.findByTestId('fill-data-other'))
+    fireEvent.click(await screen.findByTestId(`fill-data-kind-${students.key}`))
+    fireEvent.click(await screen.findByTestId('fill-data-record'))
+    expect(await screen.findByTestId('fill-data-plan')).toHaveTextContent('Liya Abebe')
+    fireEvent.click(screen.getByTestId('fill-data-remember'))
+    fireEvent.click(screen.getByTestId('fill-data-apply'))
+    await waitFor(async () =>
+      expect(await dataClient.getTemplateTags('tpl-cert')).toEqual({
+        student: { collection: students.key, key: nameKey },
+        guardian: { collection: students.key, key: phoneKey },
+      }),
+    )
+    unmount()
+
+    wrap(<FillFromData questions={questions} answers={{}} documentLanguage="en" onFill={onFill} templateId="tpl-cert" />)
+    fireEvent.click(screen.getByTestId('fill-data-open'))
+    await waitFor(() =>
+      expect(within(screen.getByTestId('fill-data-slots')).getAllByTestId('fill-data-slot').map((slot) => slot.textContent)).toEqual([
+        'Students2 fields',
+        'Our organization1 fields',
+      ]),
+    )
+    expect(screen.getByTestId('fill-data-own-tags')).toHaveTextContent('2 fields fill by your own matches.')
+    fireEvent.click(screen.getByTestId('fill-data-forget-tags'))
+    await waitFor(async () => expect(await dataClient.getTemplateTags('tpl-cert')).toEqual({}))
+  })
+})

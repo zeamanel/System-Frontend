@@ -59,6 +59,7 @@ export const queryKeys = {
     access: ['data', 'access'] as const,
     recordActivity: (id: string) => ['data', 'record-activity', id] as const,
     activity: ['data', 'activity'] as const,
+    templateTags: (templateId: string) => ['data', 'template-tags', templateId] as const,
   },
   clauses: {
     all: ['clauses'] as const,

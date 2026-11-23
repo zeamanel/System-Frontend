@@ -16,6 +16,7 @@ import {
   type FieldType,
 } from './catalog'
 import type { Customer } from '../customers/types'
+import type { DataSourceTag } from '../repositories/types'
 import type {
   ActivityItem,
   ConsentDetail,
@@ -701,3 +702,45 @@ export async function forgetRecord(id: string): Promise<ForgetResult> {
   writeJson(DEMO_LINKS_KEY, readJson<DemoLink>(DEMO_LINKS_KEY).filter((link) => link.recordId !== id))
   return { documents: [], requestsRemoved: 0, logoRemoved: false }
 }
+
+// ─── The organization's own tags on a template ───────────────────────────────
+
+const DEMO_TAGS_KEY = 'docuA4.fixture.templateTags'
+type SpaceTags = Record<string, DataSourceTag>
+
+function readDemoTags(): Record<string, SpaceTags> {
+  try {
+    const parsed = JSON.parse(globalThis.localStorage?.getItem(DEMO_TAGS_KEY) ?? '{}') as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, SpaceTags>) : {}
+  } catch {
+    return {}
+  }
+}
+
+/** Which of this space's record types and fields a template's questions fill from (its own tags). */
+export async function getTemplateTags(templateId: string, signal?: AbortSignal): Promise<SpaceTags> {
+  if (isHttp()) {
+    return (await apiClient.get<{ tags: SpaceTags }>(`/data/template-tags/${encodeURIComponent(templateId)}`, { signal, auth: 'required' })).tags
+  }
+  return readDemoTags()[templateId] ?? {}
+}
+
+/** Sets (or, with null, removes) the space's tags on these questions (owners and admins). */
+export async function setTemplateTags(templateId: string, tags: Record<string, DataSourceTag | null>): Promise<SpaceTags> {
+  if (isHttp()) {
+    return (await apiClient.put<{ tags: SpaceTags }>(`/data/template-tags/${encodeURIComponent(templateId)}`, { tags }, { auth: 'required' })).tags
+  }
+  const all = readDemoTags()
+  const next: SpaceTags = { ...(all[templateId] ?? {}) }
+  for (const [questionId, tag] of Object.entries(tags)) {
+    if (tag) next[questionId] = tag
+    else delete next[questionId]
+  }
+  try {
+    globalThis.localStorage?.setItem(DEMO_TAGS_KEY, JSON.stringify({ ...all, [templateId]: next }))
+  } catch {
+    // Storage unavailable: the demo forgets them.
+  }
+  return next
+}
+

@@ -30,6 +30,7 @@ const ACTIONS = new Set([
   'collection.updated',
   'collection.deleted',
   'access.updated',
+  'template_tags.updated',
 ])
 
 /** What happened, in words: "Changed: phone, position". */
