@@ -18,6 +18,9 @@ import {
 } from './catalog'
 import type { Customer } from '../customers/types'
 import type {
+  ActivityItem,
+  ConsentDetail,
+  ForgetResult,
   CollectionInput,
   CreatedDataRequest,
   DataRequest,
@@ -51,6 +54,7 @@ interface DemoCustomer extends Customer {
   dataValues?: Record<string, string>
   dataExtra?: ExtraField[]
   dataBranding?: RecordBranding | null
+  dataConsent?: ConsentDetail | null
   useCount?: number
   createdAt?: string
 }
@@ -88,6 +92,8 @@ function customerToRecord(customer: DemoCustomer): RecordDetail {
     values,
     extraFields: customer.dataExtra ?? [],
     branding: customer.dataBranding ?? null,
+    consent: customer.dataConsent?.status ?? null,
+    consentDetail: customer.dataConsent ?? null,
     sensitiveHidden: false,
     source: 'entered',
     expiresAt: customer.expiresAt,
@@ -111,6 +117,7 @@ function recordToCustomer(record: RecordDetail): DemoCustomer {
     dataValues: rest,
     dataExtra: record.extraFields,
     dataBranding: record.branding ?? null,
+    dataConsent: record.consentDetail ?? null,
     useCount: record.useCount,
     createdAt: record.createdAt,
   }
@@ -132,7 +139,7 @@ function writeDemo(list: RecordDetail[]): void {
 const matchKey = (name: string): string => name.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim()
 
 function toSummary(record: RecordDetail): RecordSummary {
-  const { values, extraFields: _extra, sensitiveHidden: _hidden, source: _source, expiresAt: _expires, createdAt: _created, branding: _branding, ...summary } = record
+  const { values, extraFields: _extra, sensitiveHidden: _hidden, source: _source, expiresAt: _expires, createdAt: _created, branding: _branding, consentDetail: _consent, ...summary } = record
   return {
     ...summary,
     summary: Object.fromEntries((getDef(record.collection)?.summaryFields ?? []).flatMap((key) => (values[key] ? [[key, values[key]]] : []))),
@@ -402,6 +409,7 @@ export async function createRecord(collection: string, input: RecordInput): Prom
     expiresAt: null,
     createdAt: now,
     ...(input.branding ? { branding: demoBranding(input.branding) } : {}),
+    ...(input.consent ? demoConsent(input.consent) : {}),
   }
   writeDemo([record, ...readDemo()])
   return record
@@ -419,10 +427,16 @@ export async function updateRecord(id: string, input: Partial<RecordInput>): Pro
     displayName: values[nameFieldOf(current.collection)],
     extraFields: input.extraFields ? cleanExtra(input.extraFields) : current.extraFields,
     ...(input.branding !== undefined ? { branding: input.branding ? demoBranding(input.branding) : null } : {}),
+    ...(input.consent !== undefined ? (input.consent ? demoConsent(input.consent) : { consent: null, consentDetail: null }) : {}),
     updatedAt: new Date().toISOString(),
   }
   writeDemo(list.map((r) => (r.id === id ? updated : r)))
   return updated
+}
+
+function demoConsent(input: NonNullable<RecordInput['consent']>): Pick<RecordDetail, 'consent' | 'consentDetail'> {
+  const note = input.note?.trim().replace(/\s+/g, ' ') ?? ''
+  return { consent: input.status, consentDetail: { status: input.status, via: 'staff', at: new Date().toISOString(), note: note || null } }
 }
 
 export async function deleteRecord(id: string): Promise<void> {
@@ -638,4 +652,51 @@ export async function exportRecords(collection: string): Promise<Blob> {
     lines.push([...keys.map((k) => r.values[k] ?? ''), ...labels.map((l) => extras.get(l) ?? '')].map(csvCell).join(','))
   }
   return new Blob([`\uFEFF${lines.join('\r\n')}\r\n`], { type: 'text/csv;charset=utf-8' })
+}
+
+// ─── Privacy tools (owners and admins) ───────────────────────────────────────
+
+/** Who did what with one record, newest first. The history is kept on the server only. */
+export async function getRecordActivity(id: string, signal?: AbortSignal): Promise<ActivityItem[]> {
+  if (!isHttp()) return []
+  return (await apiClient.get<{ items: ActivityItem[] }>(`/data/records/${encodeURIComponent(id)}/activity`, { signal, auth: 'required' })).items
+}
+
+/** What everyone did with the space's data, newest first; `before` pages back. */
+export async function getDataActivity(options: { before?: string; signal?: AbortSignal } = {}): Promise<ActivityItem[]> {
+  if (!isHttp()) return []
+  const params = new URLSearchParams({ limit: '50' })
+  if (options.before) params.set('before', options.before)
+  return (await apiClient.get<{ items: ActivityItem[] }>(`/data/activity?${params.toString()}`, { signal: options.signal, auth: 'required' })).items
+}
+
+/** Everything kept about one person, as a JSON file to give them. */
+export async function exportPersonData(id: string): Promise<Blob> {
+  if (isHttp()) return apiClient.get<Blob>(`/data/records/${encodeURIComponent(id)}/export`, { auth: 'required', responseType: 'blob' })
+  const record = readDemo().find((r) => r.id === id)
+  if (!record) throw new Error('Record not found')
+  const data = {
+    exportedAt: new Date().toISOString(),
+    record: {
+      id: record.id,
+      name: record.displayName,
+      fields: Object.entries(record.values)
+        .filter(([, value]) => value)
+        .map(([key, value]) => ({ key, value })),
+      extraFields: record.extraFields.map(({ label, value }) => ({ label, value })),
+      letterhead: record.branding ?? null,
+      consent: record.consentDetail ?? null,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    },
+  }
+  return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+}
+
+/** Forgets a person: their record, the requests sent to them and their unused logo. */
+export async function forgetRecord(id: string): Promise<ForgetResult> {
+  if (isHttp()) return apiClient.post<ForgetResult>(`/data/records/${encodeURIComponent(id)}/forget`, {}, { auth: 'required' })
+  writeDemo(readDemo().filter((r) => r.id !== id))
+  writeJson(DEMO_LINKS_KEY, readJson<DemoLink>(DEMO_LINKS_KEY).filter((link) => link.recordId !== id))
+  return { documents: [], requestsRemoved: 0, logoRemoved: false }
 }

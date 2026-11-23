@@ -64,6 +64,18 @@ export interface RecordSummary {
   updatedAt: string
   /** The record keeps its own letterhead (customers). */
   hasLetterhead?: boolean
+  /** The person's consent to being kept: given, withdrawn, or null (not recorded). */
+  consent?: ConsentStatus | null
+}
+
+export type ConsentStatus = 'given' | 'withdrawn'
+
+/** How the person agreed (or took it back): they shared it themselves, or staff noted it. */
+export interface ConsentDetail {
+  status: ConsentStatus
+  via: 'web' | 'telegram' | 'staff'
+  at: string
+  note: string | null
 }
 
 export interface RecordDetail extends RecordSummary {
@@ -76,6 +88,7 @@ export interface RecordDetail extends RecordSummary {
   createdAt: string
   /** Customers: their own letterhead and logo, or null. */
   branding?: RecordBranding | null
+  consentDetail?: ConsentDetail | null
 }
 
 export interface RecordInput {
@@ -83,6 +96,31 @@ export interface RecordInput {
   extraFields?: ExtraField[]
   /** Customers: their letterhead (null clears it). */
   branding?: { headerLines: string[]; footerLine?: string; logoMediaId?: string | null } | null
+  /** Consent noted by staff (null clears it). */
+  consent?: { status: ConsentStatus; note?: string } | null
+}
+
+/** GET /data/records/:id/activity, GET /data/activity: what someone did with the data (never values). */
+export interface ActivityItem {
+  id: string
+  action: string
+  at: string
+  actor: { id: string; name: string } | null
+  recordId: string | null
+  collection: string | null
+  fields?: string[]
+  count?: number
+  via?: string
+  withSensitive?: boolean
+  documentId?: string
+}
+
+/** POST /data/records/:id/forget */
+export interface ForgetResult {
+  /** Documents that still hold the person's details (their owners decide). */
+  documents: Array<{ id: string; title: string; owner: string; mine: boolean; updatedAt: string }>
+  requestsRemoved: number
+  logoRemoved: boolean
 }
 
 export interface ImportResult {

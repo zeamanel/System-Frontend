@@ -7,7 +7,10 @@ import { useCollections, useDeleteRecord, useRecord, useRecordDocuments, useSave
 import { Link } from 'react-router-dom'
 import { RequestDialog } from './RequestDialog'
 import { builtInDef, checkValue, isDataCollection, MAX_EXTRA_FIELDS, type CatalogField } from '../../lib/data/catalog'
-import type { ExtraField } from '../../lib/data/types'
+import type { ConsentDetail, ConsentStatus, ExtraField, RecordInput } from '../../lib/data/types'
+import { formatDate } from '../../lib/datetime'
+import { ForgetDialog, RecordActivityDialog } from './PrivacyTools'
+import { downloadPersonData } from '../../lib/data/download'
 import { Button, Dialog, Input, PanelError, PanelLoading, Select, Textarea, useToast } from '../ui'
 import { ImagePicker } from '../media/ImagePicker'
 import { useMediaUrls } from '../../hooks/use-media'
@@ -22,6 +25,8 @@ export interface RecordDialogProps {
   canSeeSensitive: boolean
   /** false: a view-only member. */
   canEdit?: boolean
+  /** Owner, admin, or a personal space: activity, the person's data, forgetting them. */
+  canAdminister?: boolean
 }
 
 const ERROR_KEYS = {
@@ -43,8 +48,8 @@ const ASKABLE = new Set(['customer', 'employee'])
  * organization's own), sensitive ones (salary, ID numbers, bank accounts)
  * only for those allowed, and optional extra fields.
  */
-export function RecordDialog({ open, onClose, collection, recordId, canSeeSensitive, canEdit = true }: RecordDialogProps) {
-  const { t } = useI18n()
+export function RecordDialog({ open, onClose, collection, recordId, canSeeSensitive, canEdit = true, canAdminister = false }: RecordDialogProps) {
+  const { t, locale } = useI18n()
   const toast = useToast()
   const record = useRecord(open ? recordId : null)
   const save = useSaveRecord()
@@ -53,6 +58,10 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
   const [extra, setExtra] = useState<ExtraField[]>([])
   const [errors, setErrors] = useState<Record<string, keyof typeof ERROR_KEYS>>({})
   const [asking, setAsking] = useState(false)
+  /** The person's consent as the form holds it ('' not recorded). */
+  const [consent, setConsent] = useState<{ status: ConsentStatus | ''; note: string }>({ status: '', note: '' })
+  const [privacy, setPrivacy] = useState<'activity' | 'forget' | null>(null)
+  const [downloading, setDownloading] = useState(false)
   /** Customers: their own letterhead (lines, footer, logo). */
   const [letterhead, setLetterhead] = useState<{ headerLines: string[]; footerLine: string; logoMediaId: string | null }>({
     headerLines: [],
@@ -74,7 +83,9 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
       setValues({})
       setExtra([])
       setLetterhead({ headerLines: [], footerLine: '', logoMediaId: null })
+      setConsent({ status: '', note: '' })
     } else if (record.data) {
+      setConsent({ status: record.data.consentDetail?.status ?? '', note: record.data.consentDetail?.note ?? '' })
       setValues(record.data.values)
       setExtra(record.data.extraFields)
       setLetterhead({
@@ -110,6 +121,7 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
           values: clean,
           extraFields: extra.filter((field) => field.label.trim() && field.value.trim()),
           ...(keepsLetterhead ? { branding: letterheadInput(letterhead) } : {}),
+          ...consentChange(consent, loaded?.consentDetail ?? null),
         },
       })
       toast.push(t('data.saved'), { variant: 'success' })
@@ -127,6 +139,18 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
       onClose()
     } catch {
       toast.push(t('data.saveFailed'), { variant: 'error' })
+    }
+  }
+
+  const download = async (): Promise<void> => {
+    if (!loaded) return
+    setDownloading(true)
+    try {
+      await downloadPersonData(loaded.id, loaded.displayName)
+    } catch {
+      toast.push(t('data.exportFailed'), { variant: 'error' })
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -304,7 +328,66 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
             </fieldset>
           ) : null}
 
+          <fieldset className="record-form__extra" data-testid="record-consent">
+            <legend>{t('privacy.consentTitle')}</legend>
+            <p className="record-form__note">{t('privacy.consentHint')}</p>
+            {loaded?.consentDetail && loaded.consentDetail.via !== 'staff' ? (
+              <p className="record-form__note" data-testid="record-consent-shared">
+                {t(loaded.consentDetail.via === 'telegram' ? 'privacy.consentSharedTelegram' : 'privacy.consentSharedWeb', {
+                  date: formatDate(new Date(loaded.consentDetail.at), locale),
+                })}
+              </p>
+            ) : null}
+            <div className="record-form__grid">
+              <Select
+                label={t('privacy.consentStatus')}
+                value={consent.status}
+                disabled={readOnly}
+                onChange={(event) => setConsent((current) => ({ ...current, status: event.target.value as ConsentStatus | '' }))}
+                options={[
+                  { value: '', label: t('privacy.consentNone') },
+                  { value: 'given', label: t('privacy.consentGiven') },
+                  { value: 'withdrawn', label: t('privacy.consentWithdrawn') },
+                ]}
+                data-testid="record-consent-status"
+              />
+              {consent.status ? (
+                <Input
+                  label={t('privacy.consentNote')}
+                  value={consent.note}
+                  maxLength={300}
+                  disabled={readOnly}
+                  placeholder={t('privacy.consentNotePlaceholder')}
+                  onChange={(event) => setConsent((current) => ({ ...current, note: event.target.value }))}
+                  data-testid="record-consent-note"
+                />
+              ) : null}
+            </div>
+            {consent.status === 'withdrawn' && canAdminister && loaded ? (
+              <p className="record-form__note" data-testid="record-consent-withdrawn">
+                {t('privacy.consentWithdrawnHint')}
+              </p>
+            ) : null}
+          </fieldset>
+
           {recordId && loaded ? <RecordDocuments recordId={recordId} /> : null}
+
+          {loaded && canAdminister ? (
+            <section className="record-form__privacy" aria-label={t('privacy.toolsLabel')} data-testid="record-privacy">
+              <p className="record-form__legend">{t('privacy.toolsLabel')}</p>
+              <div className="record-form__privacy-actions">
+                <Button variant="ghost" size="sm" onClick={() => setPrivacy('activity')} data-testid="record-activity">
+                  {t('privacy.activityButton')}
+                </Button>
+                <Button variant="ghost" size="sm" loading={downloading} onClick={() => void download()} data-testid="record-export">
+                  {t('privacy.exportButton')}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setPrivacy('forget')} data-testid="record-forget">
+                  {t('privacy.forgetButton')}
+                </Button>
+              </div>
+            </section>
+          ) : null}
 
           <div className="record-form__actions">
             {loaded && ASKABLE.has(collection) && !readOnly ? (
@@ -329,6 +412,12 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
           </div>
         </form>
       )}
+      {loaded && privacy === 'activity' ? (
+        <RecordActivityDialog open onClose={() => setPrivacy(null)} recordId={loaded.id} name={loaded.displayName} />
+      ) : null}
+      {loaded && privacy === 'forget' ? (
+        <ForgetDialog open onClose={() => setPrivacy(null)} record={{ id: loaded.id, name: loaded.displayName }} onForgotten={onClose} />
+      ) : null}
       {loaded && asking && (collection === 'customer' || collection === 'employee') ? (
         <RequestDialog
           open={asking}
@@ -340,6 +429,14 @@ export function RecordDialog({ open, onClose, collection, recordId, canSeeSensit
       ) : null}
     </Dialog>
   )
+}
+
+/** The consent to send: only when it changed (new records: only when set). */
+function consentChange(form: { status: ConsentStatus | ''; note: string }, stored: ConsentDetail | null): Pick<RecordInput, 'consent'> {
+  const note = form.note.trim()
+  if (!form.status) return stored ? { consent: null } : {}
+  if (stored && stored.status === form.status && (stored.note ?? '') === note) return {}
+  return { consent: { status: form.status, ...(note ? { note } : {}) } }
 }
 
 /** The letterhead form as the API takes it: null when nothing is left. */

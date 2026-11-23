@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createRecord,
   deleteRecord,
@@ -18,6 +18,9 @@ import {
   getDataAccess,
   setMemberAccess,
   updateCollection,
+  forgetRecord,
+  getDataActivity,
+  getRecordActivity,
   type DataRequestInput,
   type UseOptions,
 } from '../lib/data/client'
@@ -156,4 +159,34 @@ export function useSetMemberAccess() {
     mutationFn: ({ userId, ...access }: { userId: string; canEdit?: boolean; canSeeSensitive?: boolean }) => setMemberAccess(userId, access),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.data.access }),
   })
+}
+
+// ─── Privacy tools (owners and admins) ───────────────────────────────────────
+
+/** Who did what with one record. */
+export function useRecordActivity(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.data.recordActivity(id ?? ''),
+    queryFn: ({ signal }) => getRecordActivity(id as string, signal),
+    enabled: Boolean(id),
+    staleTime: 0,
+  })
+}
+
+/** What everyone did with the space's data, 50 at a time. */
+export function useDataActivity(enabled = true) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.data.activity,
+    queryFn: ({ pageParam, signal }) => getDataActivity({ before: pageParam || undefined, signal }),
+    initialPageParam: '',
+    getNextPageParam: (last) => (last.length < 50 ? undefined : last[last.length - 1].at),
+    enabled,
+    staleTime: 0,
+  })
+}
+
+/** Forgets a person (their record, requests and unused logo). */
+export function useForgetRecord() {
+  const invalidate = useInvalidate()
+  return useMutation({ mutationFn: (id: string) => forgetRecord(id), onSuccess: invalidate })
 }

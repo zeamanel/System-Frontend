@@ -57,6 +57,8 @@ export const queryKeys = {
     recordDocuments: (id: string) => ['data', 'record-documents', id] as const,
     requests: ['data', 'requests'] as const,
     access: ['data', 'access'] as const,
+    recordActivity: (id: string) => ['data', 'record-activity', id] as const,
+    activity: ['data', 'activity'] as const,
   },
   clauses: {
     all: ['clauses'] as const,
