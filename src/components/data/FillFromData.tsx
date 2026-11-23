@@ -76,7 +76,11 @@ export function FillFromData({ questions, answers, documentLanguage, onFill, doc
 
   const slotTitle = (slot: PartySlot): string => {
     const kind = t(`data.kind.${slot.collection}` as MessageKey)
-    return slot.party && slot.party !== slot.collection ? `${humanize(slot.party)} (${kind.toLowerCase()})` : kind
+    if (!slot.party || slot.party === slot.collection) return kind
+    // The built-in templates' parties are named in every language; others as written.
+    const key = `data.party.${slot.party}` as MessageKey
+    const named = t(key)
+    return `${named === key ? humanize(slot.party) : named} (${kind.toLowerCase()})`
   }
 
   const showPlan = (next: Plan): void => {

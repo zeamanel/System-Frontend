@@ -75,6 +75,26 @@ describe('Fill from your data, by template tags', () => {
   })
 })
 
+describe('Parties of the built-in templates', () => {
+  it('are named by role, one choice each, next to the property', async () => {
+    const lease: TemplateQuestion[] = [
+      { id: 'party_one_name', label: 'Landlord', required: true, dataSource: { collection: 'property', key: 'owner_name' } },
+      { id: 'party_two_name', label: 'Tenant', required: true, dataSource: { collection: 'customer', key: 'full_name', party: 'tenant' } },
+      { id: 'guarantor_name', label: 'Guarantor', required: false, dataSource: { collection: 'customer', key: 'full_name', party: 'guarantor' } },
+      { id: 'other', label: 'Other', required: false, dataSource: { collection: 'customer', key: 'full_name', party: 'house_keeper' } },
+    ]
+    wrap(<FillFromData questions={lease} answers={{}} documentLanguage="en" onFill={vi.fn()} documentId="doc-lease" />)
+    fireEvent.click(screen.getByTestId('fill-data-open'))
+    const slots = within(await screen.findByTestId('fill-data-slots')).getAllByTestId('fill-data-slot')
+    expect(slots.map((slot) => slot.textContent)).toEqual([
+      'Property1 fields',
+      'Tenant (customer)1 fields',
+      'Guarantor (customer)1 fields',
+      'House keeper (customer)1 fields',
+    ])
+  })
+})
+
 describe('Filled from your data', () => {
   async function linked(position: string) {
     const record = await dataClient.createRecord('employee', { values: { full_name: 'Dawit Haile', position } })
