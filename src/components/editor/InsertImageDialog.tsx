@@ -15,10 +15,13 @@ import {
 } from '../../hooks/use-saved-images'
 import { getRepositories } from '../../lib/repositories'
 import type { OrganizationMember, OrganizationProfile } from '../../lib/repositories/types'
+import { DEFAULT_CLEANUP, type CleanupChoice } from '../../lib/media/cleanup'
+import { cleanedImageBlob } from '../../lib/media/cleanup-browser'
 import { blobToDataUrl, ImagePrepareError, preparePrintableImage } from '../../lib/media/prepare'
 import type { SavedImage, SavedImageAccess, SavedImageKind } from '../../lib/saved-images/types'
 import { SAVED_IMAGE_KINDS } from '../../lib/saved-images/types'
 import { Button, Dialog, Input, Select } from '../ui'
+import { StampCleanup } from './StampCleanup'
 import { ImagePlusIcon, PaperclipIcon, ShieldIcon, TrashIcon, UsersIcon } from '../icons'
 
 export interface InsertImageDialogProps {
@@ -340,6 +343,9 @@ function AddSavedImageForm({
   const [access, setAccess] = useState<SavedImageAccess>('listed')
   const [allowed, setAllowed] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [cleanup, setCleanup] = useState<CleanupChoice>(DEFAULT_CLEANUP)
+  // A photo of a stamp or signature is cleaned up by default; a logo or other picture is left as it is.
+  const cleanupOn = cleanup.enabled ?? (kind === 'stamp' || kind === 'signature')
   // Organization images that owners and admins hand out; a person's own signature is theirs alone.
   const handedOut = inOrganization && manager && !(kind === 'signature' && own)
 
@@ -350,7 +356,18 @@ function AddSavedImageForm({
       return
     }
     try {
-      const image = await blobToDataUrl(await preparePrintableImage(file))
+      let prepared: Blob
+      if (cleanupOn) {
+        const cleaned = await cleanedImageBlob(file, { strength: cleanup.strength, angle: cleanup.angle })
+        if (!cleaned) {
+          setError(t('images.cleanup.nothing'))
+          return
+        }
+        prepared = cleaned
+      } else {
+        prepared = await preparePrintableImage(file)
+      }
+      const image = await blobToDataUrl(prepared)
       await add.mutateAsync({
         kind: manager ? kind : 'signature',
         name: name.trim(),
@@ -384,6 +401,7 @@ function AddSavedImageForm({
           onChange={(event) => setKind(event.target.value as SavedImageKind)}
         />
       ) : null}
+      <StampCleanup file={file} enabled={cleanupOn} value={cleanup} onChange={setCleanup} />
       <Input
         id="saved-image-name"
         label={t('images.nameLabel')}

@@ -1853,11 +1853,21 @@
   "images.addMissing": "Suuraa filadhuutii maqaa itti kenni.",
   "images.prepareFailed": "Suuraan kun dubbifamuu hin dandeenye. PNG ykn JPEG fayyadami.",
   "images.addFailed": "Suuraan olkaa'amuu hin dandeenye. Irra deebi'ii yaali.",
-  "images.file": "Suuraa (chaappaan ykn mallattoon bakka duubaa adii ykn ifaa irratti gaarii dha)",
+  "images.file": "Suuraa (suuraan chaappaa ykn mallattoo waraqaa irratti fudhatame ni ta'a)",
   "images.kindLabel": "Maal akka ta'e",
   "images.nameLabel": "Maqaa",
   "images.nameHint": "Fakkeenyaaf: chaappaa idilee, ykn mallattoo hoji gaggeessaa olaanaa",
   "images.ownSignature": "Mallattoo koo: ana qofatu itti fayyadamuu danda'a",
   "images.ownSignatureNote": "Mallattoon kee siif qofa olkaa'ama: namni biraa sanadoota keessa galchuu hin danda'u.",
-  "images.save": "Suuraa olkaa'i"
+  "images.save": "Suuraa olkaa'i",
+  "images.cleanup.title": "Suuraa sana qulqulleessi",
+  "images.cleanup.remove": "Bakka duubaa waraqaa balleessi",
+  "images.cleanup.hint": "Dheedhii ni qabata, waraqaa ifa taasisa, qarqara ni muruu. Suuraa chaappaa ykn mallattoo waraqaa adii irratti fudhatame irratti gaarii dha.",
+  "images.cleanup.strength": "Hangam waraqaa balleessuu",
+  "images.cleanup.angle": "Sirreessi",
+  "images.cleanup.auto": "Of-eegganoon sirreessi",
+  "images.cleanup.levelAlready": "Duraanuu sirrii dha.",
+  "images.cleanup.preview": "Dursee bakka duubaa ifa irratti",
+  "images.cleanup.reading": "Suuraa dubbisaa jira…",
+  "images.cleanup.nothing": "Dheedhiin tokko illee hin argamne. Waraqaa xiqqaa balleessi, ykn qulqulleessuu dhaabsisi."
 }

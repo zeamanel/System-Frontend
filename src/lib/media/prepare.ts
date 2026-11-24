@@ -36,7 +36,7 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Prom
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality))
 }
 
-async function decode(file: Blob): Promise<{ source: CanvasImageSource; width: number; height: number; close: () => void }> {
+export async function decodeImage(file: Blob): Promise<{ source: CanvasImageSource; width: number; height: number; close: () => void }> {
   if (typeof createImageBitmap === 'function') {
     const bitmap = await createImageBitmap(file)
     return { source: bitmap, width: bitmap.width, height: bitmap.height, close: () => bitmap.close() }
@@ -57,7 +57,7 @@ export async function prepareImage(file: Blob, kind: MediaKind): Promise<Blob> {
   if (!isAcceptedImageType(file.type)) throw new ImagePrepareError('type')
   let decoded
   try {
-    decoded = await decode(file)
+    decoded = await decodeImage(file)
   } catch {
     throw new ImagePrepareError('decode')
   }
@@ -108,7 +108,7 @@ export async function preparePrintableImage(file: Blob): Promise<Blob> {
   if (!isAcceptedImageType(file.type) && file.type !== 'image/gif') throw new ImagePrepareError('type')
   let decoded
   try {
-    decoded = await decode(file)
+    decoded = await decodeImage(file)
   } catch {
     throw new ImagePrepareError('decode')
   }

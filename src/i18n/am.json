@@ -1853,11 +1853,21 @@
   "images.addMissing": "ምስል ይምረጡና ስም ይስጡት።",
   "images.prepareFailed": "ይህን ምስል ማንበብ አልተቻለም። PNG ወይም JPEG ይጠቀሙ።",
   "images.addFailed": "ምስሉን ማስቀመጥ አልተቻለም። እንደገና ይሞክሩ።",
-  "images.file": "ምስል (ማኅተም ወይም ፊርማ በነጭ ወይም ግልጽ ዳራ ላይ ቢሆን ይመረጣል)",
+  "images.file": "ምስል (በወረቀት ላይ የተነሳ የማኅተም ወይም የፊርማ ፎቶ ይሠራል)",
   "images.kindLabel": "ምንድን ነው",
   "images.nameLabel": "ስም",
   "images.nameHint": "ለምሳሌ፦ ይፋዊ ማኅተም፣ ወይም የዋና ሥራ አስኪያጁ ፊርማ",
   "images.ownSignature": "የራሴ ፊርማ፦ መጠቀም የምችለው እኔ ብቻ ነኝ",
   "images.ownSignatureNote": "ፊርማዎ ለእርስዎ ብቻ ይቀመጣል፤ ሌላ ማንም በሰነዶች ውስጥ ሊያስገባው አይችልም።",
-  "images.save": "ምስሉን አስቀምጥ"
+  "images.save": "ምስሉን አስቀምጥ",
+  "images.cleanup.title": "ምስሉን አጽዳ",
+  "images.cleanup.remove": "የወረቀቱን ዳራ አስወግድ",
+  "images.cleanup.hint": "ቀለሙን ያቆያል፣ ወረቀቱን ግልጽ ያደርጋል፣ ጠርዞቹን ይቆርጣል። በነጭ ወረቀት ላይ ለተነሳ የማኅተም ወይም የፊርማ ፎቶ ተስማሚ ነው።",
+  "images.cleanup.strength": "ምን ያህል ወረቀት ይወገድ",
+  "images.cleanup.angle": "አቅና",
+  "images.cleanup.auto": "በራስ-ሰር አቅና",
+  "images.cleanup.levelAlready": "ቀድሞውኑ ቀጥ ያለ ነው።",
+  "images.cleanup.preview": "በግልጽ ዳራ ላይ ቅድመ እይታ",
+  "images.cleanup.reading": "ምስሉን በማንበብ ላይ…",
+  "images.cleanup.nothing": "ምንም ቀለም አልተገኘም። ያነሰ ወረቀት ያስወግዱ፣ ወይም ማጽዳቱን ያጥፉ።"
 }
