@@ -50,6 +50,8 @@ export interface BlockLabels {
   sideReplaceImage: string
   sideRemoveImage: string
   sideWidthGroup: string
+  /** The caption of an empty photo box, in the document's language. */
+  photo?: string
 }
 
 /**
@@ -136,7 +138,8 @@ function BlockViewInner({
       'indent' in block && block.indent > 0 ? `doc-block--indent-${block.indent}` : null
     const spacingClass = block.type === 'paragraph' ? `doc-block--spacing-${block.spacing}` : null
 
-    if (bilingual && !block.sideHidden) {
+    // A photo box takes the side cell's place.
+    if (bilingual && !block.sideHidden && !block.photoBox) {
       const sideMenu = editable ? (
         <SideBoxMenu
           mode={block.secondaryImage ? 'image' : 'text'}
@@ -296,18 +299,43 @@ function BlockViewInner({
             <PanelRightIcon size={14} />
           </button>
         ) : null}
-        <EditableHtml
-          html={block.html}
-          editable={editable}
-          className={isHeading ? `doc-heading doc-heading--${block.level}` : 'doc-paragraph'}
-          placeholder={isHeading && block.level === 1 ? labels.emptyText : undefined}
-          ariaLabel={isHeading ? `${block.type} ${block.level}` : 'Paragraph'}
-          data-block-id={block.id}
-          onInput={handleTextInput}
-          onKeyDown={handleTextKeyDown}
-          onPaste={handlePaste}
-          onFocus={handleFocus}
-        />
+        {block.photoBox ? (
+          // The text and a framed photo box beside it at the end of the line, as the PDF and Word file draw them.
+          <div className="doc-photo-row" dir={direction}>
+            <EditableHtml
+              html={block.html}
+              editable={editable}
+              className={isHeading ? `doc-heading doc-heading--${block.level}` : 'doc-paragraph'}
+              placeholder={isHeading && block.level === 1 ? labels.emptyText : undefined}
+              ariaLabel={isHeading ? `${block.type} ${block.level}` : 'Paragraph'}
+              data-block-id={block.id}
+              onInput={handleTextInput}
+              onKeyDown={handleTextKeyDown}
+              onPaste={handlePaste}
+              onFocus={handleFocus}
+            />
+            <figure className="doc-photo-box" data-size={block.photoBox.size} data-testid="photo-box">
+              {block.photoBox.src ? (
+                <img src={block.photoBox.src} alt={block.photoBox.alt ?? ''} draggable={false} />
+              ) : (
+                <figcaption>{labels.photo ?? 'Photo'}</figcaption>
+              )}
+            </figure>
+          </div>
+        ) : (
+          <EditableHtml
+            html={block.html}
+            editable={editable}
+            className={isHeading ? `doc-heading doc-heading--${block.level}` : 'doc-paragraph'}
+            placeholder={isHeading && block.level === 1 ? labels.emptyText : undefined}
+            ariaLabel={isHeading ? `${block.type} ${block.level}` : 'Paragraph'}
+            data-block-id={block.id}
+            onInput={handleTextInput}
+            onKeyDown={handleTextKeyDown}
+            onPaste={handlePaste}
+            onFocus={handleFocus}
+          />
+        )}
       </div>
     )
   }

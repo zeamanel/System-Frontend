@@ -39,6 +39,8 @@ import {
   toggleList,
   updateSecondaryText,
   setPartyMark,
+  setPhotoBox,
+  togglePhotoBox,
 } from './model'
 import type { DocumentModel } from './types'
 
@@ -970,6 +972,36 @@ describe('signature and stamp on a signature line', () => {
     const party = loaded.blocks[0].type === 'signature' ? loaded.blocks[0].parties[0] : null
     expect(party?.signatureImage).toEqual({ src: PNG, alt: 'S' })
     expect(party).not.toHaveProperty('stampImage')
+    expect(parseDocumentContent(serializeModel(loaded), 'en')).toEqual(loaded)
+  })
+})
+
+describe('photo box', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+
+  it('goes on a heading or paragraph, changes and comes off; one click puts one beside the first heading', () => {
+    const heading = createHeading('Abebe Kebede', 1)
+    const paragraph = createParagraph('Designer')
+    let model: DocumentModel = { ...createEmptyDocument('en'), blocks: [paragraph, heading] }
+    model = togglePhotoBox(model)
+    expect(model.blocks[1]).toMatchObject({ photoBox: { size: '3x4' } })
+    expect(model.blocks[0]).not.toHaveProperty('photoBox')
+    model = setPhotoBox(model, heading.id, { size: '3.5x4.5', src: PNG, alt: 'Me' })
+    expect(model.blocks[1]).toMatchObject({ photoBox: { size: '3.5x4.5', src: PNG } })
+    model = togglePhotoBox(model)
+    expect(model.blocks[1]).not.toHaveProperty('photoBox')
+    // Not on other blocks.
+    const table = createTable(2, 2)
+    expect(setPhotoBox({ ...model, blocks: [table] }, table.id, { size: '3x4' }).blocks[0]).toEqual(table)
+  })
+
+  it('keeps the box and an embedded photo through saving and loading, and drops a photo on the web', () => {
+    const heading = { ...createHeading('Abebe', 1), photoBox: { size: '3.5x4.5', src: PNG, alt: 'Me' } }
+    const paragraph = { ...createParagraph('x'), photoBox: { size: 'giant', src: 'https://example.com/me.png' } }
+    const loaded = parseDocumentContent(JSON.stringify({ ...createEmptyDocument('en'), blocks: [heading, paragraph] }), 'en')!
+    expect(loaded.blocks[0]).toMatchObject({ photoBox: { size: '3.5x4.5', src: PNG, alt: 'Me' } })
+    expect(loaded.blocks[1]).toMatchObject({ photoBox: { size: '3x4' } })
+    expect((loaded.blocks[1] as { photoBox?: { src?: string } }).photoBox?.src).toBeUndefined()
     expect(parseDocumentContent(serializeModel(loaded), 'en')).toEqual(loaded)
   })
 })

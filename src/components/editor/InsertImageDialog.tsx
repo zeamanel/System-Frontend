@@ -22,7 +22,8 @@ import type { SavedImage, SavedImageAccess, SavedImageKind } from '../../lib/sav
 import { SAVED_IMAGE_KINDS } from '../../lib/saved-images/types'
 import { Button, Dialog, Input, Select } from '../ui'
 import { StampCleanup } from './StampCleanup'
-import { ImagePlusIcon, PaperclipIcon, ShieldIcon, TrashIcon, UsersIcon } from '../icons'
+import { AiImagePanel } from '../media/AiImagePanel'
+import { ImagePlusIcon, PaperclipIcon, ShieldIcon, SparkIcon, TrashIcon, UsersIcon } from '../icons'
 
 export interface InsertImageDialogProps {
   open: boolean
@@ -43,6 +44,8 @@ export interface InsertImageDialogProps {
    * Telegram and the letterhead logo are not offered.
    */
   target?: { partyLabel: string }
+  /** A book: pictures can be made from a description and go in here (absent: not offered). */
+  onInsertGenerated?: (dataUrl: string, name: string) => void | Promise<void>
 }
 
 const KIND_KEY: Record<SavedImageKind, MessageKey> = {
@@ -57,7 +60,17 @@ const KIND_KEY: Record<SavedImageKind, MessageKey> = {
  * the space's saved logos, stamps and signatures. Who may use each saved
  * image is decided on the server; people who may not see it locked.
  */
-export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, onInsertImage, documentId, organization, target }: InsertImageDialogProps) {
+export function InsertImageDialog({
+  open,
+  onClose,
+  onPickFile,
+  onOpenTelegram,
+  onInsertImage,
+  documentId,
+  organization,
+  target,
+  onInsertGenerated,
+}: InsertImageDialogProps) {
   const { t } = useI18n()
   const fileRef = useRef<HTMLInputElement>(null)
   // Which slot of the signature line a picture from the device is for.
@@ -67,6 +80,8 @@ export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, o
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [pending, setPending] = useState<string | null>(null)
+  const [drawing, setDrawing] = useState(false)
+  const aiOffered = Boolean(onInsertGenerated && documentId && !target)
   const list = saved.data
   const inOrganization = Boolean(list?.canAddOwnSignature)
   const manager = Boolean(list?.canManage)
@@ -155,6 +170,17 @@ export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, o
               {t('images.fromTelegram')}
             </Button>
           ) : null}
+          {aiOffered ? (
+            <Button
+              variant={drawing ? 'primary' : 'secondary'}
+              icon={<SparkIcon size={16} />}
+              aria-expanded={drawing}
+              onClick={() => setDrawing((value) => !value)}
+              data-testid="insert-image-ai"
+            >
+              {t('images.fromAi')}
+            </Button>
+          ) : null}
           <input
             ref={fileRef}
             type="file"
@@ -171,6 +197,20 @@ export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, o
             }}
           />
         </div>
+
+        {aiOffered && drawing && documentId && onInsertGenerated ? (
+          <section className="insert-image__ai" aria-labelledby="insert-image-ai">
+            <h3 id="insert-image-ai">{t('aiImage.title')}</h3>
+            <AiImagePanel
+              documentId={documentId}
+              purpose="illustration"
+              onUse={async (picture, name) => {
+                await onInsertGenerated(picture.dataUrl, name)
+                onClose()
+              }}
+            />
+          </section>
+        ) : null}
 
         <section className="insert-image__saved" aria-labelledby="insert-image-saved">
           <div className="insert-image__head">

@@ -24,6 +24,8 @@ import type {
   PageSize,
   ParagraphBlock,
   PartyMark,
+  PhotoBox,
+  PhotoBoxSize,
   ParagraphSpacing,
   SideColumnPct,
   SideImage,
@@ -999,6 +1001,26 @@ export function updateSignatureParty(
   )
 }
 
+/** Gives a heading or paragraph a photo box, changes it, or takes it away (null). */
+export function setPhotoBox(model: DocumentModel, id: string, box: PhotoBox | null): DocumentModel {
+  return updateBlock(model, id, (block) => {
+    if (block.type !== 'heading' && block.type !== 'paragraph') return block
+    const { photoBox: _old, ...rest } = block
+    return (box ? { ...rest, photoBox: box } : rest) as Block
+  })
+}
+
+/**
+ * One click from the canvas: a photo box beside the document's first heading
+ * (or first paragraph) when it has none, or no photo box at all when it has.
+ */
+export function togglePhotoBox(model: DocumentModel): DocumentModel {
+  const holders = model.blocks.filter((block) => (block.type === 'heading' || block.type === 'paragraph') && block.photoBox)
+  if (holders.length > 0) return holders.reduce((current, block) => setPhotoBox(current, block.id, null), model)
+  const target = model.blocks.find((block) => block.type === 'heading') ?? model.blocks.find((block) => block.type === 'paragraph')
+  return target ? setPhotoBox(model, target.id, { size: '3x4' }) : model
+}
+
 /** Puts a signature or stamp on a party's signature line, or takes it off (null). */
 export function setPartyMark(
   model: DocumentModel,
@@ -1131,6 +1153,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
             ? { secondaryHtml: sanitizeInlineHtml(raw.secondaryHtml) }
             : {}),
           ...sanitizeSideCell(raw),
+          ...sanitizePhotoBox(raw.photoBox),
         })
         break
       }
@@ -1149,6 +1172,7 @@ export function sanitizeModel(input: DocumentModel): DocumentModel {
             : {}),
           ...sanitizeSideCell(raw),
           ...(raw.dropCap === true ? { dropCap: true } : {}),
+          ...sanitizePhotoBox(raw.photoBox),
         })
         break
       case 'list':
@@ -1226,6 +1250,14 @@ function sanitizeSideCell(raw: Record<string, unknown>): {
     ...(pct ? { sideColumnPct: pct } : {}),
     ...hidden,
   }
+}
+
+/** A photo box: its size, and the photo when it is an embedded image. */
+function sanitizePhotoBox(raw: unknown): { photoBox?: PhotoBox } {
+  if (!isRecord(raw)) return {}
+  const size: PhotoBoxSize = raw.size === '3.5x4.5' ? '3.5x4.5' : '3x4'
+  const src = typeof raw.src === 'string' && raw.src.startsWith('data:image/') && isSafeUrl(raw.src) ? raw.src : undefined
+  return { photoBox: src ? { size, src, alt: String(raw.alt ?? '').slice(0, 200) } : { size } }
 }
 
 /** A signature line's picture: only an embedded image is kept (remote addresses are never fetched). */

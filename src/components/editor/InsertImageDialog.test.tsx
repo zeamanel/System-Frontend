@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n'
@@ -111,6 +111,19 @@ describe('InsertImageDialog', () => {
     expect(onClose).toHaveBeenCalled()
     fireEvent.click(screen.getByTestId('insert-image-telegram'))
     expect(onOpenTelegram).toHaveBeenCalled()
+  })
+
+  it('offers a picture drawn by AI only where the editor allows it (books), never on a signature line', () => {
+    renderDialog()
+    expect(screen.queryByTestId('insert-image-ai')).toBeNull()
+    cleanup()
+    renderDialog({ onInsertGenerated: vi.fn() })
+    fireEvent.click(screen.getByTestId('insert-image-ai'))
+    expect(screen.getByTestId('ai-image-panel')).toBeInTheDocument()
+    expect(screen.getByText(/never drawn/)).toBeInTheDocument()
+    cleanup()
+    renderDialog({ onInsertGenerated: vi.fn(), target: { partyLabel: 'Tenant' } })
+    expect(screen.queryByTestId('insert-image-ai')).toBeNull()
   })
 
   it('saves a stamp once, then puts it into the document in one click', async () => {

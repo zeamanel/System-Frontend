@@ -9,11 +9,13 @@ import { useI18n } from '../i18n'
 import { getRepositories, DocumentConflictError } from '../lib/repositories'
 import type { DocumentDetailRecord } from '../lib/repositories'
 import { queryKeys } from '../lib/query-keys'
-import { Button, EmptyState, Input, Textarea } from '../components/ui'
+import { Button, Dialog, EmptyState, Input, Textarea } from '../components/ui'
 import { ImagePicker } from '../components/media/ImagePicker'
-import { useMediaUrls } from '../hooks/use-media'
+import { AiImagePanel } from '../components/media/AiImagePanel'
+import { useMediaUrls, useUploadMedia } from '../hooks/use-media'
+import { dataUrlToFile } from '../lib/media/ai-picture'
 import { useOrganization } from '../hooks/use-organization'
-import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, PrinterIcon } from '../components/icons'
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, PrinterIcon, SparkIcon } from '../components/icons'
 import { parseDesignContent, serializeDesignContent } from './content'
 import { designById } from './registry'
 import { BatchPanel } from './BatchPanel'
@@ -151,6 +153,15 @@ function DesignEditor({
       return { ...current, images }
     })
     schedule()
+  }
+
+  // A logo the AI drew: stored like an uploaded one, then put in its slot.
+  const upload = useUploadMedia()
+  const [drawingSlot, setDrawingSlot] = useState<string | null>(null)
+  const putDrawnLogo = async (slot: string, dataUrl: string, name: string): Promise<void> => {
+    const record = await upload.mutateAsync({ file: dataUrlToFile(dataUrl, name || 'logo'), kind: 'logo' })
+    setImage(slot, record.id)
+    setDrawingSlot(null)
   }
 
   const setBatchRows = (rows: Array<Record<string, string>> | null): void => {
@@ -377,11 +388,29 @@ function DesignEditor({
                           {t('designs.image.useOrgLogo')}
                         </Button>
                       ) : null}
+                      {slot.kind === 'logo' ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          icon={<SparkIcon size={16} />}
+                          onClick={() => setDrawingSlot(slot.id)}
+                          data-testid={`design-image-${slot.id}-ai`}
+                        >
+                          {t('designs.image.createWithAi')}
+                        </Button>
+                      ) : null}
                     </ImagePicker>
                   </div>
                 )
               })}
             </fieldset>
+          ) : null}
+
+          {drawingSlot ? (
+            <Dialog open onClose={() => setDrawingSlot(null)} title={t('aiImage.logoTitle')} closeLabel={t('common.close')} width="lg">
+              <AiImagePanel documentId={doc.id} purpose="logo" onUse={(picture, name) => putDrawnLogo(drawingSlot, picture.dataUrl, name)} />
+            </Dialog>
           ) : null}
 
           {design.batch ? (

@@ -2,7 +2,7 @@ import { env } from '../../config/env'
 import { apiClient } from '../api'
 import { blockPlainText } from '../assistant/context'
 import { dataUrlImageInfo } from '../editor/image'
-import { imagePrintQuality, signatureLineQuality } from '../editor/print-quality'
+import { imagePrintQuality, photoBoxQuality, signatureLineQuality } from '../editor/print-quality'
 import type { DocumentModel } from '../editor/types'
 
 /**
@@ -137,6 +137,21 @@ export function localDocumentCheck(
       }
       continue
     }
+    if ((block.type === 'heading' || block.type === 'paragraph') && block.photoBox?.src) {
+      const info = dataUrlImageInfo(block.photoBox.src)
+      const quality = photoBoxQuality(info, block.photoBox.size)
+      if (quality?.low) {
+        const name = (block.photoBox.alt ?? '').trim().slice(0, 60)
+        add({
+          severity: 'warning',
+          code: 'IMAGE_LOW_RESOLUTION',
+          message: `${name ? `"${name}"` : 'A picture'} is ${info.width} pixels wide: at ${quality.widthMm} mm it prints at about ${quality.dpi} dpi and may look blurry.`,
+          blockId: block.id,
+          params: { name, pixels: info.width ?? 0, widthMm: quality.widthMm, dpi: quality.dpi, sharpMm: quality.sharpMm },
+        })
+      }
+      continue
+    }
     if (block.type !== 'image') continue
     const name = block.alt.trim().slice(0, 60)
     if (!dataUrlImageInfo(block.src).printable) {
@@ -199,6 +214,9 @@ export async function runDocumentCheck(
           ...input.model,
           blocks: input.model.blocks.map((block) => {
             if (block.type === 'image') return { ...block, src: '', srcInfo: dataUrlImageInfo(block.src) }
+            if ((block.type === 'heading' || block.type === 'paragraph') && block.photoBox?.src) {
+              return { ...block, photoBox: { ...block.photoBox, src: '', srcInfo: dataUrlImageInfo(block.photoBox.src) } }
+            }
             if (block.type !== 'signature') return block
             const light = (mark?: { src: string; alt: string }) => (mark ? { alt: mark.alt, src: '', srcInfo: dataUrlImageInfo(mark.src) } : undefined)
             return {

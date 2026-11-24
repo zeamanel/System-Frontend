@@ -128,6 +128,16 @@ describe('apiClient', () => {
     expect(apiError.message).toBe('Not found')
   })
 
+  it('keeps the fields the server puts beside the error code as its details', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: { code: 'AI_IMAGE_REFUSED', message: 'This picture cannot be made.', reason: 'official_mark' } }, { status: 422 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const error = (await apiClient.post('/ai/image', {}).catch((e: unknown) => e)) as ApiError
+    expect(error.code).toBe('AI_IMAGE_REFUSED')
+    expect(error.details).toEqual({ reason: 'official_mark' })
+  })
+
   it('wraps network failures as ApiError with status 0', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
     vi.stubGlobal('fetch', fetchMock)

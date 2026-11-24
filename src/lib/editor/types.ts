@@ -33,6 +33,26 @@ export interface SideImage {
 /** How much of the width beside the text a side image takes: 30, 40 or 50 percent (50 when absent). */
 export type SideColumnPct = 30 | 40 | 50
 
+/** A photo box's size: 3 x 4 cm (the usual Ethiopian form photo) or 3.5 x 4.5 cm (passport). */
+export type PhotoBoxSize = '3x4' | '3.5x4.5'
+
+export const PHOTO_BOX_MM: Record<PhotoBoxSize, { width: number; height: number }> = {
+  '3x4': { width: 30, height: 40 },
+  '3.5x4.5': { width: 35, height: 45 },
+}
+
+/**
+ * A photo box beside a heading or paragraph (a CV, an application form): a
+ * photo cropped to the box, or, without one, an empty frame with a caption
+ * where a printed photo is glued in.
+ */
+export interface PhotoBox {
+  size: PhotoBoxSize
+  /** A PNG or JPEG data URL, already cropped to the box's shape. */
+  src?: string
+  alt?: string
+}
+
 export interface HeadingBlock extends BlockBase {
   type: 'heading'
   level: HeadingLevel
@@ -44,6 +64,8 @@ export interface HeadingBlock extends BlockBase {
   sideColumnPct?: SideColumnPct
   /** The side box was removed from this block (side-by-side mode): it uses the full width; its side content is kept, hidden. */
   sideHidden?: boolean
+  /** A photo box beside the text (it takes the place of a side cell). */
+  photoBox?: PhotoBox
 }
 
 export interface ParagraphBlock extends BlockBase {
@@ -58,6 +80,7 @@ export interface ParagraphBlock extends BlockBase {
   sideHidden?: boolean
   /** Books: the paragraph opens with a large first letter two lines tall (the first of a chapter). */
   dropCap?: boolean
+  photoBox?: PhotoBox
 }
 
 export interface ListItem {

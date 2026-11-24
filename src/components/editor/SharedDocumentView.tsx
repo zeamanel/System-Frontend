@@ -69,6 +69,7 @@ export function SharedDocumentView({ document: doc, onBack, onCopy, copying }: S
       sideReplaceImage: '',
       sideRemoveImage: '',
       sideWidthGroup: '',
+      photo: tDoc('editor.photoBox.caption'),
     }),
     [tDoc],
   )

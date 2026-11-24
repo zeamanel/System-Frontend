@@ -28,6 +28,8 @@ import {
   removeBlock,
   removeSignatureParty,
   setPartyMark,
+  setPhotoBox,
+  togglePhotoBox,
   removeTableColumn,
   removeTableRow,
   setAlignment,
@@ -57,6 +59,8 @@ import {
 } from '../../lib/editor/model'
 import { execInlineCommand, type InlineCommand } from '../../lib/editor/commands'
 import { compressImageDataUrl, printableImageDataUrl } from '../../lib/editor/image'
+import { cropToPhotoBox } from '../../lib/media/photo'
+import { suggestsPhotoBox } from '../../lib/editor/photo-box'
 import { escapePlainText, inlineHtmlToText, isSafeUrl } from '../../lib/editor/sanitize'
 import { insertPlainText } from '../../lib/editor/commands'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
@@ -72,6 +76,7 @@ import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
 import { InsertImageDialog } from './InsertImageDialog'
+import { bookPictureDataUrl } from '../../lib/media/ai-picture'
 import { EditorTelegramVaultDrawer } from './EditorTelegramVaultDrawer'
 import type { SavedImageKind } from '../../lib/saved-images/types'
 import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/editor/styles'
@@ -1306,6 +1311,19 @@ export function EditorWorkspace({
     })()
   }, [doc.access, doc.kind, model.blocks, pageLocked, updateModel])
 
+  // A photo for a photo box: cropped to the box's shape and size, then set on the block.
+  const handlePhotoBoxFile = useCallback(
+    (blockId: string, file: File): void => {
+      const block = editor.model.blocks.find((candidate) => candidate.id === blockId)
+      const box = block && (block.type === 'heading' || block.type === 'paragraph') ? block.photoBox : undefined
+      const size = box?.size ?? '3x4'
+      cropToPhotoBox(file, size)
+        .then((src) => updateModel((current) => setPhotoBox(current, blockId, { size, src, alt: file.name.replace(/\.[^.]+$/, '') })))
+        .catch(() => toast.push(t('editor.photoBox.failed'), { variant: 'error' }))
+    },
+    [editor.model, toast, t, updateModel],
+  )
+
   // A signature on a party's line, or a stamp over it.
   const placeOnSignatureLine = useCallback(
     async (target: { blockId: string; partyId: string }, slot: 'signature' | 'stamp', dataUrl: string, alt: string): Promise<void> => {
@@ -1352,6 +1370,16 @@ export function EditorWorkspace({
     },
     [insertAfterActive, toast, t],
   )
+
+  // A picture the AI drew for a book: full text width, kept at print size (throws so the panel can say it failed).
+  const handleInsertGenerated = useCallback(
+    async (dataUrl: string, name: string): Promise<void> => {
+      const picture = await bookPictureDataUrl(dataUrl)
+      insertAfterActive(() => ({ ...createImage(picture, name), widthPct: 100, align: 'center' }))
+    },
+    [insertAfterActive],
+  )
+  const isBook = Boolean(template?.documentTypeId.startsWith('book_'))
 
   const handleInsertVaultImage = useCallback(
     async (imageDataUrl: string, caption?: string) => {
@@ -1401,6 +1429,19 @@ export function EditorWorkspace({
       'personal-header': ['look.addHeader', 'look.removeHeader'],
       'customer-footer': ['look.addFooter', 'look.removeFooter'],
     }
+    // A CV or an application form gets a photo box offer (a photo, or an empty box to glue one in).
+    const hasPhotoBox = model.blocks.some((block) => (block.type === 'heading' || block.type === 'paragraph') && block.photoBox)
+    const photoOffer =
+      template && suggestsPhotoBox(template.documentTypeId)
+        ? [
+            {
+              id: 'photo-box',
+              label: t(hasPhotoBox ? 'look.removePhotoBox' : 'look.addPhotoBox'),
+              pressed: hasPhotoBox,
+              onClick: () => updateModel((current) => togglePhotoBox(current)),
+            },
+          ]
+        : []
     return [
       ...customers,
       ...brandingOffers(model, lookContext).map((offer) => ({
@@ -1409,8 +1450,9 @@ export function EditorWorkspace({
         pressed: offer.applied,
         onClick: () => updateModel((current) => toggleBranding(current, offer.kind, lookContext)),
       })),
+      ...photoOffer,
     ]
-  }, [doc.access, doc.kind, linkedRecords.data, lookContext, model, shopMode, t, updateModel])
+  }, [doc.access, doc.kind, linkedRecords.data, lookContext, model, shopMode, t, template, updateModel])
 
   // ---- print (with pre-print check) ----
   const [printCheck, setPrintCheck] = useState<DocumentCheckResult | null>(null)
@@ -1531,6 +1573,7 @@ export function EditorWorkspace({
       sideReplaceImage: t('editor.side.replaceImage'),
       sideRemoveImage: t('editor.side.removeImage'),
       sideWidthGroup: t('editor.side.widthGroup'),
+      photo: tDoc('editor.photoBox.caption'),
     }),
     [t, tDoc],
   )
@@ -1647,6 +1690,12 @@ export function EditorWorkspace({
       onRemovePartyMark: (partyId, slot) => {
         if (activeRef) updateModel((current) => setPartyMark(current, activeRef.blockId, partyId, slot, null))
       },
+      onSetPhotoBox: (box) => {
+        if (activeRef) updateModel((current) => setPhotoBox(current, activeRef.blockId, box))
+      },
+      onPickPhotoBoxFile: (file) => {
+        if (activeRef) handlePhotoBoxFile(activeRef.blockId, file)
+      },
       onSetOrientation: (orientation) =>
         updateModel((current) => setPageOrientation(current, orientation)),
       onUpdateMargins: (patch) => updateModel((current) => setMargins(current, patch)),
@@ -1673,6 +1722,7 @@ export function EditorWorkspace({
       applyOp,
       handleInlineCommand,
       handleInsertImage,
+      handlePhotoBoxFile,
       insertAfterActive,
       lookIsLocked,
       model,
@@ -1895,6 +1945,7 @@ export function EditorWorkspace({
           documentId={doc.id}
           organization={organizationProfile}
           target={imageTarget ? { partyLabel: imageTarget.partyLabel } : undefined}
+          onInsertGenerated={isBook && doc.access !== 'view' ? handleInsertGenerated : undefined}
         />
       ) : null}
       {telegramImagesOpen ? (

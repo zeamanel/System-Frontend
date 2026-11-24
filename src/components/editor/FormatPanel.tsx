@@ -5,10 +5,14 @@ import type {
   Block,
   DocumentModel,
   FontKey,
+  HeadingBlock,
   HeadingLevel,
   ImageBlock,
   PageOrientation,
+  ParagraphBlock,
   ParagraphSpacing,
+  PhotoBox,
+  PhotoBoxSize,
   TextAlign,
 } from '../../lib/editor/types'
 import { countEmptySideBoxes, type DocumentPreset } from '../../lib/editor/model'
@@ -71,6 +75,10 @@ export interface FormatPanelCallbacks {
   onOpenPartyImage?: (partyId: string) => void
   /** Takes the signature or the stamp off a party's line. */
   onRemovePartyMark?: (partyId: string, slot: 'signature' | 'stamp') => void
+  /** Gives the selected heading or paragraph a photo box, changes it, or takes it away (null); absent: not offered. */
+  onSetPhotoBox?: (box: PhotoBox | null) => void
+  /** A photo for the selected block's photo box (cropped to the box). */
+  onPickPhotoBoxFile?: (file: File) => void
   onSetOrientation(orientation: PageOrientation): void
   onUpdateMargins(patch: Partial<DocumentModel['page']['margins']>): void
   onUpdatePageSetup(patch: Partial<DocumentModel['page']>): void
@@ -459,6 +467,9 @@ function renderMoreSections(
           {activeBlock.type === 'signature'
             ? renderSignatureControls(activeBlock, callbacks, t)
             : null}
+          {(activeBlock.type === 'heading' || activeBlock.type === 'paragraph') && callbacks.onSetPhotoBox
+            ? renderPhotoBoxControls(activeBlock, callbacks, t)
+            : null}
         </section>
       ) : null}
       {renderPageSetup(model, callbacks, t)}
@@ -771,6 +782,60 @@ function renderImageControls(
         value={block.alt}
         onChange={(event) => callbacks.onUpdateImage({ alt: event.target.value })}
       />
+    </div>
+  )
+}
+
+/** The selected heading's or paragraph's photo box: add one, its size, its photo, take it away. */
+function renderPhotoBoxControls(block: HeadingBlock | ParagraphBlock, callbacks: FormatPanelCallbacks, t: T) {
+  const box = block.photoBox
+  if (!box) {
+    return (
+      <div className="editor-panel__cluster">
+        <button type="button" className="editor-panel__text-btn" onClick={() => callbacks.onSetPhotoBox?.({ size: '3x4' })} data-testid="photo-box-add">
+          {t('editor.photoBox.add')}
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="editor-panel__cluster" data-testid="photo-box-controls" role="group" aria-labelledby="photo-box-title">
+      <span id="photo-box-title" className="editor-panel__label">
+        {t('editor.photoBox.title')}
+      </span>
+      <Select
+        id="photo-box-size"
+        label={t('editor.photoBox.size')}
+        value={box.size}
+        options={[
+          { value: '3x4', label: t('editor.photoBox.size3x4') },
+          { value: '3.5x4.5', label: t('editor.photoBox.size35x45') },
+        ]}
+        onChange={(event) => callbacks.onSetPhotoBox?.({ ...box, size: event.target.value as PhotoBoxSize })}
+      />
+      <label className="editor-panel__text-btn editor-panel__file-btn">
+        {box.src ? t('editor.photoBox.change') : t('editor.photoBox.choose')}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="editor-panel__file"
+          data-testid="photo-box-file"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) callbacks.onPickPhotoBoxFile?.(file)
+          }}
+        />
+      </label>
+      {box.src ? (
+        <button type="button" className="editor-panel__text-btn" onClick={() => callbacks.onSetPhotoBox?.({ size: box.size })} data-testid="photo-box-remove-photo">
+          {t('editor.photoBox.removePhoto')}
+        </button>
+      ) : null}
+      <button type="button" className="editor-panel__text-btn" onClick={() => callbacks.onSetPhotoBox?.(null)} data-testid="photo-box-remove">
+        {t('editor.photoBox.remove')}
+      </button>
+      <p className="editor-panel__status editor-panel__status--muted">{t('editor.photoBox.hint')}</p>
     </div>
   )
 }
