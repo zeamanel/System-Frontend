@@ -1869,5 +1869,10 @@
   "images.cleanup.levelAlready": "Duraanuu sirrii dha.",
   "images.cleanup.preview": "Dursee bakka duubaa ifa irratti",
   "images.cleanup.reading": "Suuraa dubbisaa jira…",
-  "images.cleanup.nothing": "Dheedhiin tokko illee hin argamne. Waraqaa xiqqaa balleessi, ykn qulqulleessuu dhaabsisi."
+  "images.cleanup.nothing": "Dheedhiin tokko illee hin argamne. Waraqaa xiqqaa balleessi, ykn qulqulleessuu dhaabsisi.",
+  "check.issue.IMAGE_LOW_RESOLUTION": "{name} bal'ina isaa pikseelii {pixels} dha: {widthMm} mm irratti yeroo maxxanfamu dpi {dpi} ta'a, dukkanaa'uu danda'a. Hamma bal'ina {sharpMm} mm tti ifaa ta'a; xiqqeessi ykn suuraa guddaa fayyadami.",
+  "check.issue.IMAGE_NOT_PRINTED": "{name} suuraa PNG ykn JPEG sanada keessatti kuufame miti; kanaaf PDF fi faayilii Word irraa hafa. Qabduu suuraa irraa deebi'ii dabali.",
+  "editor.imageQuality.low": "Hamma kanaan dpi {dpi} ta'ee maxxanfama, dukkanaa'uu danda'a. Dhiphisi (hamma {sharp} mm tti ifaa; amma {width} mm dha) ykn suuraa guddaa fayyadami.",
+  "editor.imageQuality.ok": "Hamma kanaan ifaa maxxanfama (dpi {dpi} ta'a).",
+  "check.issue.imageUnnamed": "Suuraan tokko"
 }

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { useI18n } from '../../i18n'
 import type {
@@ -16,6 +16,7 @@ import { MAX_FONT_SIZE_PT, MIN_FONT_SIZE_PT } from '../../lib/editor/types'
 import type { InlineCommand } from '../../lib/editor/commands'
 import { FONT_OPTIONS, type EthiopicSupport } from '../../lib/editor/fonts'
 import { textDirection } from '../../lib/editor/direction'
+import { imagePrintQuality, type PrintQuality } from '../../lib/editor/print-quality'
 import { languageDirection } from '../../lib/languages'
 import { Button, Input, Select, useToast } from '../ui'
 import { useOrganization } from '../../hooks/use-organization'
@@ -138,6 +139,13 @@ export function FormatPanel({
 }: FormatPanelProps) {
   const { t } = useI18n()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // How sharp the selected picture prints at its size: moves with the width slider and the margins.
+  const imageSrc = activeBlock?.type === 'image' ? activeBlock.src : null
+  const imageWidthPct = activeBlock?.type === 'image' ? activeBlock.widthPct : 0
+  const imageQuality = useMemo<PrintQuality | null>(
+    () => (imageSrc ? imagePrintQuality({ src: imageSrc, widthPct: imageWidthPct }, model.page) : null),
+    [imageSrc, imageWidthPct, model.page],
+  )
 
   const isHeading = activeBlock?.type === 'heading'
   const isParagraph = activeBlock?.type === 'paragraph'
@@ -234,6 +242,7 @@ export function FormatPanel({
       {renderMoreSections(model, activeBlock, callbacks, t, {
         imageError,
         fileInputRef,
+        imageQuality,
       })}
     </div>
   )
@@ -379,7 +388,7 @@ function renderMoreSections(
   activeBlock: Block | null,
   callbacks: FormatPanelCallbacks,
   t: T,
-  extra: { imageError: string | null; fileInputRef: RefObject<HTMLInputElement> },
+  extra: { imageError: string | null; fileInputRef: RefObject<HTMLInputElement>; imageQuality: PrintQuality | null },
 ) {
   return (
     <>
@@ -440,7 +449,7 @@ function renderMoreSections(
             </IconButton>
           </div>
           {activeBlock.type === 'table' ? renderTableControls(activeBlock, callbacks, t) : null}
-          {activeBlock.type === 'image' ? renderImageControls(activeBlock, callbacks, t) : null}
+          {activeBlock.type === 'image' ? renderImageControls(activeBlock, callbacks, t, extra.imageQuality) : null}
           {activeBlock.type === 'signature'
             ? renderSignatureControls(activeBlock, callbacks, t)
             : null}
@@ -707,6 +716,7 @@ function renderImageControls(
   block: Extract<Block, { type: 'image' }>,
   callbacks: FormatPanelCallbacks,
   t: T,
+  quality: PrintQuality | null,
 ) {
   return (
     <div className="editor-panel__cluster">
@@ -725,6 +735,17 @@ function renderImageControls(
         />
         <span className="editor-panel__value">{block.widthPct}%</span>
       </div>
+      {quality ? (
+        <p
+          className={['editor-panel__status', quality.low ? 'editor-panel__status--warning' : 'editor-panel__status--muted'].join(' ')}
+          role="status"
+          data-testid="image-quality"
+        >
+          {quality.low
+            ? t('editor.imageQuality.low', { dpi: quality.dpi, width: quality.widthMm, sharp: quality.sharpMm })
+            : t('editor.imageQuality.ok', { dpi: quality.dpi })}
+        </p>
+      ) : null}
       <Select
         id="image-align"
         label={t('editor.align')}

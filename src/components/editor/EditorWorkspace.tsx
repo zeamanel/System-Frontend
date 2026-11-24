@@ -106,7 +106,7 @@ import { useDocumentEditor, type FieldSyncEvent } from './useDocumentEditor'
 import { AssistantPanel } from './AssistantPanel'
 import { useAssistant } from './useAssistant'
 import { useIssueText } from './check-issue-text'
-import type { DocumentCheckResult } from '../../lib/document-check/check'
+import { isPrintProblem, type DocumentCheckResult } from '../../lib/document-check/check'
 import { consumePendingNotes } from '../../lib/assistant/pending-notes'
 import { blockPlainText, pageIndexOf } from '../../lib/assistant/context'
 import { buildStreamPreview, keepUnchanged, parseStreamBlocks } from '../../lib/editor/stream-preview'
@@ -1409,7 +1409,7 @@ export function EditorWorkspace({
     } catch {
       result = null
     }
-    if (result && result.summary.errors > 0) {
+    if (result && result.issues.some(isPrintProblem)) {
       setPrintCheck(result)
       return
     }
@@ -2191,17 +2191,17 @@ export function EditorWorkspace({
       >
         {printCheck ? (
           <div data-testid="print-check-dialog">
-            <p>{t('check.print.body', { errors: String(printCheck.summary.errors) })}</p>
+            <p>{t('check.print.body', { errors: String(printCheck.issues.filter(isPrintProblem).length) })}</p>
             <ul className="print-check__list">
               {printCheck.issues
-                .filter((issue) => issue.severity === 'error')
+                .filter(isPrintProblem)
                 .slice(0, PRINT_CHECK_LISTED)
                 .map((issue) => (
                   <li key={issue.id}>{issueText(issue)}</li>
                 ))}
             </ul>
-            {printCheck.summary.errors > PRINT_CHECK_LISTED ? (
-              <p>{t('check.print.more', { count: String(printCheck.summary.errors - PRINT_CHECK_LISTED) })}</p>
+            {printCheck.issues.filter(isPrintProblem).length > PRINT_CHECK_LISTED ? (
+              <p>{t('check.print.more', { count: String(printCheck.issues.filter(isPrintProblem).length - PRINT_CHECK_LISTED) })}</p>
             ) : null}
           </div>
         ) : null}

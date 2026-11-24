@@ -2130,3 +2130,9 @@ figure.doc-block--image-right .doc-image {
   font-weight: 700;
 }
 
+
+.editor-panel__status--warning {
+  color: var(--color-warning-text, #92400e);
+  align-items: flex-start;
+  line-height: 1.4;
+}

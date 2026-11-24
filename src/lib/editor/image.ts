@@ -132,3 +132,52 @@ export async function printableImageDataUrl(dataUrl: string): Promise<string | n
   const printable = isPrintableImage(dataUrl) ? dataUrl : await redrawAsPng(dataUrl)
   return printable ? compressImageDataUrl(printable) : null
 }
+
+/** What the editor reads from a picture's data: can the PDF and Word file carry it, and its pixel size. */
+export interface ImageInfo {
+  /** An embedded PNG or JPEG (the only pictures the exports carry). */
+  printable: boolean
+  width?: number
+  height?: number
+}
+
+/** Reads the type and pixel size from a PNG or JPEG data URL's own bytes. */
+export function dataUrlImageInfo(dataUrl: string): ImageInfo {
+  const match = /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=\s]+)$/i.exec(dataUrl)
+  if (!match) return { printable: false }
+  let bytes: string
+  try {
+    bytes = atob(match[2].replace(/\s/g, ''))
+  } catch {
+    return { printable: false }
+  }
+  const at = (index: number): number => bytes.charCodeAt(index)
+  if (match[1].toLowerCase() === 'png') {
+    // The IHDR chunk follows the 8-byte signature: width and height as 32-bit numbers.
+    if (bytes.length < 24 || bytes.slice(1, 4) !== 'PNG') return { printable: false }
+    const read = (offset: number): number => at(offset) * 16777216 + (at(offset + 1) << 16) + (at(offset + 2) << 8) + at(offset + 3)
+    const width = read(16)
+    const height = read(20)
+    return width > 0 && height > 0 ? { printable: true, width, height } : { printable: false }
+  }
+  // JPEG: walk the segments to the first start-of-frame marker.
+  if (bytes.length < 4 || at(0) !== 0xff || at(1) !== 0xd8) return { printable: false }
+  let offset = 2
+  while (offset + 9 < bytes.length) {
+    if (at(offset) !== 0xff) return { printable: false }
+    const marker = at(offset + 1)
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      offset += 2
+      continue
+    }
+    const length = (at(offset + 2) << 8) + at(offset + 3)
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      const height = (at(offset + 5) << 8) + at(offset + 6)
+      const width = (at(offset + 7) << 8) + at(offset + 8)
+      return width > 0 && height > 0 ? { printable: true, width, height } : { printable: false }
+    }
+    if (length < 2) return { printable: false }
+    offset += 2 + length
+  }
+  return { printable: false }
+}

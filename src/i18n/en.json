@@ -1869,5 +1869,10 @@
   "images.cleanup.levelAlready": "Already straight.",
   "images.cleanup.preview": "Preview on a see-through background",
   "images.cleanup.reading": "Reading the picture…",
-  "images.cleanup.nothing": "No ink was found. Remove less paper, or turn the clean-up off."
+  "images.cleanup.nothing": "No ink was found. Remove less paper, or turn the clean-up off.",
+  "check.issue.IMAGE_LOW_RESOLUTION": "{name} is {pixels} pixels wide: at {widthMm} mm it prints at about {dpi} dpi and may look blurry. It stays sharp up to about {sharpMm} mm wide; make it smaller or use a larger picture.",
+  "check.issue.IMAGE_NOT_PRINTED": "{name} is not a PNG or JPEG picture stored in the document, so it is left out of the PDF and Word file. Add it again from the image button.",
+  "editor.imageQuality.low": "At this size it prints at about {dpi} dpi and may look blurry. Make it narrower (sharp up to about {sharp} mm; now {width} mm) or use a larger picture.",
+  "editor.imageQuality.ok": "Prints sharp at this size (about {dpi} dpi).",
+  "check.issue.imageUnnamed": "A picture"
 }

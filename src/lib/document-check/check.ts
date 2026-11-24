@@ -1,6 +1,8 @@
 import { env } from '../../config/env'
 import { apiClient } from '../api'
 import { blockPlainText } from '../assistant/context'
+import { dataUrlImageInfo } from '../editor/image'
+import { imagePrintQuality } from '../editor/print-quality'
 import type { DocumentModel } from '../editor/types'
 
 /**
@@ -33,6 +35,14 @@ export interface DocumentCheckResult {
   /** True when only the local check ran. */
   local?: boolean
 }
+
+/**
+ * Findings worth stopping for before printing: errors, and pictures that
+ * would print blurry or not at all. Other warnings (a blank line to fill in
+ * by hand) are shown in the assistant's check but do not interrupt printing.
+ */
+export const isPrintProblem = (issue: Pick<DocumentCheckIssue, 'severity' | 'code'>): boolean =>
+  issue.severity === 'error' || issue.code === 'IMAGE_LOW_RESOLUTION' || issue.code === 'IMAGE_NOT_PRINTED'
 
 export interface CheckQuestion {
   id: string
@@ -105,6 +115,33 @@ export function localDocumentCheck(
   }
   if (!anyText) add({ severity: 'error', code: 'DOCUMENT_EMPTY', message: 'The document has no text yet.', params: {} })
 
+  // Pictures the printout would leave out, or that are too small for the size they are placed at.
+  for (const block of model.blocks) {
+    if (block.type !== 'image') continue
+    const name = block.alt.trim().slice(0, 60)
+    if (!dataUrlImageInfo(block.src).printable) {
+      add({
+        severity: 'warning',
+        code: 'IMAGE_NOT_PRINTED',
+        message: `${name ? `"${name}"` : 'A picture'} is not a PNG or JPEG picture stored in the document, so it is left out of the PDF and Word file.`,
+        blockId: block.id,
+        params: { name },
+      })
+      continue
+    }
+    const quality = imagePrintQuality(block, model.page)
+    if (quality?.low) {
+      const pixels = dataUrlImageInfo(block.src).width ?? 0
+      add({
+        severity: 'warning',
+        code: 'IMAGE_LOW_RESOLUTION',
+        message: `${name ? `"${name}"` : 'A picture'} is ${pixels} pixels wide: at ${quality.widthMm} mm it prints at about ${quality.dpi} dpi and may look blurry.`,
+        blockId: block.id,
+        params: { name, pixels, widthMm: quality.widthMm, dpi: quality.dpi, sharpMm: quality.sharpMm },
+      })
+    }
+  }
+
   for (const question of questions) {
     if (question.required && !(answers[question.id] ?? '').trim()) {
       add({
@@ -135,11 +172,14 @@ export async function runDocumentCheck(
   try {
     const response = await client.post<unknown>(
       `/documents/${encodeURIComponent(input.documentId)}/check`,
-      // Images carry no checkable text; leave their data out of the request.
+      // Images carry no checkable text: their data stays out of the request (slow connections),
+      // and what was read from each (size, and whether it can be printed) goes instead.
       {
         content: {
           ...input.model,
-          blocks: input.model.blocks.map((block) => (block.type === 'image' ? { ...block, src: '' } : block)),
+          blocks: input.model.blocks.map((block) =>
+            block.type === 'image' ? { ...block, src: '', srcInfo: dataUrlImageInfo(block.src) } : block,
+          ),
         },
         answers: input.answers,
         ...(input.purpose ? { purpose: input.purpose } : {}),
