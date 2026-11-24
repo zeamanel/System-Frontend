@@ -1,0 +1,170 @@
+.insert-image {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.insert-image__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.insert-image__file {
+  display: none;
+}
+
+.insert-image__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.insert-image__head h3 {
+  margin: 0;
+  font-size: var(--text-md, 1rem);
+}
+
+.insert-image__intro {
+  margin: var(--space-1) 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.insert-image__error {
+  margin: var(--space-2) 0;
+  color: var(--color-danger, #b42318);
+  font-size: var(--text-sm);
+}
+
+.insert-image__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saved-image {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface);
+}
+
+.saved-image__thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 5.5rem;
+  border-radius: var(--radius-sm, 4px);
+  /* A checkerboard shows which parts of a stamp or signature are transparent. */
+  background:
+    conic-gradient(#f1f3f5 25%, #ffffff 0 50%, #f1f3f5 0 75%, #ffffff 0) 0 0 / 12px 12px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+}
+
+.saved-image__thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.saved-image--locked .saved-image__thumb {
+  background: var(--color-surface-muted, #f4f5f7);
+}
+
+.saved-image__name {
+  font-weight: var(--weight-semibold, 600);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.saved-image__meta {
+  /* The buttons line up at the bottom of each card. */
+  margin-bottom: auto;
+}
+
+.saved-image__meta,
+.saved-image__locked {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs, 0.75rem);
+}
+
+.saved-image__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.saved-image__editor,
+.saved-image-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.saved-image-form {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border-strong, var(--color-border));
+  border-radius: var(--radius-md, 8px);
+}
+
+.saved-image-form__file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.saved-image-form__check {
+  font-size: var(--text-sm);
+}
+
+.saved-image-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.saved-image-access {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--text-sm);
+}
+
+.saved-image-access legend {
+  margin-bottom: var(--space-1);
+  font-weight: var(--weight-semibold, 600);
+}
+
+.saved-image-access__members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 10rem;
+  padding-left: var(--space-3);
+  overflow-y: auto;
+}
+
+.saved-image-access__members p {
+  margin: 0;
+}
+
+.saved-image-access__note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs, 0.75rem);
+}

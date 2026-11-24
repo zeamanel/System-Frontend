@@ -848,6 +848,27 @@ describe('EditorWorkspace', () => {
   })
 
 
+  it('opens "Add an image" from the Format panel and puts a saved stamp into the document', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    localStorage.setItem(
+      'docuA4.fixture.savedImages',
+      JSON.stringify([
+        { id: 'stamp-1', kind: 'stamp', name: 'Official stamp', own: true, ownerName: null, access: 'listed', canUse: true, canEdit: true, canDelete: true, width: 1, height: 1, createdAt: '2026-11-24T00:00:00.000Z', dataUrl: png },
+      ]),
+    )
+    const { doc, template } = await loadDocument('doc-fixture-1')
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+    // Closed, the dialog is not on the page at all.
+    expect(screen.queryByText('Add an image')).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Insert logo or image' })[0])
+    const dialog = await screen.findByRole('dialog', { name: 'Add an image' })
+    fireEvent.click(await within(dialog).findByTestId('saved-image-insert'))
+    // A stamp goes in at the start of the line, a quarter of the width, like ink on paper.
+    await waitFor(() => expect(document.querySelector('.doc-pages img[alt="Official stamp"]')).not.toBeNull())
+    expect(screen.queryByRole('dialog', { name: 'Add an image' })).toBeNull()
+  })
+
   it('opens prompt-only blank document without party inputs and generates content from prompt', async () => {
     const created = await repos.documents.create({
       title: 'Vehicle Sale Agreement',

@@ -1,7 +1,6 @@
 import { memo, useMemo, useRef } from 'react'
 import type { Block, InlineHtml, SideColumnPct } from '../../../lib/editor/types'
 import { insertPlainText } from '../../../lib/editor/commands'
-import { inlineHtmlToText } from '../../../lib/editor/sanitize'
 import { textDirection, type TextDirection } from '../../../lib/editor/direction'
 import {
   focusEditable,
@@ -372,9 +371,7 @@ function BlockViewInner({
           onLoad={() => onImageLoad?.()}
           draggable={false}
         />
-        {inlineHtmlToText(block.alt) ? (
-          <figcaption className="doc-image__caption">{block.alt}</figcaption>
-        ) : null}
+        {/* The description is for screen readers and the Word file: it is not printed, so it is not shown under the picture. */}
       </figure>
     )
   }

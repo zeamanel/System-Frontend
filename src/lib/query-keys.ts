@@ -65,6 +65,11 @@ export const queryKeys = {
     all: ['clauses'] as const,
     list: (query: string) => ['clauses', 'list', query] as const,
   },
+  savedImages: {
+    all: ['saved-images'] as const,
+    list: ['saved-images', 'list'] as const,
+    preview: (id: string) => ['saved-images', 'preview', id] as const,
+  },
   organization: {
     all: ['organization'] as const,
     members: ['organization', 'members'] as const,

@@ -1228,33 +1228,30 @@
   object-fit: contain;
 }
 
-figure.doc-block--image-left {
-  align-self: flex-start;
-}
-
-figure.doc-block--image-center {
-  align-self: center;
-  text-align: center;
-}
-
+/*
+ * An image's width is a share of the text width, as in the PDF and the Word
+ * file: the figure spans the column and the picture sits in it. Placement is
+ * physical (left is the left of the page, also in Arabic), as in the exports.
+ */
+figure.doc-block--image-left,
+figure.doc-block--image-center,
 figure.doc-block--image-right {
-  align-self: flex-end;
-  text-align: right;
+  align-self: stretch;
+  margin-left: 0;
+  margin-right: 0;
 }
 
-/* Image placement is physical (left is the left of the page), as in the exports. */
-[dir='rtl'] figure.doc-block--image-left {
-  align-self: flex-end;
+figure.doc-block--image-left .doc-image {
+  margin-right: auto;
 }
 
-[dir='rtl'] figure.doc-block--image-right {
-  align-self: flex-start;
+figure.doc-block--image-center .doc-image {
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.doc-image__caption {
-  margin-top: 0.3em;
-  font-size: 0.8em;
-  color: var(--color-text-secondary);
+figure.doc-block--image-right .doc-image {
+  margin-left: auto;
 }
 
 .doc-block--page-break {

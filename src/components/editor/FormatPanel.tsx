@@ -56,6 +56,8 @@ export interface FormatPanelCallbacks {
   onInsertSignature(): void
   onInsertPageBreak(): void
   onInsertImage(file: File): void
+  /** Opens the "Add an image" choices (device, saved logos, stamps and signatures, Telegram); absent: the file picker opens. */
+  onOpenInsertImage?: () => void
   onUpdateImage(patch: Partial<Pick<ImageBlock, 'alt' | 'widthPct' | 'align'>>): void
   onAddTableRows(count: 1 | -1): void
   onAddTableColumns(count: 1 | -1): void
@@ -397,7 +399,7 @@ function renderMoreSections(
           </IconButton>
           <IconButton
             label={t('editor.insertImage')}
-            onClick={() => extra.fileInputRef.current?.click()}
+            onClick={() => (callbacks.onOpenInsertImage ? callbacks.onOpenInsertImage() : extra.fileInputRef.current?.click())}
           >
             <ImagePlusIcon size={16} />
           </IconButton>

@@ -94,3 +94,58 @@ export async function prepareImage(file: Blob, kind: MediaKind): Promise<Blob> {
     decoded.close()
   }
 }
+
+/** Longest side of a saved logo, stamp or signature: sharp at the sizes they print in documents. */
+export const SAVED_IMAGE_SIDE = 1000
+
+/**
+ * A logo, stamp or signature ready to be saved: PNG (transparency kept, so a
+ * stamp sits on the page like ink) or, when that is too large, JPEG on
+ * white. Only these two, because the PDF and the Word file carry nothing
+ * else. Throws ImagePrepareError.
+ */
+export async function preparePrintableImage(file: Blob): Promise<Blob> {
+  if (!isAcceptedImageType(file.type) && file.type !== 'image/gif') throw new ImagePrepareError('type')
+  let decoded
+  try {
+    decoded = await decode(file)
+  } catch {
+    throw new ImagePrepareError('decode')
+  }
+  try {
+    const size = fitWithin(decoded.width, decoded.height, SAVED_IMAGE_SIDE)
+    if (size.width === decoded.width && size.height === decoded.height && (file.type === 'image/png' || file.type === 'image/jpeg') && file.size <= MAX_UPLOAD_BYTES / 2) {
+      return file
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = size.width
+    canvas.height = size.height
+    const context = canvas.getContext('2d')
+    if (!context) throw new ImagePrepareError('decode')
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(decoded.source, 0, 0, size.width, size.height)
+    const png = await toBlob(canvas, 'image/png')
+    if (png && png.type === 'image/png' && png.size <= MAX_UPLOAD_BYTES) return png
+    // Too large as PNG (a photo): JPEG has no transparency, so the picture goes on white.
+    context.globalCompositeOperation = 'destination-over'
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, size.width, size.height)
+    for (const quality of [0.88, 0.75, 0.6]) {
+      const jpeg = await toBlob(canvas, 'image/jpeg', quality)
+      if (jpeg && jpeg.type === 'image/jpeg' && jpeg.size <= MAX_UPLOAD_BYTES) return jpeg
+    }
+    throw new ImagePrepareError('size')
+  } finally {
+    decoded.close()
+  }
+}
+
+/** A Blob as a data URL. */
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Unreadable image')))
+    reader.onerror = () => reject(reader.error ?? new Error('Unreadable image'))
+    reader.readAsDataURL(blob)
+  })
+}
