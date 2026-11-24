@@ -137,11 +137,13 @@ function normalizeEnvelope(body: unknown): NormalizedEnvelope {
   if (!body || typeof body !== 'object') return {}
   const nested = (body as NestedErrorEnvelope).error
   if (nested && typeof nested === 'object') {
+    // The server puts an error's details beside its code (`{ code, message, reason }`): those are the details.
+    const { code: _code, message: _message, details, currentVersion, ...extras } = nested
     return {
       message: typeof nested.message === 'string' ? nested.message : undefined,
       code: typeof nested.code === 'string' ? nested.code : undefined,
-      details: nested.details,
-      currentVersion: nested.currentVersion,
+      details: details ?? (Object.keys(extras).length > 0 ? extras : undefined),
+      currentVersion,
     }
   }
   const flat = body as FlatErrorEnvelope

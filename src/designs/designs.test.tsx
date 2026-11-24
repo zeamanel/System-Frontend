@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { I18nProvider } from '../i18n'
@@ -18,6 +18,20 @@ vi.mock('../lib/media/prepare', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/media/prepare')>()),
   // jsdom cannot decode images; the upload path is what is tested here.
   prepareImage: vi.fn((file: Blob) => Promise.resolve(file)),
+}))
+
+vi.mock('../lib/ai-image/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/ai-image/client')>()),
+  createAiImages: vi.fn(async () => ({
+    images: [
+      {
+        dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        width: 1024,
+        height: 1024,
+      },
+    ],
+    credits: 5,
+  })),
 }))
 
 const LOGO_ID = '11111111-2222-4333-8444-555555555555'
@@ -267,6 +281,29 @@ describe('DesignWorkspace', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0])
     await waitFor(() => expect(document.querySelector('body > .design-print-portal img.design-photo')).toBeNull())
+  })
+
+  it('makes a logo with AI, stores it like an upload and puts it on the certificate', async () => {
+    let counter = 0
+    const blobUrls = URL as unknown as { createObjectURL?: unknown; revokeObjectURL?: unknown }
+    blobUrls.createObjectURL = vi.fn(() => `blob:test-${(counter += 1)}`)
+    blobUrls.revokeObjectURL = vi.fn()
+    onTestFinished(() => {
+      delete blobUrls.createObjectURL
+      delete blobUrls.revokeObjectURL
+    })
+    renderWorkspace()
+    // Only the logo slot offers it; a recipient photo must be the real person.
+    expect(screen.queryByTestId('design-image-photo-ai')).toBeNull()
+    fireEvent.click(screen.getByTestId('design-image-logo-ai'))
+    const dialog = await screen.findByRole('dialog', { name: 'Create a logo with AI' })
+    fireEvent.change(within(dialog).getByTestId('ai-image-description'), { target: { value: 'An open book with a coffee bean' } })
+    fireEvent.click(within(dialog).getByTestId('ai-image-create'))
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Use this logo' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Create a logo with AI' })).toBeNull())
+    await waitFor(() => expect(screen.getByTestId('design-save-status')).toHaveTextContent('Saved'), { timeout: 4000 })
+    const stored = parseDesignContent((await getRepositories().documents.get(doc.id))?.content)
+    expect(stored?.images.logo).toMatch(/^[0-9a-f-]{36}$/)
   })
 
   it('refuses files that are not PNG, JPEG or WebP', async () => {

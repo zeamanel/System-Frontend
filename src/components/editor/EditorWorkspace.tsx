@@ -76,6 +76,7 @@ import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
 import { InsertImageDialog } from './InsertImageDialog'
+import { bookPictureDataUrl } from '../../lib/media/ai-picture'
 import { EditorTelegramVaultDrawer } from './EditorTelegramVaultDrawer'
 import type { SavedImageKind } from '../../lib/saved-images/types'
 import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/editor/styles'
@@ -1370,6 +1371,16 @@ export function EditorWorkspace({
     [insertAfterActive, toast, t],
   )
 
+  // A picture the AI drew for a book: full text width, kept at print size (throws so the panel can say it failed).
+  const handleInsertGenerated = useCallback(
+    async (dataUrl: string, name: string): Promise<void> => {
+      const picture = await bookPictureDataUrl(dataUrl)
+      insertAfterActive(() => ({ ...createImage(picture, name), widthPct: 100, align: 'center' }))
+    },
+    [insertAfterActive],
+  )
+  const isBook = Boolean(template?.documentTypeId.startsWith('book_'))
+
   const handleInsertVaultImage = useCallback(
     async (imageDataUrl: string, caption?: string) => {
       if (!imageDataUrl) return
@@ -1934,6 +1945,7 @@ export function EditorWorkspace({
           documentId={doc.id}
           organization={organizationProfile}
           target={imageTarget ? { partyLabel: imageTarget.partyLabel } : undefined}
+          onInsertGenerated={isBook && doc.access !== 'view' ? handleInsertGenerated : undefined}
         />
       ) : null}
       {telegramImagesOpen ? (
