@@ -56,7 +56,7 @@ vi.mock('../../hooks/use-organization', () => ({
 }))
 
 function renderDialog(props: Partial<Parameters<typeof InsertImageDialog>[0]> = {}) {
-  const onPickFile = vi.fn<(file: File) => void>()
+  const onPickFile = vi.fn<(file: File, slot?: 'signature' | 'stamp') => void>()
   const onInsertImage = vi.fn<(dataUrl: string, name: string, kind: SavedImageKind) => void>()
   const onClose = vi.fn()
   const onOpenTelegram = vi.fn()
@@ -106,7 +106,8 @@ describe('InsertImageDialog', () => {
     const { onPickFile, onClose, onOpenTelegram } = renderDialog()
     const file = new File(['x'], 'photo.png', { type: 'image/png' })
     fireEvent.change(screen.getByTestId('insert-image-device-file'), { target: { files: [file] } })
-    expect(onPickFile).toHaveBeenCalledWith(file)
+    // Into the text, not onto a signature line: no slot.
+    expect(onPickFile).toHaveBeenCalledWith(file, undefined)
     expect(onClose).toHaveBeenCalled()
     fireEvent.click(screen.getByTestId('insert-image-telegram'))
     expect(onOpenTelegram).toHaveBeenCalled()

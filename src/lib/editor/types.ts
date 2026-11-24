@@ -101,6 +101,12 @@ export interface TableBlock extends BlockBase {
 
 export type TableColumnAlign = 'left' | 'center' | 'right'
 
+/** A picture on a signature line: an embedded PNG or JPEG. */
+export interface PartyMark {
+  src: string
+  alt: string
+}
+
 export interface SignatureParty {
   id: string
   /** Role caption, e.g. "Landlord". */
@@ -109,6 +115,10 @@ export interface SignatureParty {
   name: InlineHtml
   /** Date caption value (editable). */
   date: InlineHtml
+  /** The person's signature, just above the line. */
+  signatureImage?: PartyMark
+  /** A stamp over the line, as on paper. */
+  stampImage?: PartyMark
 }
 
 export interface SignatureBlock extends BlockBase {

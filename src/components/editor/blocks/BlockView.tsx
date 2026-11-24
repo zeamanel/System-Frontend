@@ -483,7 +483,7 @@ function renderSignature(
     <div data-block-id={block.id} className={blockClass}>
       <div className="doc-signature__grid">
         {block.parties.map((party) => (
-          <div key={party.id} className="doc-signature__party">
+          <div key={party.id} className={['doc-signature__party', party.stampImage ? 'doc-signature__party--stamped' : null].filter(Boolean).join(' ')}>
             <EditableHtml
               html={party.label}
               editable={editable}
@@ -499,7 +499,18 @@ function renderSignature(
               onPaste={handlePaste}
               onFocus={handleFocus}
             />
-            <div className="doc-signature__line" aria-hidden="true" />
+            {/* The signature sits on the line, the stamp over it, sized and placed as the PDF and Word file draw them. */}
+            <div
+              className={['doc-signature__line', party.signatureImage || party.stampImage ? 'doc-signature__line--marked' : null].filter(Boolean).join(' ')}
+              aria-hidden={party.signatureImage || party.stampImage ? undefined : true}
+            >
+              {party.signatureImage ? (
+                <img className="doc-signature__sign" src={party.signatureImage.src} alt={party.signatureImage.alt} draggable={false} />
+              ) : null}
+              {party.stampImage ? (
+                <img className="doc-signature__stamp" src={party.stampImage.src} alt={party.stampImage.alt} draggable={false} />
+              ) : null}
+            </div>
             <div className="doc-signature__meta" dir={textDirection(`${labels.printName} ${party.name}`, direction)}>
               {renderSignatureField(block, party, 'name', `${labels.printName}:`, editable, api, handleFocus, handlePaste)}
               {renderSignatureField(block, party, 'date', `${labels.date}:`, editable, api, handleFocus, handlePaste)}

@@ -1874,5 +1874,14 @@
   "check.issue.IMAGE_NOT_PRINTED": "{name} is not a PNG or JPEG picture stored in the document, so it is left out of the PDF and Word file. Add it again from the image button.",
   "editor.imageQuality.low": "At this size it prints at about {dpi} dpi and may look blurry. Make it narrower (sharp up to about {sharp} mm; now {width} mm) or use a larger picture.",
   "editor.imageQuality.ok": "Prints sharp at this size (about {dpi} dpi).",
-  "check.issue.imageUnnamed": "A picture"
+  "check.issue.imageUnnamed": "A picture",
+  "editor.party.addMark": "Signature or stamp",
+  "editor.party.signature": "Signature",
+  "editor.party.stamp": "Stamp",
+  "editor.party.removeSignature": "Remove the signature",
+  "editor.party.removeStamp": "Remove the stamp",
+  "images.target.title": "Sign or stamp: {party}",
+  "images.target.intro": "A signature goes on the line and a stamp over it, as on paper. A saved signature goes on the line; any other saved image goes over it as a stamp.",
+  "images.target.deviceSignature": "Signature from this device",
+  "images.target.deviceStamp": "Stamp from this device"
 }

@@ -1874,5 +1874,14 @@
   "check.issue.IMAGE_NOT_PRINTED": "{name} suuraa PNG ykn JPEG sanada keessatti kuufame miti; kanaaf PDF fi faayilii Word irraa hafa. Qabduu suuraa irraa deebi'ii dabali.",
   "editor.imageQuality.low": "Hamma kanaan dpi {dpi} ta'ee maxxanfama, dukkanaa'uu danda'a. Dhiphisi (hamma {sharp} mm tti ifaa; amma {width} mm dha) ykn suuraa guddaa fayyadami.",
   "editor.imageQuality.ok": "Hamma kanaan ifaa maxxanfama (dpi {dpi} ta'a).",
-  "check.issue.imageUnnamed": "Suuraan tokko"
+  "check.issue.imageUnnamed": "Suuraan tokko",
+  "editor.party.addMark": "Mallattoo ykn chaappaa",
+  "editor.party.signature": "Mallattoo",
+  "editor.party.stamp": "Chaappaa",
+  "editor.party.removeSignature": "Mallattoo haqi",
+  "editor.party.removeStamp": "Chaappaa haqi",
+  "images.target.title": "Mallattoo ykn chaappaa: {party}",
+  "images.target.intro": "Mallattoon sarara irra, chaappaan immoo isa irra kaa'ama, akkuma waraqaa irratti. Mallattoon olkaa'ame sarara irra deema; suuraan olkaa'ame kan biraa akka chaappaatti isa irra deema.",
+  "images.target.deviceSignature": "Mallattoo meeshaa kana irraa",
+  "images.target.deviceStamp": "Chaappaa meeshaa kana irraa"
 }

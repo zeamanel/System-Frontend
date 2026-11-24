@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyDocument } from './model'
-import { imagePrintQuality, MIN_PRINT_DPI, printQuality } from './print-quality'
+import { imagePrintQuality, MIN_PRINT_DPI, printQuality, signatureLineQuality } from './print-quality'
 import type { PageSetup } from './types'
 
 const page = (patch: Partial<PageSetup> = {}): PageSetup => ({ ...createEmptyDocument('en').page, ...patch })
@@ -31,5 +31,17 @@ describe('printQuality', () => {
     expect(printQuality({ printable: false }, 50, page())).toBeNull()
     expect(printQuality({ printable: true }, 50, page())).toBeNull()
     expect(imagePrintQuality({ src: 'https://example.com/a.png', widthPct: 50 }, page())).toBeNull()
+  })
+})
+
+describe('signatureLineQuality', () => {
+  it('measures a signature at 14 mm high and a stamp within its 26 mm square', () => {
+    // A 300 x 100 px signature is drawn 42 mm wide: 181 dpi.
+    expect(signatureLineQuality({ printable: true, width: 300, height: 100 }, 'signature', page())).toMatchObject({ widthMm: 42, dpi: 181, low: false })
+    // A 60 px stamp at 26 mm: 59 dpi.
+    expect(signatureLineQuality({ printable: true, width: 60, height: 60 }, 'stamp', page())).toMatchObject({ widthMm: 26, dpi: 59, low: true })
+    // A very wide signature stops at 60% of the party's column (two parties per row on A4: 80.5 mm).
+    expect(signatureLineQuality({ printable: true, width: 3000, height: 100 }, 'signature', page())?.widthMm).toBe(48)
+    expect(signatureLineQuality({ printable: false }, 'stamp', page())).toBeNull()
   })
 })

@@ -2,7 +2,7 @@ import { env } from '../../config/env'
 import { apiClient } from '../api'
 import { blockPlainText } from '../assistant/context'
 import { dataUrlImageInfo } from '../editor/image'
-import { imagePrintQuality } from '../editor/print-quality'
+import { imagePrintQuality, signatureLineQuality } from '../editor/print-quality'
 import type { DocumentModel } from '../editor/types'
 
 /**
@@ -117,6 +117,26 @@ export function localDocumentCheck(
 
   // Pictures the printout would leave out, or that are too small for the size they are placed at.
   for (const block of model.blocks) {
+    if (block.type === 'signature') {
+      for (const party of block.parties) {
+        for (const [mark, slot] of [[party.signatureImage, 'signature'], [party.stampImage, 'stamp']] as const) {
+          if (!mark) continue
+          const quality = signatureLineQuality(dataUrlImageInfo(mark.src), slot, model.page)
+          if (quality?.low) {
+            const name = mark.alt.trim().slice(0, 60)
+            const pixels = dataUrlImageInfo(mark.src).width ?? 0
+            add({
+              severity: 'warning',
+              code: 'IMAGE_LOW_RESOLUTION',
+              message: `${name ? `"${name}"` : 'A picture'} is ${pixels} pixels wide: at ${quality.widthMm} mm it prints at about ${quality.dpi} dpi and may look blurry.`,
+              blockId: block.id,
+              params: { name, pixels, widthMm: quality.widthMm, dpi: quality.dpi, sharpMm: quality.sharpMm },
+            })
+          }
+        }
+      }
+      continue
+    }
     if (block.type !== 'image') continue
     const name = block.alt.trim().slice(0, 60)
     if (!dataUrlImageInfo(block.src).printable) {
@@ -177,9 +197,19 @@ export async function runDocumentCheck(
       {
         content: {
           ...input.model,
-          blocks: input.model.blocks.map((block) =>
-            block.type === 'image' ? { ...block, src: '', srcInfo: dataUrlImageInfo(block.src) } : block,
-          ),
+          blocks: input.model.blocks.map((block) => {
+            if (block.type === 'image') return { ...block, src: '', srcInfo: dataUrlImageInfo(block.src) }
+            if (block.type !== 'signature') return block
+            const light = (mark?: { src: string; alt: string }) => (mark ? { alt: mark.alt, src: '', srcInfo: dataUrlImageInfo(mark.src) } : undefined)
+            return {
+              ...block,
+              parties: block.parties.map((party) => ({
+                ...party,
+                ...(party.signatureImage ? { signatureImage: light(party.signatureImage) } : {}),
+                ...(party.stampImage ? { stampImage: light(party.stampImage) } : {}),
+              })),
+            }
+          }),
         },
         answers: input.answers,
         ...(input.purpose ? { purpose: input.purpose } : {}),

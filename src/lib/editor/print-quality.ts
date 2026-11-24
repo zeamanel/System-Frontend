@@ -23,6 +23,29 @@ export interface PrintQuality {
   low: boolean
 }
 
+/** The sizes a signature and a stamp are drawn at on a signature line (backend PARTY_MARK_MM). */
+const SIGNATURE_HEIGHT_MM = 14
+const STAMP_MM = 26
+
+/** How a picture of `info`'s size prints at a given width in millimetres. */
+function atWidth(info: { width: number }, widthMm: number): PrintQuality {
+  const dpi = (info.width * 25.4) / widthMm
+  return { dpi: Math.round(dpi), widthMm: Math.round(widthMm), sharpMm: Math.floor((info.width * 25.4) / MIN_PRINT_DPI), low: dpi < MIN_PRINT_DPI }
+}
+
+/** A signature (14 mm high, at most 60% of a party's column) or a stamp (within a 26 mm square) on a signature line. */
+export function signatureLineQuality(info: ImageInfo, slot: 'signature' | 'stamp', page: PageSetup): PrintQuality | null {
+  if (!info.printable || !info.width || !info.height) return null
+  const textWidth = contentWidthMm(page.margins, page.orientation, page.size ?? 'a4')
+  // Two parties share a row when the text is wide enough (as the PDF lays them out).
+  const column = textWidth > 2 * 160 * (25.4 / 72) ? (textWidth - 9) / 2 : textWidth
+  const widthMm =
+    slot === 'signature'
+      ? Math.min((SIGNATURE_HEIGHT_MM * info.width) / info.height, column * 0.6)
+      : info.width * Math.min(STAMP_MM / info.width, STAMP_MM / info.height)
+  return atWidth({ width: info.width }, widthMm)
+}
+
 /** Pixels against printed width for a picture already read; null when its size is not known. */
 export function printQuality(info: ImageInfo, widthPct: number, page: PageSetup): PrintQuality | null {
   if (!info.printable || !info.width || !info.height) return null

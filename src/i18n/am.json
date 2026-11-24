@@ -1874,5 +1874,14 @@
   "check.issue.IMAGE_NOT_PRINTED": "{name} በሰነዱ ውስጥ የተቀመጠ PNG ወይም JPEG ምስል አይደለም፤ ስለዚህ ከPDF እና ከWord ፋይል ይቀራል። ከምስል አዝራሩ እንደገና ያክሉት።",
   "editor.imageQuality.low": "በዚህ መጠን በግምት {dpi} dpi ይታተማል፣ ደብዛዛ ሊመስል ይችላል። ያጥቡት (እስከ {sharp} ሚሜ ጥርት ይላል፤ አሁን {width} ሚሜ ነው) ወይም ትልቅ ምስል ይጠቀሙ።",
   "editor.imageQuality.ok": "በዚህ መጠን ጥርት ብሎ ይታተማል (በግምት {dpi} dpi)።",
-  "check.issue.imageUnnamed": "አንድ ምስል"
+  "check.issue.imageUnnamed": "አንድ ምስል",
+  "editor.party.addMark": "ፊርማ ወይም ማኅተም",
+  "editor.party.signature": "ፊርማ",
+  "editor.party.stamp": "ማኅተም",
+  "editor.party.removeSignature": "ፊርማውን አስወግድ",
+  "editor.party.removeStamp": "ማኅተሙን አስወግድ",
+  "images.target.title": "ፊርማ ወይም ማኅተም፦ {party}",
+  "images.target.intro": "ፊርማ በመስመሩ ላይ፣ ማኅተም ደግሞ በላዩ ላይ ይቀመጣል፤ እንደ ወረቀቱ። የተቀመጠ ፊርማ በመስመሩ ላይ ይሄዳል፤ ሌላ የተቀመጠ ምስል እንደ ማኅተም በላዩ ይሄዳል።",
+  "images.target.deviceSignature": "ፊርማ ከዚህ መሣሪያ",
+  "images.target.deviceStamp": "ማኅተም ከዚህ መሣሪያ"
 }
