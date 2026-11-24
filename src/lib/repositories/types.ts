@@ -1,3 +1,4 @@
+import type { FontKey } from '../editor/types'
 import type { Locale } from '../../i18n/locales'
 import type {
   DocumentStatus,
@@ -23,6 +24,7 @@ export type TemplateCategory =
   | 'personal_social'
   | 'applications_certificates'
   | 'translation_rewriting'
+  | 'books_publishing'
   // Legacy aliases for backward compatibility:
   | 'business'
   | 'personal'
@@ -46,12 +48,17 @@ export interface TemplateQuestion {
   /** The Arabic label, shown for documents written in Arabic (templates that have one). */
   labelAr?: string
   required: boolean
-  /** 'text', 'textarea', 'select' (pick one of `options`), or 'file' (attach a file whose text goes into the field named by `fills`). */
+  /**
+   * 'text', 'textarea', 'select' (pick one of `options`), 'file' (attach a file whose text goes into
+   * the field named by `fills`), or 'documents' (pick some of your own documents; the answer is their ids).
+   */
   type?: string
   /** A select field's choices; the answer is the chosen option's `value`. */
   options?: Array<{ value: string; label: string }>
   /** A file field: the id of the field its text goes into. */
   fills?: string
+  /** A "documents" field (pick some of your own documents; their text goes to the AI): the document types offered first. */
+  accepts?: string[]
   /**
    * Where the answer comes from in the organization's data (set in the template factory):
    * a record type's field or the organization's own, and the party it belongs to.
@@ -61,7 +68,8 @@ export interface TemplateQuestion {
 
 /** A template question's link to the organization's data (backend docs/ORGANIZATION_DATA.md). */
 export interface DataSourceTag {
-  collection: 'customer' | 'employee' | 'property' | 'organization'
+  /** A built-in record type, the organization's own (`x_…`, from its own tags), or `organization`. */
+  collection: 'customer' | 'employee' | 'property' | 'organization' | (string & {})
   key: string
   /** Questions with the same party fill from one record ("buyer", "seller"). */
   party?: string
@@ -254,6 +262,10 @@ export interface OrganizationDocumentLook {
   alwaysLetterhead?: boolean
   /** Print shops: an optional line at the foot of customers' documents. */
   customerFooter: string
+  /** The font new documents start in ('' : the template's). */
+  houseFont?: FontKey | ''
+  /** Members cannot change the style, font or text size of their documents (owners and admins can). */
+  lockLook?: boolean
 }
 
 export interface OrganizationMember {

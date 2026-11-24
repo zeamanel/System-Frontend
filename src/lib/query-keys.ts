@@ -57,10 +57,18 @@ export const queryKeys = {
     recordDocuments: (id: string) => ['data', 'record-documents', id] as const,
     requests: ['data', 'requests'] as const,
     access: ['data', 'access'] as const,
+    recordActivity: (id: string) => ['data', 'record-activity', id] as const,
+    activity: ['data', 'activity'] as const,
+    templateTags: (templateId: string) => ['data', 'template-tags', templateId] as const,
   },
   clauses: {
     all: ['clauses'] as const,
     list: (query: string) => ['clauses', 'list', query] as const,
+  },
+  savedImages: {
+    all: ['saved-images'] as const,
+    list: ['saved-images', 'list'] as const,
+    preview: (id: string) => ['saved-images', 'preview', id] as const,
   },
   organization: {
     all: ['organization'] as const,

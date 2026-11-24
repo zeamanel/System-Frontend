@@ -182,6 +182,7 @@ interface TemplateDetailApiRecord extends TemplateApiRecord {
     required?: boolean
     type?: string
     fills?: string
+    accepts?: string[]
     options?: { value: string; label: string }[]
     dataSource?: DataSourceTag
   }[]
@@ -554,6 +555,7 @@ class HttpTemplatesRepository implements TemplatesRepository {
             required: question.required ?? false,
             type: question.type,
             ...(question.fills ? { fills: question.fills } : {}),
+            ...(question.accepts?.length ? { accepts: question.accepts } : {}),
             ...(question.options?.length ? { options: question.options } : {}),
             ...(question.dataSource ? { dataSource: question.dataSource } : {}),
           })),

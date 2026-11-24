@@ -16,6 +16,7 @@ import { ImportRecordsDialog } from '../components/data/ImportRecordsDialog'
 import { RequestDialog } from '../components/data/RequestDialog'
 import { CollectionsDialog } from '../components/data/CollectionsDialog'
 import { AccessDialog } from '../components/data/AccessDialog'
+import { DataActivityDialog } from '../components/data/PrivacyTools'
 import { collectionLabel, collectionText, fieldLabel, optionLabel } from '../lib/data/labels'
 import { Badge, Button, EmptyState, PageHeader, PanelError, PanelLoading, SearchInput, useToast } from '../components/ui'
 
@@ -41,13 +42,13 @@ export default function DataPage() {
   const [requesting, setRequesting] = useState(false)
   const [managing, setManaging] = useState(false)
   const [accessOpen, setAccessOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
   const requests = useDataRequests()
   const revoke = useRevokeDataRequest()
   const visibleRequests = (requests.data ?? []).filter((item) => item.collection === collection && item.status !== 'revoked').slice(0, 20)
   const canSeeSensitive = space.data?.canSeeSensitive ?? false
   const canEdit = space.data?.canEdit ?? true
   const canAdminister = space.data?.canAdminister ?? false
-  const askable = collection === 'customer' || collection === 'employee'
   const items = records.data?.items ?? []
 
   const choose = (next: string): void => {
@@ -135,7 +136,7 @@ export default function DataPage() {
               </Button>
             </>
           ) : null}
-          {askable && canEdit ? (
+          {canEdit ? (
             <Button variant="secondary" onClick={() => setRequesting(true)} data-testid="data-ask">
               {t('data.requestButton')}
             </Button>
@@ -151,6 +152,11 @@ export default function DataPage() {
           {canAdminister && space.data?.kind === 'organization' ? (
             <Button variant="ghost" onClick={() => setAccessOpen(true)} data-testid="data-access">
               {t('data.accessButton')}
+            </Button>
+          ) : null}
+          {canAdminister ? (
+            <Button variant="ghost" onClick={() => setActivityOpen(true)} data-testid="data-activity">
+              {t('privacy.activityButtonAll')}
             </Button>
           ) : null}
         </div>
@@ -191,6 +197,11 @@ export default function DataPage() {
                 </span>
               </button>
               <span className="data-item__side">
+                {record.consent === 'withdrawn' ? (
+                  <Badge variant="warning" data-testid="data-consent-withdrawn">
+                    {t('privacy.consentWithdrawnBadge')}
+                  </Badge>
+                ) : null}
                 {record.useCount > 0 ? <Badge variant="neutral">{t('data.used', { count: String(record.useCount) })}</Badge> : null}
                 {collection === 'customer' ? (
                   <Link className="data-item__link" to={`/customers/${encodeURIComponent(record.id)}`}>
@@ -245,7 +256,7 @@ export default function DataPage() {
         </section>
       ) : null}
 
-      {requesting && (collection === 'customer' || collection === 'employee') ? (
+      {requesting ? (
         <RequestDialog open onClose={() => setRequesting(false)} collection={collection} canSeeSensitive={canSeeSensitive} />
       ) : null}
 
@@ -256,10 +267,12 @@ export default function DataPage() {
         recordId={editing?.id ?? null}
         canSeeSensitive={canSeeSensitive}
         canEdit={canEdit}
+        canAdminister={canAdminister}
       />
       <ImportRecordsDialog open={importing} onClose={() => setImporting(false)} collection={collection} canSeeSensitive={canSeeSensitive} />
       {managing ? <CollectionsDialog open onClose={() => setManaging(false)} initial={collection} onCreated={choose} /> : null}
       {accessOpen ? <AccessDialog open onClose={() => setAccessOpen(false)} /> : null}
+      {activityOpen ? <DataActivityDialog open onClose={() => setActivityOpen(false)} /> : null}
     </div>
   )
 }

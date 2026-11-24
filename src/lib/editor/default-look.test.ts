@@ -4,6 +4,7 @@ import {
   brandingOffers,
   customerLetterheadApplied,
   defaultStyleFor,
+  lookLocked,
   lookMode,
   missingLetterhead,
   templateStyle,
@@ -147,3 +148,30 @@ describe('Default look', () => {
     expect(customerLetterheadApplied(toggleCustomerLetterhead(empty, logoOnly), logoOnly)).toBe(true)
   })
 })
+
+describe('House style', () => {
+  const house: OrganizationProfile = {
+    ...office,
+    role: 'member',
+    documentLook: { autoStyle: true, customerFooter: '', houseFont: 'abyssinica', lockLook: true },
+  }
+
+  it('starts new documents in the house font, with the template’s style', () => {
+    const model = applyDefaultLook(createEmptyDocument('en'), { template: lease, organization: house })
+    expect(model.font).toBe('abyssinica')
+    expect(model.style?.id).toBe('legal-frame')
+    const plain = applyDefaultLook(createEmptyDocument('en'), { template: { documentTypeId: 'sales_receipt' }, organization: house })
+    expect(plain.font).toBe('abyssinica')
+    // Without a house font, the style's own font.
+    expect(applyDefaultLook(createEmptyDocument('en'), { template: lease, organization: office }).font).not.toBe('abyssinica')
+  })
+
+  it('locks the look for members only', () => {
+    expect(lookLocked(house)).toBe(true)
+    expect(lookLocked({ ...house, role: 'admin' })).toBe(false)
+    expect(lookLocked({ ...house, role: 'owner' })).toBe(false)
+    expect(lookLocked({ ...house, documentLook: { ...house.documentLook!, lockLook: false } })).toBe(false)
+    expect(lookLocked(null)).toBe(false)
+  })
+})
+

@@ -676,6 +676,12 @@
   min-height: 210mm;
 }
 
+/* A5 book and booklet pages. */
+.a4-sheet--a5 {
+  width: 148mm;
+  min-height: 210mm;
+}
+
 .doc-paper__content {
   flex: 1;
   display: flex;
@@ -1222,33 +1228,30 @@
   object-fit: contain;
 }
 
-figure.doc-block--image-left {
-  align-self: flex-start;
-}
-
-figure.doc-block--image-center {
-  align-self: center;
-  text-align: center;
-}
-
+/*
+ * An image's width is a share of the text width, as in the PDF and the Word
+ * file: the figure spans the column and the picture sits in it. Placement is
+ * physical (left is the left of the page, also in Arabic), as in the exports.
+ */
+figure.doc-block--image-left,
+figure.doc-block--image-center,
 figure.doc-block--image-right {
-  align-self: flex-end;
-  text-align: right;
+  align-self: stretch;
+  margin-left: 0;
+  margin-right: 0;
 }
 
-/* Image placement is physical (left is the left of the page), as in the exports. */
-[dir='rtl'] figure.doc-block--image-left {
-  align-self: flex-end;
+figure.doc-block--image-left .doc-image {
+  margin-right: auto;
 }
 
-[dir='rtl'] figure.doc-block--image-right {
-  align-self: flex-start;
+figure.doc-block--image-center .doc-image {
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.doc-image__caption {
-  margin-top: 0.3em;
-  font-size: 0.8em;
-  color: var(--color-text-secondary);
+figure.doc-block--image-right .doc-image {
+  margin-left: auto;
 }
 
 .doc-block--page-break {
@@ -1590,6 +1593,12 @@ figure.doc-block--image-right {
   .doc-paper--landscape,
   .a4-sheet--landscape {
     width: 297mm;
+    height: 210mm;
+    min-height: 210mm;
+  }
+
+  .a4-sheet--a5 {
+    width: 148mm;
     height: 210mm;
     min-height: 210mm;
   }
@@ -2068,3 +2077,56 @@ figure.doc-block--image-right {
     display: none !important;
   }
 }
+
+/* ── Book interior (typeset-interior template) ───────────────────────────── */
+
+/* The chapter's title at the top of each page (empty where a chapter starts, same height). One line, as in the PDF. */
+.doc-paper__header--running {
+  box-sizing: border-box;
+  min-height: calc(8mm + 1.6em);
+  padding: 8mm 0 0;
+  margin: 0 14mm;
+  border-bottom: none;
+  text-align: center;
+  font-style: italic;
+  font-size: 0.8em;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-paper__page-number--book {
+  margin: 0 auto;
+}
+
+.doc-paper--style-book-interior .doc-paper__footer {
+  justify-content: center;
+  border-top: none;
+}
+
+/* A chapter opens lower on its page (the PDF draws the same). */
+.doc-paper--style-book-interior .doc-heading--1 {
+  margin: 14mm 0 8mm;
+  font-size: 1.7em;
+  letter-spacing: 0.01em;
+}
+
+/* Book paragraphs follow on with an indent; the first after a title, and centred lines such as "* * *", do not. */
+.doc-paper--style-book-interior
+  .doc-block--paragraph
+  + .doc-block--paragraph:not(.doc-block--dropcap, .doc-block--align-center, .doc-block--align-right)
+  [data-block-id] {
+  text-indent: 1.4em;
+}
+
+/* A drop cap: the chapter's first letter, two lines tall (not in right-to-left text, whose letters join). */
+.doc-block--dropcap:not([dir='rtl']) [data-block-id]::first-letter {
+  float: left;
+  font-size: 3.2em;
+  line-height: 0.82;
+  padding: 0.06em 0.08em 0 0;
+  font-weight: 700;
+}
+

@@ -74,3 +74,61 @@ export async function compressImageDataUrl(
     }
   })
 }
+
+/** The images the PDF and the Word file can carry: PNG and JPEG (GIF and WebP are left out of both). */
+export function isPrintableImage(dataUrl: string): boolean {
+  return /^data:image\/(png|jpe?g)[;,]/i.test(dataUrl)
+}
+
+/** Redraws an image as a PNG (transparency kept), or null when it cannot be decoded or there is no canvas. */
+function redrawAsPng(dataUrl: string): Promise<string | null> {
+  return new Promise<string | null>((resolve) => {
+    try {
+      if (typeof Image === 'undefined' || typeof document === 'undefined' || !document.createElement('canvas').getContext('2d')) {
+        resolve(null)
+        return
+      }
+      // A picture that never loads must not hold the insert up.
+      const timer = setTimeout(() => resolve(null), 8000)
+      const done = (value: string | null): void => {
+        clearTimeout(timer)
+        resolve(value)
+      }
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.naturalWidth || img.width
+          canvas.height = img.naturalHeight || img.height
+          const ctx = canvas.width > 0 && canvas.height > 0 ? canvas.getContext('2d') : null
+          if (!ctx) {
+            done(null)
+            return
+          }
+          ctx.drawImage(img, 0, 0)
+          const png = canvas.toDataURL('image/png')
+          done(isPrintableImage(png) ? png : null)
+        } catch {
+          done(null)
+        }
+      }
+      img.onerror = () => done(null)
+      img.src = dataUrl
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+/**
+ * An image ready for a document: PNG or JPEG, shrunk like any image. GIF and
+ * WebP are redrawn as PNG first (a GIF keeps only its first frame), because
+ * the PDF and the Word file cannot carry them. Null when the image cannot be
+ * converted, so the caller says so instead of inserting a picture that would
+ * be missing from the printout.
+ */
+export async function printableImageDataUrl(dataUrl: string): Promise<string | null> {
+  if (!/^data:image\//i.test(dataUrl)) return null
+  const printable = isPrintableImage(dataUrl) ? dataUrl : await redrawAsPng(dataUrl)
+  return printable ? compressImageDataUrl(printable) : null
+}

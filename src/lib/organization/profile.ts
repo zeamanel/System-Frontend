@@ -1,4 +1,8 @@
 import type { OrganizationProfile } from '../repositories/types'
+import { FONT_OPTIONS } from '../editor/fonts'
+import type { FontKey } from '../editor/types'
+
+const isFontKey = (value: unknown): value is FontKey => FONT_OPTIONS.some((option) => option.key === value)
 
 export const EMPTY_ORGANIZATION: OrganizationProfile = {
   name: '',
@@ -11,7 +15,7 @@ export const EMPTY_ORGANIZATION: OrganizationProfile = {
   letterhead: { headerLines: [], footerLine: '' },
   bankDetails: { bankName: '', accountNumber: '', swift: '' },
   signatories: [],
-  documentLook: { autoStyle: true, alwaysLetterhead: false, customerFooter: '' },
+  documentLook: { autoStyle: true, alwaysLetterhead: false, customerFooter: '', houseFont: '', lockLook: false },
   telegram: { enabled: true, ask: true, files: true },
 }
 
@@ -51,6 +55,8 @@ export function normalizeOrganization(raw: Partial<OrganizationProfile> | null |
       autoStyle: source.documentLook?.autoStyle !== false,
       alwaysLetterhead: source.documentLook?.alwaysLetterhead === true,
       customerFooter: text(source.documentLook?.customerFooter),
+      houseFont: isFontKey(source.documentLook?.houseFont) ? source.documentLook.houseFont : '',
+      lockLook: source.documentLook?.lockLook === true,
     },
     telegram: {
       enabled: source.telegram?.enabled !== false,

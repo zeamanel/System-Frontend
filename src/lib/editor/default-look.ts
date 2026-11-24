@@ -35,7 +35,7 @@ export interface PersonalLook {
   personalHeader: string[]
 }
 
-const STYLE_IDS: readonly DocumentStyleId[] = ['standard', 'legal-frame', 'executive-letterhead', 'formal-border']
+const STYLE_IDS: readonly DocumentStyleId[] = ['standard', 'legal-frame', 'executive-letterhead', 'formal-border', 'book-interior']
 export const isDocumentStyleId = (value: unknown): value is DocumentStyleId =>
   typeof value === 'string' && (STYLE_IDS as readonly string[]).includes(value)
 
@@ -89,11 +89,21 @@ export function defaultStyleFor(context: LookContext): DocumentStyleId {
   return lookMode(context) === 'organization' && settings.alwaysLetterhead && hasOrganizationLetterhead(context.organization) ? style : 'standard'
 }
 
-/** Applies the default look to a new (empty) document; the model itself when it starts plain. */
+/** Applies the default look to a new (empty) document: the template's style, and the organization's house font. */
 export function applyDefaultLook(model: DocumentModel, context: LookContext): DocumentModel {
   const style = defaultStyleFor(context)
-  if (style === 'standard') return model
-  return applyDocumentStyle(model, style, style === 'executive-letterhead' ? context.organization : null)
+  const styled = style === 'standard' ? model : applyDocumentStyle(model, style, style === 'executive-letterhead' ? context.organization : null)
+  const houseFont = context.organization?.documentLook?.houseFont
+  return houseFont ? { ...styled, font: houseFont } : styled
+}
+
+/**
+ * The organization locks the look for this person: a member (not an owner
+ * or admin) of an organization with `lockLook`. The editor then keeps the
+ * style, font and text size; the server keeps them too.
+ */
+export function lookLocked(organization: OrganizationProfile | null | undefined): boolean {
+  return Boolean(organization?.documentLook?.lockLook && organization.role === 'member')
 }
 
 // ─── Branding on demand ─────────────────────────────────────────────────────

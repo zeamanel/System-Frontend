@@ -3,7 +3,10 @@ import './pages.css'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useI18n } from '../i18n'
+import type { MessageKey } from '../i18n'
+import { FONT_OPTIONS } from '../lib/editor/fonts'
 import type {
+  OrganizationDocumentLook,
   OrganizationMember,
   OrganizationProfile,
   OrganizationRole,
@@ -284,6 +287,41 @@ export default function OrganizationPage() {
                     <span>{t('look.alwaysLetterhead')}</span>
                   </label>
                 ) : null}
+                <Select
+                  id="org-house-font"
+                  label={t('look.houseFont')}
+                  hint={t('look.houseFontHint')}
+                  value={profile.documentLook?.houseFont ?? ''}
+                  options={[
+                    { value: '', label: t('look.houseFontNone') },
+                    ...FONT_OPTIONS.map((option) => ({ value: option.key, label: t(`editor.font_${option.key}` as MessageKey) })),
+                  ]}
+                  onChange={(event) =>
+                    update({
+                      documentLook: {
+                        autoStyle: true,
+                        customerFooter: '',
+                        ...profile.documentLook,
+                        houseFont: event.target.value as NonNullable<OrganizationDocumentLook['houseFont']>,
+                      },
+                    })
+                  }
+                  data-testid="org-look-font"
+                />
+                <label className="org-check">
+                  <input
+                    type="checkbox"
+                    checked={profile.documentLook?.lockLook === true}
+                    onChange={(event) =>
+                      update({ documentLook: { autoStyle: true, customerFooter: '', ...profile.documentLook, lockLook: event.target.checked } })
+                    }
+                    data-testid="org-look-lock"
+                  />
+                  <span>
+                    {t('look.lockLook')}
+                    <small className="org-check__hint">{t('look.lockLookHint')}</small>
+                  </span>
+                </label>
                 {profile.type === 'print_shop' ? (
                   <Input
                     id="org-customer-footer"

@@ -75,6 +75,26 @@ describe('Fill from your data, by template tags', () => {
   })
 })
 
+describe('Parties of the built-in templates', () => {
+  it('are named by role, one choice each, next to the property', async () => {
+    const lease: TemplateQuestion[] = [
+      { id: 'party_one_name', label: 'Landlord', required: true, dataSource: { collection: 'property', key: 'owner_name' } },
+      { id: 'party_two_name', label: 'Tenant', required: true, dataSource: { collection: 'customer', key: 'full_name', party: 'tenant' } },
+      { id: 'guarantor_name', label: 'Guarantor', required: false, dataSource: { collection: 'customer', key: 'full_name', party: 'guarantor' } },
+      { id: 'other', label: 'Other', required: false, dataSource: { collection: 'customer', key: 'full_name', party: 'house_keeper' } },
+    ]
+    wrap(<FillFromData questions={lease} answers={{}} documentLanguage="en" onFill={vi.fn()} documentId="doc-lease" />)
+    fireEvent.click(screen.getByTestId('fill-data-open'))
+    const slots = within(await screen.findByTestId('fill-data-slots')).getAllByTestId('fill-data-slot')
+    expect(slots.map((slot) => slot.textContent)).toEqual([
+      'Property1 fields',
+      'Tenant (customer)1 fields',
+      'Guarantor (customer)1 fields',
+      'House keeper (customer)1 fields',
+    ])
+  })
+})
+
 describe('Filled from your data', () => {
   async function linked(position: string) {
     const record = await dataClient.createRecord('employee', { values: { full_name: 'Dawit Haile', position } })
@@ -147,6 +167,50 @@ describe('Asking a person for their details', () => {
   })
 })
 
+describe('Asking for details of the organization’s own record types', () => {
+  it('offers that type’s own fields, by their names', async () => {
+    await dataClient.getDataSpace()
+    const students = await dataClient.createCollection({
+      name: 'Students',
+      fields: [
+        { label: 'Student name', type: 'text' },
+        { label: 'Guardian phone', type: 'phone' },
+      ],
+    })
+    const create = vi.spyOn(dataClient, 'createDataRequest').mockRejectedValue(new Error('stop'))
+    wrap(<RequestDialog open onClose={vi.fn()} collection={students.key} canSeeSensitive />)
+    expect(await screen.findByRole('heading', { name: 'Ask for details: Students' })).toBeInTheDocument()
+    const phoneKey = students.fields[1].key
+    const box = await screen.findByTestId(`data-request-field-${phoneKey}`)
+    expect(box.closest('label')).toHaveTextContent('Guardian phone')
+    expect(screen.getByText(/Student name/)).toBeInTheDocument()
+    fireEvent.click(box)
+    fireEvent.change(screen.getByTestId('data-request-recipient'), { target: { value: 'Liya' } })
+    fireEvent.change(screen.getByTestId('data-request-purpose'), { target: { value: 'Enrolment' } })
+    fireEvent.click(screen.getByTestId('data-request-submit'))
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ collection: students.key, fields: [phoneKey] })))
+  })
+
+  it('the share page names those fields and keeps their choices as written', async () => {
+    vi.spyOn(dataClient, 'getSharedRequest').mockResolvedValue({
+      requesterName: 'Bole School',
+      recipientName: 'Liya',
+      purpose: 'Enrolment',
+      collection: 'x_students',
+      fields: [
+        { key: 'x_student_name', type: 'text', required: true, label: 'Student name' },
+        { key: 'x_grade', type: 'choice', required: false, label: 'Grade', options: ['9', '10'] },
+      ],
+      status: 'open',
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    })
+    wrap(<SharePage />, '/share/school')
+    expect(await screen.findByLabelText(/Student name/)).toBeInTheDocument()
+    const grade = screen.getByLabelText(/Grade/) as HTMLSelectElement
+    expect(Array.from(grade.options).map((option) => option.textContent)).toEqual(['Not set', '9', '10'])
+  })
+})
+
 describe('Share page', () => {
   it('shows who asks and why; sends only after the person agrees', async () => {
     vi.spyOn(dataClient, 'getSharedRequest').mockResolvedValue({
@@ -210,5 +274,54 @@ describe('Share page', () => {
     vi.spyOn(dataClient, 'getSharedRequest').mockResolvedValueOnce('expired')
     wrap(<SharePage />, '/share/old')
     expect(await screen.findByText('This link has expired')).toBeInTheDocument()
+  })
+})
+
+describe('The organization’s own matches on a template', () => {
+  it('remembers a free match as its own tags, then fills those fields from that record type straight away', async () => {
+    await dataClient.getDataSpace()
+    const students = await dataClient.createCollection({
+      name: 'Students',
+      fields: [
+        { label: 'Student name', type: 'text' },
+        { label: 'Guardian phone', type: 'phone' },
+      ],
+    })
+    const [nameKey, phoneKey] = students.fields.map((field) => field.key)
+    await dataClient.getDataSpace()
+    await dataClient.createRecord(students.key, { values: { [nameKey]: 'Liya Abebe', [phoneKey]: '0911 555666' } })
+    const questions: TemplateQuestion[] = [
+      { id: 'student', label: 'Student name', required: true },
+      { id: 'guardian', label: 'Guardian phone', required: false },
+      { id: 'school', label: 'School', required: false, dataSource: { collection: 'organization', key: 'name' } },
+    ]
+    const onFill = vi.fn()
+    const { unmount } = wrap(<FillFromData questions={questions} answers={{}} documentLanguage="en" onFill={onFill} templateId="tpl-cert" />)
+    fireEvent.click(screen.getByTestId('fill-data-open'))
+    fireEvent.click(await screen.findByTestId('fill-data-other'))
+    fireEvent.click(await screen.findByTestId(`fill-data-kind-${students.key}`))
+    fireEvent.click(await screen.findByTestId('fill-data-record'))
+    expect(await screen.findByTestId('fill-data-plan')).toHaveTextContent('Liya Abebe')
+    fireEvent.click(screen.getByTestId('fill-data-remember'))
+    fireEvent.click(screen.getByTestId('fill-data-apply'))
+    await waitFor(async () =>
+      expect(await dataClient.getTemplateTags('tpl-cert')).toEqual({
+        student: { collection: students.key, key: nameKey },
+        guardian: { collection: students.key, key: phoneKey },
+      }),
+    )
+    unmount()
+
+    wrap(<FillFromData questions={questions} answers={{}} documentLanguage="en" onFill={onFill} templateId="tpl-cert" />)
+    fireEvent.click(screen.getByTestId('fill-data-open'))
+    await waitFor(() =>
+      expect(within(screen.getByTestId('fill-data-slots')).getAllByTestId('fill-data-slot').map((slot) => slot.textContent)).toEqual([
+        'Students2 fields',
+        'Our organization1 fields',
+      ]),
+    )
+    expect(screen.getByTestId('fill-data-own-tags')).toHaveTextContent('2 fields fill by your own matches.')
+    fireEvent.click(screen.getByTestId('fill-data-forget-tags'))
+    await waitFor(async () => expect(await dataClient.getTemplateTags('tpl-cert')).toEqual({}))
   })
 })

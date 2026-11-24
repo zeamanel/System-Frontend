@@ -11,6 +11,7 @@ import { DatePicker, SmartSuggestionChip } from '../smart-fields'
 import { RecentAnswerChips } from '../saved-answers'
 import { useOrganization } from '../../hooks/use-organization'
 import { SavedCustomers, SaveCustomerButton } from '../customers'
+import { DocumentsField } from './DocumentsField'
 import { FillFromData } from '../data/FillFromData'
 import { LinkedRecords } from '../data/LinkedRecords'
 import { customerTargets, type FieldFill } from '../../lib/customers/fill'
@@ -679,6 +680,7 @@ export function GuidedFieldsPanel({
             documentLanguage={language}
             onFill={(fills, nameQuestionId) => handleCustomerFill(fills, nameQuestionId)}
             documentId={documentId}
+            templateId={template?.id}
           />
           {questions.map((question) => {
             if (question.type === 'file_upload') {
@@ -701,6 +703,25 @@ export function GuidedFieldsPanel({
                     error={invalid[question.id] ? t('editor.fieldRequired') : undefined}
                   />
                 </div>
+              )
+            }
+            if (question.type === 'documents') {
+              return (
+                <DocumentsField
+                  key={question.id}
+                  id={question.id}
+                  label={
+                    <>
+                      <QuestionLabel question={question} language={language} />
+                      {question.required ? <Badge variant="neutral">{t('editor.fieldsRequired')}</Badge> : null}
+                    </>
+                  }
+                  value={answers[question.id] ?? ''}
+                  onChange={(next) => onAnswerChange(question.id, next)}
+                  accepts={question.accepts}
+                  currentDocumentId={documentId}
+                  error={invalid[question.id] ? t('editor.fieldRequired') : undefined}
+                />
               )
             }
             if (question.type === 'file' && question.fills) {

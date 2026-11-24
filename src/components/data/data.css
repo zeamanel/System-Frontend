@@ -612,3 +612,64 @@
   gap: var(--space-2);
   font-size: var(--text-sm);
 }
+
+/* Privacy tools: activity, the person's data, forgetting them. */
+.record-form__privacy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.record-form__privacy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.privacy-activity {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.privacy-activity__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.privacy-activity__item:last-child {
+  border-bottom: 0;
+}
+
+.privacy-activity__what {
+  overflow-wrap: anywhere;
+}
+
+.privacy-activity__meta {
+  color: var(--color-text-muted);
+}
+
+.privacy-forget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.privacy-forget p {
+  margin: 0;
+}
+
+.privacy-forget__list {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}

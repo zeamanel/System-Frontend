@@ -178,3 +178,49 @@
 .style-picker__design .btn {
   margin-top: var(--space-2);
 }
+
+/* Book page: running header line, centred chapter title, a drop cap, the page number at the foot. */
+.style-thumb--book-interior {
+  padding: 6px 8px 10px 10px;
+}
+
+.style-thumb--book-interior .style-thumb__band {
+  display: block;
+  align-self: center;
+  width: 40%;
+  height: 1px;
+  margin-bottom: 3px;
+  background: #94a3b8;
+}
+
+.style-thumb--book-interior .style-thumb__title {
+  align-self: center;
+  width: 50%;
+}
+
+.style-thumb--book-interior .style-thumb__title + .style-thumb__line {
+  position: relative;
+  margin-left: 8px;
+}
+
+.style-thumb--book-interior .style-thumb__title + .style-thumb__line::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -8px;
+  width: 6px;
+  height: 8px;
+  background: #374151;
+  border-radius: 1px;
+}
+
+.style-thumb--book-interior::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 5px;
+  height: 2px;
+  background: #94a3b8;
+  transform: translateX(-50%);
+}

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createRecord,
   deleteRecord,
@@ -18,6 +18,11 @@ import {
   getDataAccess,
   setMemberAccess,
   updateCollection,
+  forgetRecord,
+  getTemplateTags,
+  setTemplateTags,
+  getDataActivity,
+  getRecordActivity,
   type DataRequestInput,
   type UseOptions,
 } from '../lib/data/client'
@@ -43,6 +48,23 @@ export function useRecords(collection: string, query = '', enabled = true) {
   return useQuery({
     queryKey: queryKeys.data.list(collection, query.trim()),
     queryFn: ({ signal }) => listRecords(collection, query, { signal }),
+    enabled,
+    staleTime: 15_000,
+  })
+}
+
+/** Records page by page (100 at a time), for lists longer than one page. */
+export const RECORD_PAGE = 100
+
+export function useRecordPages(collection: string, query = '', enabled = true) {
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.data.list(collection, query.trim()), 'pages'],
+    queryFn: ({ pageParam, signal }) => listRecords(collection, query, { limit: RECORD_PAGE, offset: pageParam, signal }),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.items.length, 0)
+      return last.items.length === RECORD_PAGE && loaded < last.total ? loaded : undefined
+    },
     enabled,
     staleTime: 15_000,
   })
@@ -157,3 +179,54 @@ export function useSetMemberAccess() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.data.access }),
   })
 }
+
+// ─── Privacy tools (owners and admins) ───────────────────────────────────────
+
+/** Who did what with one record. */
+export function useRecordActivity(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.data.recordActivity(id ?? ''),
+    queryFn: ({ signal }) => getRecordActivity(id as string, signal),
+    enabled: Boolean(id),
+    staleTime: 0,
+  })
+}
+
+/** What everyone did with the space's data, 50 at a time. */
+export function useDataActivity(enabled = true) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.data.activity,
+    queryFn: ({ pageParam, signal }) => getDataActivity({ before: pageParam || undefined, signal }),
+    initialPageParam: '',
+    getNextPageParam: (last) => (last.length < 50 ? undefined : last[last.length - 1].at),
+    enabled,
+    staleTime: 0,
+  })
+}
+
+/** Forgets a person (their record, requests and unused logo). */
+export function useForgetRecord() {
+  const invalidate = useInvalidate()
+  return useMutation({ mutationFn: (id: string) => forgetRecord(id), onSuccess: invalidate })
+}
+
+// ─── The organization's own tags on a template ───────────────────────────────
+
+/** This space's own tags on a template's questions (empty without a template). */
+export function useTemplateTags(templateId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.data.templateTags(templateId ?? ''),
+    queryFn: ({ signal }) => getTemplateTags(templateId as string, signal),
+    enabled: Boolean(templateId),
+    staleTime: 60_000,
+  })
+}
+
+export function useSaveTemplateTags(templateId: string | undefined) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (tags: Parameters<typeof setTemplateTags>[1]) => setTemplateTags(templateId as string, tags),
+    onSuccess: (saved) => queryClient.setQueryData(queryKeys.data.templateTags(templateId ?? ''), saved),
+  })
+}
+

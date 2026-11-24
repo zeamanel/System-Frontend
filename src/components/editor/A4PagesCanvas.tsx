@@ -4,6 +4,7 @@ import { firstPageNumber, pageNumbersVisible } from '../../lib/editor/page-numbe
 import { PageNumberControls, type PageNumberControlsProps } from './PageNumberControls'
 import { sanitizeInlineHtml } from '../../lib/editor/sanitize'
 import { contentHeightMm } from '../../lib/editor/model'
+import { pageChapters } from '../../lib/editor/book'
 import { PAGINATION_SAFETY_FACTOR, paginateBlocks, type PageSlice, type SplittableBlock } from '../../lib/editor/paginate'
 import { fragmentWindow, lineItemHeights, lineStartsFromRects, textOffsetOf, textPositionAt, type TextGeometry } from '../../lib/editor/fragments'
 import { fitWidthZoom } from '../../lib/editor/a4'
@@ -121,7 +122,21 @@ export function A4PagesCanvas({
   const isLetterhead = styleId === 'executive-letterhead'
   const { urls: media } = useMediaUrls({ logo: isLetterhead ? model.style?.logoMediaId : null })
   const showHeader = model.page.headerEnabled || Boolean(isLetterhead && media.logo)
-  const contentHeightPx = contentHeightMm(model.page.margins, model.page.orientation) * (96 / 25.4)
+  const paperSize = model.page.size === 'a5' ? 'a5' : 'a4'
+  const contentHeightPx = contentHeightMm(model.page.margins, model.page.orientation, paperSize) * (96 / 25.4)
+  const isBook = styleId === 'book-interior'
+  /** Books: each page's header is its chapter's title (none where a chapter starts). */
+  const chapters = useMemo(() => (model.page.runningHeader ? pageChapters(pages, blocksById) : null), [model.page.runningHeader, pages, blocksById])
+  /** A left-hand (even-numbered) page of a bound book. */
+  const versoPage = (pageIndex: number): boolean => Boolean(model.page.mirrorMargins) && (startNumber + pageIndex) % 2 === 0
+  /** A book page's running header and page number sit over the text column (its inside and outside margins). */
+  const bookEdges = (pageIndex: number): React.CSSProperties | undefined =>
+    isBook
+      ? {
+          marginLeft: `${versoPage(pageIndex) ? model.page.margins.right : model.page.margins.left}mm`,
+          marginRight: `${versoPage(pageIndex) ? model.page.margins.left : model.page.margins.right}mm`,
+        }
+      : undefined
 
   const measureAndPaginate = useCallback(() => {
     const wrap = pagesWrapRef.current
@@ -257,7 +272,7 @@ export function A4PagesCanvas({
   useEffect(() => {
     const scroll = scrollRef.current
     if (!scroll) return
-    const update = (): void => setFit(fitWidthZoom(scroll.clientWidth, model.page.orientation))
+    const update = (): void => setFit(fitWidthZoom(scroll.clientWidth, model.page.orientation, paperSize))
     update()
     if (typeof ResizeObserver === 'undefined') {
       window.addEventListener('resize', update)
@@ -266,7 +281,7 @@ export function A4PagesCanvas({
     const observer = new ResizeObserver(update)
     observer.observe(scroll)
     return () => observer.disconnect()
-  }, [model.page.orientation])
+  }, [model.page.orientation, paperSize])
 
   // A paragraph continued over pages has a copy in every window; the caret must be in the
   // window that shows its line (arrow keys or a focus restore can put it on a hidden line).
@@ -439,7 +454,7 @@ export function A4PagesCanvas({
 
   return (
     <div className="doc-canvas-scroll" ref={scrollRef} data-editor-canvas-root>
-      <style>{`@page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 0; }`}</style>
+      <style>{`@page { size: ${paperSize === 'a5' ? 'A5' : 'A4'} ${isLandscape ? 'landscape' : 'portrait'}; margin: 0; }`}</style>
       {lockedNotice ? (
         <p className="doc-canvas-locked" role="status" data-testid="canvas-locked">
           <span className="doc-canvas-locked__dot" aria-hidden="true" />
@@ -493,6 +508,7 @@ export function A4PagesCanvas({
               'doc-paper',
               'a4-sheet',
               isLandscape ? 'doc-paper--landscape a4-sheet--landscape' : null,
+              paperSize === 'a5' && !isLandscape ? 'a4-sheet--a5' : null,
               styleId !== 'standard' ? `doc-paper--style-${styleId}` : null,
             ]
               .filter(Boolean)
@@ -501,7 +517,11 @@ export function A4PagesCanvas({
             data-orientation={isLandscape ? 'landscape' : 'portrait'}
             aria-label={`${pageAriaLabel} ${pageIndex + 1}`}
           >
-            {showHeader && isLetterhead ? (
+            {chapters ? (
+              <header className="doc-paper__header doc-paper__header--running" data-testid="running-header" style={bookEdges(pageIndex)}>
+                {chapters[pageIndex]?.starts ? '' : (chapters[pageIndex]?.title ?? '')}
+              </header>
+            ) : showHeader && isLetterhead ? (
               <header className="doc-paper__header doc-paper__header--band">
                 {media.logo ? <img className="doc-paper__logo" src={media.logo} alt="" /> : null}
                 {model.page.headerEnabled ? (
@@ -524,9 +544,10 @@ export function A4PagesCanvas({
               className="doc-paper__content"
               style={{
                 paddingTop: `${model.page.margins.top}mm`,
-                paddingRight: `${model.page.margins.right}mm`,
+                // A left-hand page of a bound book has its binding margin on the right.
+                paddingRight: `${versoPage(pageIndex) ? model.page.margins.left : model.page.margins.right}mm`,
                 paddingBottom: `${model.page.margins.bottom}mm`,
-                paddingLeft: `${model.page.margins.left}mm`,
+                paddingLeft: `${versoPage(pageIndex) ? model.page.margins.right : model.page.margins.left}mm`,
               }}
             >
               {pageBlockIds.map((slice) => {
@@ -585,7 +606,7 @@ export function A4PagesCanvas({
               </div>
             ) : null}
 
-            <footer className="doc-paper__footer">
+            <footer className="doc-paper__footer" style={bookEdges(pageIndex)}>
               {model.page.footerEnabled ? (
                 <div
                   className="doc-paper__footer-text"
@@ -594,8 +615,8 @@ export function A4PagesCanvas({
                 />
               ) : null}
               {showPageNumbers ? (
-                <span className="doc-paper__page-number" aria-hidden="true">
-                  {formatPageLabel(startNumber + pageIndex, startNumber === 1 ? pages.length : null)}
+                <span className={['doc-paper__page-number', isBook ? 'doc-paper__page-number--book' : null].filter(Boolean).join(' ')} aria-hidden="true">
+                  {isBook ? String(startNumber + pageIndex) : formatPageLabel(startNumber + pageIndex, startNumber === 1 ? pages.length : null)}
                 </span>
               ) : null}
             </footer>

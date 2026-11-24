@@ -2,7 +2,7 @@
  * A4 geometry & print helpers shared by the canvas and toolbar.
  */
 
-import { A4_HEIGHT_MM, A4_WIDTH_MM, type PageOrientation } from './types'
+import { A4_HEIGHT_MM, A4_WIDTH_MM, PAGE_SIZES_MM, type PageOrientation, type PageSize } from './types'
 
 /** CSS pixel length of one millimetre at 96 dpi (the CSS reference pixel). */
 export const MM_TO_PX = 96 / 25.4
@@ -30,9 +30,15 @@ export function clampZoom(zoom: number): number {
 export function fitWidthZoom(
   viewportWidthPx: number,
   orientation: PageOrientation = 'portrait',
+  size: PageSize = 'a4',
 ): number {
   if (viewportWidthPx <= 0) return 1
-  const sheetWidthPx = orientation === 'landscape' ? A4_LANDSCAPE_WIDTH_PX : A4_WIDTH_PX
+  const sheetWidthPx =
+    size === 'a5'
+      ? (orientation === 'landscape' ? PAGE_SIZES_MM.a5.height : PAGE_SIZES_MM.a5.width) * MM_TO_PX
+      : orientation === 'landscape'
+        ? A4_LANDSCAPE_WIDTH_PX
+        : A4_WIDTH_PX
   const byWidth = (viewportWidthPx - 48) / sheetWidthPx
   return clampZoom(Math.min(1, byWidth))
 }

@@ -55,7 +55,7 @@ import {
   withBlocks,
 } from '../../lib/editor/model'
 import { execInlineCommand, type InlineCommand } from '../../lib/editor/commands'
-import { compressImageDataUrl } from '../../lib/editor/image'
+import { compressImageDataUrl, printableImageDataUrl } from '../../lib/editor/image'
 import { escapePlainText, isSafeUrl } from '../../lib/editor/sanitize'
 import { insertPlainText } from '../../lib/editor/commands'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
@@ -63,17 +63,21 @@ import { triggerPrint } from '../../lib/editor/a4'
 import { downloadExport, ExportDownloadError, exportDownloadUrl, exportFileName } from '../../lib/export/download'
 import { saveReusableAnswers } from '../../lib/saved-answers/party-memory'
 import { newId } from '../../lib/editor/ids'
-import type { Block, DocumentModel, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
+import type { Block, DocumentModel, ImageBlock, ParagraphSpacing, TextAlign } from '../../lib/editor/types'
 import { LANGUAGES } from '../../lib/languages'
 import { Button, Dialog, Input, useToast } from '../ui'
 import { ApiError } from '../../lib/api'
 import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
+import { InsertImageDialog } from './InsertImageDialog'
+import { EditorTelegramVaultDrawer } from './EditorTelegramVaultDrawer'
+import type { SavedImageKind } from '../../lib/saved-images/types'
 import { applyDocumentStyle, documentStyleId, suggestedStyles } from '../../lib/editor/styles'
 import {
   brandingOffers,
   customerLetterheadApplied,
+  lookLocked,
   lookMode,
   missingLetterhead,
   templateStyle,
@@ -135,6 +139,13 @@ const PRINT_CHECK_TIMEOUT_MS = 4000
 const PRINT_CHECK_LISTED = 5
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
+/** How a saved image goes onto the page: a logo centred, a stamp or signature at the start like on paper. */
+const SAVED_IMAGE_LOOK: Record<SavedImageKind, Pick<ImageBlock, 'widthPct' | 'align'>> = {
+  logo: { widthPct: 30, align: 'center' },
+  stamp: { widthPct: 25, align: 'left' },
+  signature: { widthPct: 30, align: 'left' },
+  image: { widthPct: 50, align: 'center' },
+}
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const SIDE_IMAGE_TYPES = ['image/png', 'image/jpeg']
 
@@ -227,8 +238,12 @@ export function EditorWorkspace({
   const [previewMode, setPreviewMode] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [styleOpen, setStyleOpen] = useState(false)
+  const [imageDialogOpen, setImageDialogOpen] = useState(false)
+  const [telegramImagesOpen, setTelegramImagesOpen] = useState(false)
   const organization = useOrganization()
   const organizationProfile = organization.data ?? null
+  /** The organization sets the look: this member keeps the style, font and text size. */
+  const lookIsLocked = lookLocked(organizationProfile)
   const preferences = useContext(PreferencesContext)?.preferences
   const lookContext = useMemo(
     () => ({
@@ -946,8 +961,13 @@ export function EditorWorkspace({
           setImageError(t('editor.imageTooLarge'))
           return
         }
-        const compressed = await compressImageDataUrl(dataUrl)
-        insertAfterActive(() => createImage(compressed, file.name.replace(/\.[^.]+$/, '')))
+        // PNG or JPEG only (a GIF or WebP is redrawn as PNG): the PDF and the Word file carry nothing else.
+        const printable = await printableImageDataUrl(dataUrl)
+        if (!printable) {
+          setImageError(t('editor.imageNotPrintable'))
+          return
+        }
+        insertAfterActive(() => createImage(printable, file.name.replace(/\.[^.]+$/, '')))
       }
       reader.onerror = () => setImageError(t('editor.imageTooLarge'))
       reader.readAsDataURL(file)
@@ -1258,11 +1278,53 @@ export function EditorWorkspace({
     [editor, toast, t],
   )
 
+  // Pictures added before GIF and WebP were converted on insert: made PNG once when the
+  // document opens, so the PDF and the Word file no longer leave them out.
+  const imagesConvertedRef = useRef(false)
+  useEffect(() => {
+    if (imagesConvertedRef.current || pageLocked || doc.access === 'view' || doc.kind === 'design') return
+    const old = model.blocks.filter((block) => block.type === 'image' && /^data:image\/(gif|webp)[;,]/i.test(block.src))
+    if (old.length === 0) return
+    imagesConvertedRef.current = true
+    void (async () => {
+      const converted = new Map<string, string>()
+      for (const block of old) {
+        const src = block.type === 'image' ? await printableImageDataUrl(block.src) : null
+        if (src) converted.set(block.id, src)
+      }
+      if (converted.size === 0) return
+      updateModel((current) => ({
+        ...current,
+        blocks: current.blocks.map((block) => {
+          const src = block.type === 'image' ? converted.get(block.id) : undefined
+          return src && block.type === 'image' ? { ...block, src } : block
+        }),
+      }))
+    })()
+  }, [doc.access, doc.kind, model.blocks, pageLocked, updateModel])
+
+  // A saved logo, stamp or signature: sized and placed for what it is (still adjustable in the Format panel).
+  const handleInsertSavedImage = useCallback(
+    async (dataUrl: string, name: string, kind: SavedImageKind): Promise<void> => {
+      const printable = await printableImageDataUrl(dataUrl)
+      if (!printable) {
+        toast.push(t('editor.imageNotPrintable'), { variant: 'error' })
+        return
+      }
+      insertAfterActive(() => ({ ...createImage(printable, name), ...SAVED_IMAGE_LOOK[kind] }))
+    },
+    [insertAfterActive, toast, t],
+  )
+
   const handleInsertVaultImage = useCallback(
     async (imageDataUrl: string, caption?: string) => {
       if (!imageDataUrl) return
-      const compressed = await compressImageDataUrl(imageDataUrl)
-      const imgBlock = createImage(compressed, caption || 'Telegram Image')
+      const printable = await printableImageDataUrl(imageDataUrl)
+      if (!printable) {
+        toast.push(t('editor.imageNotPrintable'), { variant: 'error' })
+        return
+      }
+      const imgBlock = createImage(printable, caption || 'Telegram Image')
       updateModel((current) => insertBlocksAfter(current, null, [imgBlock]))
       toast.push(t('editor.telegramVault.insertImage') + ' ✓')
     },
@@ -1438,8 +1500,12 @@ export function EditorWorkspace({
 
   const formatCallbacks = useMemo<FormatPanelCallbacks>(
     () => ({
-      onSetFont: (font) => updateModel((current) => setDocumentFont(current, font)),
-      onSetFontSize: (size) => updateModel((current) => setDocumentFontSize(current, size)),
+      onSetFont: (font) => {
+        if (!lookIsLocked) updateModel((current) => setDocumentFont(current, font))
+      },
+      onSetFontSize: (size) => {
+        if (!lookIsLocked) updateModel((current) => setDocumentFontSize(current, size))
+      },
       onInlineCommand: (command) => handleInlineCommand(command),
       onSetAlign: (align: TextAlign) => {
         if (activeRef) updateModel((current) => setAlignment(current, activeRef.blockId, align))
@@ -1496,6 +1562,7 @@ export function EditorWorkspace({
         insertAfterActive(() => createSignature([tDoc('editor.signatureCaption')])),
       onInsertPageBreak: () => insertAfterActive(() => createPageBreak()),
       onInsertImage: (file) => handleInsertImage(file),
+      onOpenInsertImage: () => setImageDialogOpen(true),
       onUpdateImage: (patch) => {
         if (activeRef) updateModel((current) => updateImage(current, activeRef.blockId, patch))
       },
@@ -1559,6 +1626,7 @@ export function EditorWorkspace({
       handleInlineCommand,
       handleInsertImage,
       insertAfterActive,
+      lookIsLocked,
       model,
       queueFocus,
       tDoc,
@@ -1760,6 +1828,30 @@ export function EditorWorkspace({
         </GuidedFieldsPanel>
       </aside>
 
+      {/* Mounted only while open: nothing is loaded, and none of its text is on the page, before it is asked for. */}
+      {imageDialogOpen ? (
+        <InsertImageDialog
+          open
+          onClose={() => setImageDialogOpen(false)}
+          onPickFile={handleInsertImage}
+          onOpenTelegram={doc.access === 'view' ? undefined : () => setTelegramImagesOpen(true)}
+          onInsertImage={(dataUrl, name, kind) => void handleInsertSavedImage(dataUrl, name, kind)}
+          documentId={doc.id}
+          organization={organizationProfile}
+        />
+      ) : null}
+      {telegramImagesOpen ? (
+        <EditorTelegramVaultDrawer
+          isOpen
+          renderTrigger={false}
+          onClose={() => setTelegramImagesOpen(false)}
+          onInsertImage={(imageDataUrl, caption) => {
+            void handleInsertVaultImage(imageDataUrl, caption)
+            setTelegramImagesOpen(false)
+          }}
+        />
+      ) : null}
+
       <StylePickerDialog
         open={styleOpen}
         onClose={() => setStyleOpen(false)}
@@ -1769,7 +1861,9 @@ export function EditorWorkspace({
           !organizationProfile?.logoMediaId ||
           !organizationProfile.letterhead.headerLines.some((line) => line.trim())
         }
+        locked={lookIsLocked}
         onChoose={(id) => {
+          if (lookIsLocked) return
           editor.updateModel((current) => applyDocumentStyle(current, id, organizationProfile))
           toast.push(t('styles.applied'))
         }}
@@ -1925,6 +2019,7 @@ export function EditorWorkspace({
               ethiopicSupport={ethiopicSupport}
               imageError={imageError}
               callbacks={formatCallbacks}
+              lookLocked={lookIsLocked}
             />
           </div>
         )}
