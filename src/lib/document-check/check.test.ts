@@ -95,6 +95,23 @@ describe('signature lines in the check', () => {
   })
 })
 
+describe('photo boxes in the check', () => {
+  const cv = (photo: string): DocumentModel => ({
+    ...createEmptyDocument('en'),
+    blocks: [{ ...createParagraph('Abebe Kebede'), photoBox: { size: '3x4', src: photo, alt: 'Me' } }],
+  })
+
+  it('flags a photo too small for its box, locally, and sends its size rather than its data', async () => {
+    // 100 x 130 px covering 30 x 40 mm: 83 dpi.
+    expect(localDocumentCheck(cv(pngUrl(100, 130)), {}, []).issues.map((i) => [i.code, i.params.dpi])).toEqual([['IMAGE_LOW_RESOLUTION', 83]])
+    expect(localDocumentCheck(cv(pngUrl(600, 800)), {}, []).issues).toEqual([])
+    const post = vi.fn(async () => ({ ok: true, summary: { errors: 0, warnings: 0 }, issues: [] }))
+    await runDocumentCheck({ documentId: 'd', model: cv(pngUrl(600, 800)), answers: {}, questions: [] }, { client: { post } as never })
+    const [, body] = post.mock.calls[0] as unknown as [string, { content: { blocks: Array<Record<string, unknown>> } }]
+    expect(body.content.blocks[0].photoBox).toEqual({ size: '3x4', alt: 'Me', src: '', srcInfo: { printable: true, width: 600, height: 800 } })
+  })
+})
+
 describe('runDocumentCheck', () => {
   const model: DocumentModel = {
     ...createEmptyDocument('en'),

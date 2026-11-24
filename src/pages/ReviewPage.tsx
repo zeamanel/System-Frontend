@@ -112,6 +112,7 @@ export default function ReviewPage() {
       sideReplaceImage: '',
       sideRemoveImage: '',
       sideWidthGroup: '',
+      photo: tDoc('editor.photoBox.caption'),
     }),
     [tDoc],
   )

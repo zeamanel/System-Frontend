@@ -1,6 +1,6 @@
 import { contentHeightMm, contentWidthMm } from './model'
 import { dataUrlImageInfo, type ImageInfo } from './image'
-import type { ImageBlock, PageSetup } from './types'
+import { PHOTO_BOX_MM, type ImageBlock, type PageSetup, type PhotoBoxSize } from './types'
 
 /**
  * How sharp a picture will print: its pixels against the width it is printed
@@ -44,6 +44,13 @@ export function signatureLineQuality(info: ImageInfo, slot: 'signature' | 'stamp
       ? Math.min((SIGNATURE_HEIGHT_MM * info.width) / info.height, column * 0.6)
       : info.width * Math.min(STAMP_MM / info.width, STAMP_MM / info.height)
   return atWidth({ width: info.width }, widthMm)
+}
+
+/** A photo in a photo box: cropped to fill the box, so its full width is drawn a little wider than the box. */
+export function photoBoxQuality(info: ImageInfo, size: PhotoBoxSize): PrintQuality | null {
+  if (!info.printable || !info.width || !info.height) return null
+  const box = PHOTO_BOX_MM[size]
+  return atWidth({ width: info.width }, info.width * Math.max(box.width / info.width, box.height / info.height))
 }
 
 /** Pixels against printed width for a picture already read; null when its size is not known. */

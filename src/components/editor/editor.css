@@ -2219,3 +2219,41 @@ figure.doc-block--image-right .doc-image {
   height: 1.25rem;
   object-fit: contain;
 }
+
+/* A photo box beside a heading or paragraph, as the PDF and Word file draw it (backend PHOTO_BOX_MM). */
+.doc-photo-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6mm;
+}
+
+.doc-photo-row > [data-block-id] {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-photo-box {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30mm;
+  height: 40mm;
+  margin: 0;
+  border: 0.75pt solid var(--color-text, #111);
+  overflow: hidden;
+  font-size: 0.85rem;
+  font-weight: normal;
+  color: var(--color-text-secondary);
+}
+
+.doc-photo-box[data-size='3.5x4.5'] {
+  width: 35mm;
+  height: 45mm;
+}
+
+.doc-photo-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

@@ -1883,5 +1883,19 @@
   "images.target.title": "Sign or stamp: {party}",
   "images.target.intro": "A signature goes on the line and a stamp over it, as on paper. A saved signature goes on the line; any other saved image goes over it as a stamp.",
   "images.target.deviceSignature": "Signature from this device",
-  "images.target.deviceStamp": "Stamp from this device"
+  "images.target.deviceStamp": "Stamp from this device",
+  "editor.photoBox.caption": "Photo",
+  "editor.photoBox.title": "Photo box",
+  "editor.photoBox.add": "Add a photo box beside this",
+  "editor.photoBox.size": "Size",
+  "editor.photoBox.size3x4": "3 × 4 cm (forms)",
+  "editor.photoBox.size35x45": "3.5 × 4.5 cm (passport)",
+  "editor.photoBox.choose": "Add a photo",
+  "editor.photoBox.change": "Change the photo",
+  "editor.photoBox.removePhoto": "Remove the photo",
+  "editor.photoBox.remove": "Remove the photo box",
+  "editor.photoBox.hint": "Without a photo, the box prints empty with “Photo” in it, for a printed photo to be glued in. A photo is cropped to the box.",
+  "editor.photoBox.failed": "This photo could not be read. Use a PNG or JPEG.",
+  "look.addPhotoBox": "Add a photo box",
+  "look.removePhotoBox": "Remove the photo box"
 }

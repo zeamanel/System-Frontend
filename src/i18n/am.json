@@ -1883,5 +1883,19 @@
   "images.target.title": "ፊርማ ወይም ማኅተም፦ {party}",
   "images.target.intro": "ፊርማ በመስመሩ ላይ፣ ማኅተም ደግሞ በላዩ ላይ ይቀመጣል፤ እንደ ወረቀቱ። የተቀመጠ ፊርማ በመስመሩ ላይ ይሄዳል፤ ሌላ የተቀመጠ ምስል እንደ ማኅተም በላዩ ይሄዳል።",
   "images.target.deviceSignature": "ፊርማ ከዚህ መሣሪያ",
-  "images.target.deviceStamp": "ማኅተም ከዚህ መሣሪያ"
+  "images.target.deviceStamp": "ማኅተም ከዚህ መሣሪያ",
+  "editor.photoBox.caption": "ፎቶ",
+  "editor.photoBox.title": "የፎቶ ሳጥን",
+  "editor.photoBox.add": "ከዚህ ጎን የፎቶ ሳጥን ጨምር",
+  "editor.photoBox.size": "መጠን",
+  "editor.photoBox.size3x4": "3 × 4 ሳ.ሜ (ቅጾች)",
+  "editor.photoBox.size35x45": "3.5 × 4.5 ሳ.ሜ (ፓስፖርት)",
+  "editor.photoBox.choose": "ፎቶ ጨምር",
+  "editor.photoBox.change": "ፎቶውን ቀይር",
+  "editor.photoBox.removePhoto": "ፎቶውን አስወግድ",
+  "editor.photoBox.remove": "የፎቶ ሳጥኑን አስወግድ",
+  "editor.photoBox.hint": "ፎቶ ከሌለ ሳጥኑ ባዶ ሆኖ «ፎቶ» የሚል ጽሑፍ ይዞ ይታተማል፤ የታተመ ፎቶ እንዲለጠፍበት። ፎቶ ሲጨመር በሳጥኑ ልክ ይቆረጣል።",
+  "editor.photoBox.failed": "ይህን ፎቶ ማንበብ አልተቻለም። PNG ወይም JPEG ይጠቀሙ።",
+  "look.addPhotoBox": "የፎቶ ሳጥን ጨምር",
+  "look.removePhotoBox": "የፎቶ ሳጥኑን አስወግድ"
 }

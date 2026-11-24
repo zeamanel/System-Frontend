@@ -1883,5 +1883,19 @@
   "images.target.title": "Mallattoo ykn chaappaa: {party}",
   "images.target.intro": "Mallattoon sarara irra, chaappaan immoo isa irra kaa'ama, akkuma waraqaa irratti. Mallattoon olkaa'ame sarara irra deema; suuraan olkaa'ame kan biraa akka chaappaatti isa irra deema.",
   "images.target.deviceSignature": "Mallattoo meeshaa kana irraa",
-  "images.target.deviceStamp": "Chaappaa meeshaa kana irraa"
+  "images.target.deviceStamp": "Chaappaa meeshaa kana irraa",
+  "editor.photoBox.caption": "Suuraa",
+  "editor.photoBox.title": "Saanduqa suuraa",
+  "editor.photoBox.add": "Saanduqa suuraa cinaa kanaa dabali",
+  "editor.photoBox.size": "Hamma",
+  "editor.photoBox.size3x4": "3 × 4 cm (unkaawwan)",
+  "editor.photoBox.size35x45": "3.5 × 4.5 cm (paaspoortii)",
+  "editor.photoBox.choose": "Suuraa dabali",
+  "editor.photoBox.change": "Suuraa jijjiiri",
+  "editor.photoBox.removePhoto": "Suuraa haqi",
+  "editor.photoBox.remove": "Saanduqa suuraa haqi",
+  "editor.photoBox.hint": "Suuraa malee saanduqni duwwaa ta'ee “Suuraa” jedhu qabatee maxxanfama, suuraan maxxanfame akka itti maxxanfamuuf. Suuraan saanduqa kanaan ni murama.",
+  "editor.photoBox.failed": "Suuraan kun dubbifamuu hin dandeenye. PNG ykn JPEG fayyadami.",
+  "look.addPhotoBox": "Saanduqa suuraa dabali",
+  "look.removePhotoBox": "Saanduqa suuraa haqi"
 }
