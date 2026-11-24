@@ -16,11 +16,15 @@ export interface BookLook {
 
 const DEFAULT_LOOK: BookLook = { size: 'a5', gutterMm: 6 }
 
-/** Margins of a book page (left = inside, right = outside). */
+/**
+ * Margins of a book page (left = inside, right = outside). The running header
+ * and the page number take their own bands above and below, so the top and
+ * bottom margins are the space between them and the text.
+ */
 export function bookMargins(look: BookLook): DocumentModel['page']['margins'] {
   return look.size === 'a5'
-    ? { top: 16, right: 14, bottom: 18, left: 14 + look.gutterMm }
-    : { top: 20, right: 18, bottom: 22, left: 18 + look.gutterMm }
+    ? { top: 10, right: 14, bottom: 10, left: 14 + look.gutterMm }
+    : { top: 12, right: 18, bottom: 12, left: 18 + look.gutterMm }
 }
 
 /** The text of a heading or paragraph, without markup. */
@@ -38,8 +42,9 @@ export const plainText = (html: string): string =>
 
 /**
  * Applies the book look: the page set-up, and in the text a drop cap on the
- * first paragraph after each chapter title (level 1 heading), chapter titles
- * centred, and paragraphs justified. Amharic books use Abyssinica.
+ * paragraph right after each chapter title (level 1 heading) unless it is a
+ * centred line, chapter titles centred, and other paragraphs justified.
+ * Amharic books use Abyssinica.
  */
 export function bookInteriorLook(model: DocumentModel, look: BookLook = DEFAULT_LOOK): DocumentModel {
   const blocks: Block[] = []
@@ -51,13 +56,15 @@ export function bookInteriorLook(model: DocumentModel, look: BookLook = DEFAULT_
       continue
     }
     if (block.type === 'paragraph') {
-      const opens = afterChapterTitle && plainText(block.html).length > 1
+      const centred = block.align === 'center' || block.align === 'right'
+      // The chapter's opening paragraph gets the drop cap; a centred line (a subtitle on the title page) does not.
+      const opens = afterChapterTitle && !centred && plainText(block.html).length > 1
       const { dropCap: _drop, ...rest } = block
-      blocks.push({ ...rest, align: block.align === 'center' || block.align === 'right' ? block.align : 'justify', ...(opens ? { dropCap: true } : {}) })
+      blocks.push({ ...rest, align: centred ? block.align : 'justify', ...(opens ? { dropCap: true } : {}) })
       if (plainText(block.html)) afterChapterTitle = false
       continue
     }
-    if (block.type !== 'page-break') afterChapterTitle = false
+    afterChapterTitle = false
     blocks.push(block)
   }
   return {

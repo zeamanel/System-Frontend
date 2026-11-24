@@ -2083,16 +2083,21 @@ figure.doc-block--image-right {
 
 /* ── Book interior (typeset-interior template) ───────────────────────────── */
 
-/* The chapter's title at the top of each page (empty where a chapter starts). */
+/* The chapter's title at the top of each page (empty where a chapter starts, same height). One line, as in the PDF. */
 .doc-paper__header--running {
-  min-height: 1.6em;
-  padding: 7mm 0 0;
+  box-sizing: border-box;
+  min-height: calc(8mm + 1.6em);
+  padding: 8mm 0 0;
   margin: 0 14mm;
   border-bottom: none;
   text-align: center;
   font-style: italic;
   font-size: 0.8em;
+  line-height: 1.6;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .doc-paper__page-number--book {
@@ -2104,22 +2109,23 @@ figure.doc-block--image-right {
   border-top: none;
 }
 
-.doc-paper--style-book-interior .doc-block--heading h1,
-.doc-paper--style-book-interior .doc-block--heading [data-level='1'] {
-  margin-top: 14mm;
-  margin-bottom: 8mm;
+/* A chapter opens lower on its page (the PDF draws the same). */
+.doc-paper--style-book-interior .doc-heading--1 {
+  margin: 14mm 0 8mm;
   font-size: 1.7em;
   letter-spacing: 0.01em;
 }
 
-/* Book paragraphs follow on with an indent; the first after a title does not. */
-.doc-paper--style-book-interior .doc-block--paragraph + .doc-block--paragraph:not(.doc-block--dropcap) [contenteditable],
-.doc-paper--style-book-interior .doc-block--paragraph + .doc-block--paragraph:not(.doc-block--dropcap) [data-block-id] {
+/* Book paragraphs follow on with an indent; the first after a title, and centred lines such as "* * *", do not. */
+.doc-paper--style-book-interior
+  .doc-block--paragraph
+  + .doc-block--paragraph:not(.doc-block--dropcap, .doc-block--align-center, .doc-block--align-right)
+  [data-block-id] {
   text-indent: 1.4em;
 }
 
-/* A drop cap: the chapter's first letter, two lines tall. */
-.doc-block--dropcap [data-block-id]::first-letter {
+/* A drop cap: the chapter's first letter, two lines tall (not in right-to-left text, whose letters join). */
+.doc-block--dropcap:not([dir='rtl']) [data-block-id]::first-letter {
   float: left;
   font-size: 3.2em;
   line-height: 0.82;

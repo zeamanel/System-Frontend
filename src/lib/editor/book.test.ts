@@ -36,7 +36,7 @@ describe('The book look', () => {
     expect(model.blocks.find((b) => b.id === 'h1')).toMatchObject({ align: 'center' })
     expect(model.blocks.find((b) => b.id === 'p2')).toMatchObject({ align: 'justify' })
     expect(bookInteriorLook({ ...book(), language: 'am' }).font).toBe('abyssinica')
-    expect(bookMargins({ size: 'a4', gutterMm: 10 })).toEqual({ top: 20, right: 18, bottom: 22, left: 28 })
+    expect(bookMargins({ size: 'a4', gutterMm: 10 })).toEqual({ top: 12, right: 18, bottom: 12, left: 28 })
   })
 
   it('survives saving and loading', () => {

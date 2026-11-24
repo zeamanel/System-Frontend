@@ -36,7 +36,7 @@ const STYLE_PAGE: Record<DocumentStyleId, { font: DocumentModel['font']; margins
   'executive-letterhead': { font: 'sans', margins: { top: 12, right: 20, bottom: 20, left: 20 } },
   'formal-border': { font: 'serif', margins: { top: 24, right: 26, bottom: 24, left: 26 } },
   // A5 book page: the left margin is the inside (binding) one and swaps on left-hand pages.
-  'book-interior': { font: 'serif', margins: { top: 16, right: 14, bottom: 18, left: 20 } },
+  'book-interior': { font: 'serif', margins: { top: 10, right: 14, bottom: 10, left: 20 } },
 }
 
 export function documentStyleId(model: Pick<DocumentModel, 'style'>): DocumentStyleId {
