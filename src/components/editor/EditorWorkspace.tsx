@@ -27,6 +27,7 @@ import {
   moveBlock,
   removeBlock,
   removeSignatureParty,
+  setPartyMark,
   removeTableColumn,
   removeTableRow,
   setAlignment,
@@ -56,7 +57,7 @@ import {
 } from '../../lib/editor/model'
 import { execInlineCommand, type InlineCommand } from '../../lib/editor/commands'
 import { compressImageDataUrl, printableImageDataUrl } from '../../lib/editor/image'
-import { escapePlainText, isSafeUrl } from '../../lib/editor/sanitize'
+import { escapePlainText, inlineHtmlToText, isSafeUrl } from '../../lib/editor/sanitize'
 import { insertPlainText } from '../../lib/editor/commands'
 import { probeEthiopicSupport } from '../../lib/editor/fonts'
 import { triggerPrint } from '../../lib/editor/a4'
@@ -106,7 +107,7 @@ import { useDocumentEditor, type FieldSyncEvent } from './useDocumentEditor'
 import { AssistantPanel } from './AssistantPanel'
 import { useAssistant } from './useAssistant'
 import { useIssueText } from './check-issue-text'
-import type { DocumentCheckResult } from '../../lib/document-check/check'
+import { isPrintProblem, type DocumentCheckResult } from '../../lib/document-check/check'
 import { consumePendingNotes } from '../../lib/assistant/pending-notes'
 import { blockPlainText, pageIndexOf } from '../../lib/assistant/context'
 import { buildStreamPreview, keepUnchanged, parseStreamBlocks } from '../../lib/editor/stream-preview'
@@ -239,6 +240,8 @@ export function EditorWorkspace({
   const [historyOpen, setHistoryOpen] = useState(false)
   const [styleOpen, setStyleOpen] = useState(false)
   const [imageDialogOpen, setImageDialogOpen] = useState(false)
+  /** "Add an image" for one party's signature line (a signature on it, a stamp over it), not for the text. */
+  const [imageTarget, setImageTarget] = useState<{ blockId: string; partyId: string; partyLabel: string } | null>(null)
   const [telegramImagesOpen, setTelegramImagesOpen] = useState(false)
   const organization = useOrganization()
   const organizationProfile = organization.data ?? null
@@ -1303,6 +1306,40 @@ export function EditorWorkspace({
     })()
   }, [doc.access, doc.kind, model.blocks, pageLocked, updateModel])
 
+  // A signature on a party's line, or a stamp over it.
+  const placeOnSignatureLine = useCallback(
+    async (target: { blockId: string; partyId: string }, slot: 'signature' | 'stamp', dataUrl: string, alt: string): Promise<void> => {
+      const printable = await printableImageDataUrl(dataUrl)
+      if (!printable) {
+        toast.push(t('editor.imageNotPrintable'), { variant: 'error' })
+        return
+      }
+      updateModel((current) => setPartyMark(current, target.blockId, target.partyId, slot, { src: printable, alt }))
+    },
+    [toast, t, updateModel],
+  )
+
+  const handleSignatureLineFile = useCallback(
+    (target: { blockId: string; partyId: string }, slot: 'signature' | 'stamp', file: File): void => {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES) {
+        toast.push(t('editor.imageTooLarge'), { variant: 'error' })
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : ''
+        if (!isSafeUrl(dataUrl)) {
+          toast.push(t('editor.imageTooLarge'), { variant: 'error' })
+          return
+        }
+        void placeOnSignatureLine(target, slot, dataUrl, file.name.replace(/\.[^.]+$/, ''))
+      }
+      reader.onerror = () => toast.push(t('editor.imageTooLarge'), { variant: 'error' })
+      reader.readAsDataURL(file)
+    },
+    [placeOnSignatureLine, toast, t],
+  )
+
   // A saved logo, stamp or signature: sized and placed for what it is (still adjustable in the Format panel).
   const handleInsertSavedImage = useCallback(
     async (dataUrl: string, name: string, kind: SavedImageKind): Promise<void> => {
@@ -1409,7 +1446,7 @@ export function EditorWorkspace({
     } catch {
       result = null
     }
-    if (result && result.summary.errors > 0) {
+    if (result && result.issues.some(isPrintProblem)) {
       setPrintCheck(result)
       return
     }
@@ -1598,6 +1635,17 @@ export function EditorWorkspace({
         if (activeRef) {
           updateModel((current) => removeSignatureParty(current, activeRef.blockId, partyId))
         }
+      },
+      onOpenPartyImage: (partyId) => {
+        if (!activeRef) return
+        const block = model.blocks.find((candidate) => candidate.id === activeRef.blockId)
+        const party = block?.type === 'signature' ? block.parties.find((candidate) => candidate.id === partyId) : undefined
+        if (!party) return
+        setImageTarget({ blockId: activeRef.blockId, partyId, partyLabel: inlineHtmlToText(party.label).trim() || tDoc('editor.signatureCaption') })
+        setImageDialogOpen(true)
+      },
+      onRemovePartyMark: (partyId, slot) => {
+        if (activeRef) updateModel((current) => setPartyMark(current, activeRef.blockId, partyId, slot, null))
       },
       onSetOrientation: (orientation) =>
         updateModel((current) => setPageOrientation(current, orientation)),
@@ -1832,12 +1880,21 @@ export function EditorWorkspace({
       {imageDialogOpen ? (
         <InsertImageDialog
           open
-          onClose={() => setImageDialogOpen(false)}
-          onPickFile={handleInsertImage}
+          onClose={() => {
+            setImageDialogOpen(false)
+            setImageTarget(null)
+          }}
+          onPickFile={(file, slot) => (imageTarget && slot ? handleSignatureLineFile(imageTarget, slot, file) : handleInsertImage(file))}
           onOpenTelegram={doc.access === 'view' ? undefined : () => setTelegramImagesOpen(true)}
-          onInsertImage={(dataUrl, name, kind) => void handleInsertSavedImage(dataUrl, name, kind)}
+          onInsertImage={(dataUrl, name, kind) =>
+            void (imageTarget
+              ? // A saved signature goes on the line; anything else over it, as a stamp.
+                placeOnSignatureLine(imageTarget, kind === 'signature' ? 'signature' : 'stamp', dataUrl, name)
+              : handleInsertSavedImage(dataUrl, name, kind))
+          }
           documentId={doc.id}
           organization={organizationProfile}
+          target={imageTarget ? { partyLabel: imageTarget.partyLabel } : undefined}
         />
       ) : null}
       {telegramImagesOpen ? (
@@ -2191,17 +2248,17 @@ export function EditorWorkspace({
       >
         {printCheck ? (
           <div data-testid="print-check-dialog">
-            <p>{t('check.print.body', { errors: String(printCheck.summary.errors) })}</p>
+            <p>{t('check.print.body', { errors: String(printCheck.issues.filter(isPrintProblem).length) })}</p>
             <ul className="print-check__list">
               {printCheck.issues
-                .filter((issue) => issue.severity === 'error')
+                .filter(isPrintProblem)
                 .slice(0, PRINT_CHECK_LISTED)
                 .map((issue) => (
                   <li key={issue.id}>{issueText(issue)}</li>
                 ))}
             </ul>
-            {printCheck.summary.errors > PRINT_CHECK_LISTED ? (
-              <p>{t('check.print.more', { count: String(printCheck.summary.errors - PRINT_CHECK_LISTED) })}</p>
+            {printCheck.issues.filter(isPrintProblem).length > PRINT_CHECK_LISTED ? (
+              <p>{t('check.print.more', { count: String(printCheck.issues.filter(isPrintProblem).length - PRINT_CHECK_LISTED) })}</p>
             ) : null}
           </div>
         ) : null}

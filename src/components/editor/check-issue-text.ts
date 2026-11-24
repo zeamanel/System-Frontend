@@ -12,6 +12,8 @@ export function useIssueText(): (issue: DocumentCheckIssue) => string {
       // Long runs of underscores or dots read as noise: shorten them.
       Object.entries(issue.params).map(([k, v]) => [k, String(v).replace(/_{4,}/g, '____').replace(/\.{6,}/g, '……')]),
     )
+    // A picture is named by its description, in quotes; one without a description is "a picture".
+    if (issue.code.startsWith('IMAGE_')) params.name = params.name ? `"${params.name}"` : t('check.issue.imageUnnamed')
     return t(key as MessageKey, params)
   }
 }
@@ -30,4 +32,6 @@ const CHECK_ISSUE_KEYS: Record<string, true> = {
   'check.issue.PARTY_WITHOUT_SIGNATURE': true,
   'check.issue.SIDE_NUMBER_MISMATCH': true,
   'check.issue.TERM_SPELLING_VARIANT': true,
+  'check.issue.IMAGE_LOW_RESOLUTION': true,
+  'check.issue.IMAGE_NOT_PRINTED': true,
 }

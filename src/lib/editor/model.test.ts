@@ -38,6 +38,7 @@ import {
   splitTextBlock,
   toggleList,
   updateSecondaryText,
+  setPartyMark,
 } from './model'
 import type { DocumentModel } from './types'
 
@@ -936,5 +937,39 @@ describe('draft mark', () => {
     expect(read(false)).toBeUndefined()
     expect(read('yes')).toBeUndefined()
     expect(parseDocumentContent(JSON.stringify(base), 'en')?.page.draft).toBeUndefined()
+  })
+})
+
+describe('signature and stamp on a signature line', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+
+  it('puts a picture in its slot, replaces it, and takes it off', () => {
+    const block = createSignature(['Landlord', 'Tenant'])
+    if (block.type !== 'signature') throw new Error('not a signature block')
+    const [landlord, tenant] = block.parties
+    let model: DocumentModel = { ...createEmptyDocument('en'), blocks: [block] }
+    model = setPartyMark(model, block.id, landlord.id, 'signature', { src: PNG, alt: 'Signature' })
+    model = setPartyMark(model, block.id, landlord.id, 'stamp', { src: PNG, alt: 'Stamp' })
+    model = setPartyMark(model, block.id, landlord.id, 'stamp', { src: PNG, alt: 'New stamp' })
+    const parties = () => (model.blocks[0].type === 'signature' ? model.blocks[0].parties : [])
+    expect(parties()[0]).toMatchObject({ signatureImage: { alt: 'Signature' }, stampImage: { alt: 'New stamp' } })
+    expect(parties()[1]).toEqual(tenant)
+    model = setPartyMark(model, block.id, landlord.id, 'signature', null)
+    expect(parties()[0]).not.toHaveProperty('signatureImage')
+    expect(parties()[0]).toHaveProperty('stampImage')
+  })
+
+  it('keeps embedded pictures through saving and loading, and drops addresses on the web', () => {
+    const block = createSignature(['Landlord'])
+    if (block.type !== 'signature') throw new Error('not a signature block')
+    const raw = {
+      ...createEmptyDocument('en'),
+      blocks: [{ ...block, parties: [{ ...block.parties[0], signatureImage: { src: PNG, alt: 'S' }, stampImage: { src: 'https://example.com/stamp.png', alt: 'X' } }] }],
+    }
+    const loaded = parseDocumentContent(JSON.stringify(raw), 'en')!
+    const party = loaded.blocks[0].type === 'signature' ? loaded.blocks[0].parties[0] : null
+    expect(party?.signatureImage).toEqual({ src: PNG, alt: 'S' })
+    expect(party).not.toHaveProperty('stampImage')
+    expect(parseDocumentContent(serializeModel(loaded), 'en')).toEqual(loaded)
   })
 })

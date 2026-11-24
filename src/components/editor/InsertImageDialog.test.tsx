@@ -6,6 +6,9 @@ import { ToastProvider } from '../ui'
 import * as client from '../../lib/saved-images/client'
 import type { SavedImage, SavedImageList } from '../../lib/saved-images/types'
 import type { SavedImageKind } from '../../lib/saved-images/types'
+import { rotatePixels, type Pixels } from '../../lib/media/cleanup'
+import * as browser from '../../lib/media/cleanup-browser'
+import { preparePrintableImage } from '../../lib/media/prepare'
 import { InsertImageDialog } from './InsertImageDialog'
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
@@ -15,6 +18,32 @@ vi.mock('../../lib/media/prepare', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/media/prepare')>()
   return { ...actual, preparePrintableImage: vi.fn(async (file: Blob) => file) }
 })
+
+// The test browser has no canvas either: reading a photo gives a made-up one, and the cleaned picture is a made-up PNG.
+vi.mock('../../lib/media/cleanup-browser', () => ({
+  decodeToPixels: vi.fn(),
+  drawPixels: vi.fn(),
+  cleanedImageBlob: vi.fn(async () => new Blob([Uint8Array.from([137, 80, 78, 71])], { type: 'image/png' })),
+  pixelsToPngBlob: vi.fn(),
+}))
+
+/** A photo of three lines of handwriting leaning 8 degrees, in black on white paper. */
+function leaningNote(): Pixels {
+  const width = 200
+  const height = 120
+  const ink = new Uint8ClampedArray(width * height * 4)
+  for (const top of [25, 55, 85]) {
+    for (let y = top; y < top + 6; y++) for (let x = 20; x < 180; x++) ink.set([0, 0, 0, 255], (y * width + x) * 4)
+  }
+  const tilted = rotatePixels({ width, height, data: ink }, 8)
+  const paper = new Uint8ClampedArray(tilted.data.length)
+  for (let p = 0; p < tilted.width * tilted.height; p++) {
+    const a = tilted.data[p * 4 + 3] / 255
+    const v = 245 * (1 - a) + tilted.data[p * 4] * a
+    paper.set([v, v, v, 255], p * 4)
+  }
+  return { width: tilted.width, height: tilted.height, data: paper }
+}
 
 vi.mock('../../hooks/use-organization', () => ({
   useOrganizationMembers: () => ({
@@ -27,7 +56,7 @@ vi.mock('../../hooks/use-organization', () => ({
 }))
 
 function renderDialog(props: Partial<Parameters<typeof InsertImageDialog>[0]> = {}) {
-  const onPickFile = vi.fn<(file: File) => void>()
+  const onPickFile = vi.fn<(file: File, slot?: 'signature' | 'stamp') => void>()
   const onInsertImage = vi.fn<(dataUrl: string, name: string, kind: SavedImageKind) => void>()
   const onClose = vi.fn()
   const onOpenTelegram = vi.fn()
@@ -77,7 +106,8 @@ describe('InsertImageDialog', () => {
     const { onPickFile, onClose, onOpenTelegram } = renderDialog()
     const file = new File(['x'], 'photo.png', { type: 'image/png' })
     fireEvent.change(screen.getByTestId('insert-image-device-file'), { target: { files: [file] } })
-    expect(onPickFile).toHaveBeenCalledWith(file)
+    // Into the text, not onto a signature line: no slot.
+    expect(onPickFile).toHaveBeenCalledWith(file, undefined)
     expect(onClose).toHaveBeenCalled()
     fireEvent.click(screen.getByTestId('insert-image-telegram'))
     expect(onOpenTelegram).toHaveBeenCalled()
@@ -89,12 +119,16 @@ describe('InsertImageDialog', () => {
     fireEvent.click(screen.getByTestId('saved-image-add'))
     const form = screen.getByTestId('saved-image-form')
     const blob = await (await fetch(PNG)).blob()
+    vi.mocked(browser.decodeToPixels).mockResolvedValue(leaningNote())
     fireEvent.change(within(form).getByTestId('saved-image-file'), { target: { files: [new File([blob], 'stamp.png', { type: 'image/png' })] } })
     fireEvent.change(within(form).getByLabelText(/What it is/), { target: { value: 'stamp' } })
     fireEvent.change(within(form).getByLabelText(/^Name/), { target: { value: 'Official stamp' } })
     fireEvent.click(screen.getByTestId('saved-image-save'))
 
     const insert = await screen.findByTestId('saved-image-insert')
+    // A stamp is cleaned up by default: the photo goes through the clean-up, not the plain preparation.
+    expect(browser.cleanedImageBlob).toHaveBeenCalledWith(expect.any(File), { strength: 0.5, angle: 0 })
+    expect(preparePrintableImage).not.toHaveBeenCalled()
     expect(screen.getByTestId('saved-images')).toHaveTextContent('Official stamp')
     fireEvent.click(insert)
     await waitFor(() => expect(onInsertImage).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/png;base64,/), 'Official stamp', 'stamp'))
@@ -137,4 +171,59 @@ describe('InsertImageDialog', () => {
     fireEvent.click(screen.getByTestId('saved-image-access-save'))
     await waitFor(() => expect(update).toHaveBeenCalledWith('img-1', { access: 'listed', allowedUserIds: ['u-driver'] }))
   })
+
+  it('cleans up a stamp or signature photo by default, and leaves a logo as it is', async () => {
+    vi.mocked(browser.decodeToPixels).mockResolvedValue(leaningNote())
+    renderDialog()
+    fireEvent.click(await screen.findByTestId('saved-image-add'))
+    const form = screen.getByTestId('saved-image-form')
+    const file = new File(['x'], 'photo.png', { type: 'image/png' })
+    fireEvent.change(within(form).getByTestId('saved-image-file'), { target: { files: [file] } })
+    fireEvent.change(within(form).getByLabelText(/^Name/), { target: { value: 'Logo' } })
+    // Stamp (the default kind): the clean-up is on, with its settings.
+    expect(within(form).getByTestId('stamp-cleanup-enabled')).toBeChecked()
+    expect(await within(form).findByTestId('stamp-cleanup-strength')).toBeInTheDocument()
+    // A logo: off, and no settings. Saving prepares the picture the plain way.
+    fireEvent.change(within(form).getByLabelText(/What it is/), { target: { value: 'logo' } })
+    expect(within(form).getByTestId('stamp-cleanup-enabled')).not.toBeChecked()
+    expect(within(form).queryByTestId('stamp-cleanup-strength')).toBeNull()
+    fireEvent.click(screen.getByTestId('saved-image-save'))
+    await waitFor(() => expect(preparePrintableImage).toHaveBeenCalled())
+    expect(browser.cleanedImageBlob).not.toHaveBeenCalled()
+  })
+
+  it('straightens a leaning photo automatically, and the saved picture uses the settings chosen', async () => {
+    vi.mocked(browser.decodeToPixels).mockResolvedValue(leaningNote())
+    renderDialog()
+    fireEvent.click(await screen.findByTestId('saved-image-add'))
+    const form = screen.getByTestId('saved-image-form')
+    fireEvent.change(within(form).getByTestId('saved-image-file'), { target: { files: [new File(['x'], 'sig.png', { type: 'image/png' })] } })
+    fireEvent.change(within(form).getByLabelText(/What it is/), { target: { value: 'signature' } })
+    fireEvent.change(within(form).getByLabelText(/^Name/), { target: { value: 'Manager signature' } })
+    const auto = await within(form).findByTestId('stamp-cleanup-auto')
+    await waitFor(() => expect(auto).toBeEnabled())
+    fireEvent.click(auto)
+    // The lines lean 8 degrees clockwise: turned back about 8 degrees.
+    await waitFor(() => expect(Number(within(form).getByTestId<HTMLInputElement>('stamp-cleanup-angle').value)).toBeLessThan(-6))
+    const angle = Number(within(form).getByTestId<HTMLInputElement>('stamp-cleanup-angle').value)
+    expect(angle).toBeGreaterThan(-9.5)
+    fireEvent.change(within(form).getByTestId('stamp-cleanup-strength'), { target: { value: '70' } })
+    fireEvent.click(screen.getByTestId('saved-image-save'))
+    await waitFor(() => expect(browser.cleanedImageBlob).toHaveBeenCalledWith(expect.any(File), { strength: 0.7, angle }))
+  })
+
+  it('says so when no ink is found, and does not save', async () => {
+    vi.mocked(browser.decodeToPixels).mockResolvedValue({ width: 40, height: 30, data: new Uint8ClampedArray(40 * 30 * 4).fill(240) })
+    vi.mocked(browser.cleanedImageBlob).mockResolvedValueOnce(null)
+    renderDialog()
+    fireEvent.click(await screen.findByTestId('saved-image-add'))
+    const form = screen.getByTestId('saved-image-form')
+    fireEvent.change(within(form).getByTestId('saved-image-file'), { target: { files: [new File(['x'], 'blank.png', { type: 'image/png' })] } })
+    fireEvent.change(within(form).getByLabelText(/^Name/), { target: { value: 'Blank' } })
+    expect(await within(form).findByText(/No ink was found/)).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('saved-image-save'))
+    await waitFor(() => expect(within(form).getAllByText(/No ink was found/).length).toBeGreaterThan(0))
+    expect(screen.queryByTestId('saved-image-insert')).toBeNull()
+  })
 })
+

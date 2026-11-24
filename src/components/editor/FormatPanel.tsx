@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { useI18n } from '../../i18n'
 import type {
@@ -16,6 +16,8 @@ import { MAX_FONT_SIZE_PT, MIN_FONT_SIZE_PT } from '../../lib/editor/types'
 import type { InlineCommand } from '../../lib/editor/commands'
 import { FONT_OPTIONS, type EthiopicSupport } from '../../lib/editor/fonts'
 import { textDirection } from '../../lib/editor/direction'
+import { inlineHtmlToText } from '../../lib/editor/sanitize'
+import { imagePrintQuality, type PrintQuality } from '../../lib/editor/print-quality'
 import { languageDirection } from '../../lib/languages'
 import { Button, Input, Select, useToast } from '../ui'
 import { useOrganization } from '../../hooks/use-organization'
@@ -38,6 +40,7 @@ import {
   SignatureIcon,
   TableIcon,
   TrashIcon,
+  XIcon,
   UnderlineIcon,
 } from '../icons'
 
@@ -64,6 +67,10 @@ export interface FormatPanelCallbacks {
   onToggleTableHeader(): void
   onAddSignatureParty(): void
   onRemoveSignatureParty(partyId: string): void
+  /** Opens "Add an image" for this party's signature line: a signature on it, a stamp over it (absent: not offered). */
+  onOpenPartyImage?: (partyId: string) => void
+  /** Takes the signature or the stamp off a party's line. */
+  onRemovePartyMark?: (partyId: string, slot: 'signature' | 'stamp') => void
   onSetOrientation(orientation: PageOrientation): void
   onUpdateMargins(patch: Partial<DocumentModel['page']['margins']>): void
   onUpdatePageSetup(patch: Partial<DocumentModel['page']>): void
@@ -138,6 +145,13 @@ export function FormatPanel({
 }: FormatPanelProps) {
   const { t } = useI18n()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // How sharp the selected picture prints at its size: moves with the width slider and the margins.
+  const imageSrc = activeBlock?.type === 'image' ? activeBlock.src : null
+  const imageWidthPct = activeBlock?.type === 'image' ? activeBlock.widthPct : 0
+  const imageQuality = useMemo<PrintQuality | null>(
+    () => (imageSrc ? imagePrintQuality({ src: imageSrc, widthPct: imageWidthPct }, model.page) : null),
+    [imageSrc, imageWidthPct, model.page],
+  )
 
   const isHeading = activeBlock?.type === 'heading'
   const isParagraph = activeBlock?.type === 'paragraph'
@@ -234,6 +248,7 @@ export function FormatPanel({
       {renderMoreSections(model, activeBlock, callbacks, t, {
         imageError,
         fileInputRef,
+        imageQuality,
       })}
     </div>
   )
@@ -379,7 +394,7 @@ function renderMoreSections(
   activeBlock: Block | null,
   callbacks: FormatPanelCallbacks,
   t: T,
-  extra: { imageError: string | null; fileInputRef: RefObject<HTMLInputElement> },
+  extra: { imageError: string | null; fileInputRef: RefObject<HTMLInputElement>; imageQuality: PrintQuality | null },
 ) {
   return (
     <>
@@ -440,7 +455,7 @@ function renderMoreSections(
             </IconButton>
           </div>
           {activeBlock.type === 'table' ? renderTableControls(activeBlock, callbacks, t) : null}
-          {activeBlock.type === 'image' ? renderImageControls(activeBlock, callbacks, t) : null}
+          {activeBlock.type === 'image' ? renderImageControls(activeBlock, callbacks, t, extra.imageQuality) : null}
           {activeBlock.type === 'signature'
             ? renderSignatureControls(activeBlock, callbacks, t)
             : null}
@@ -707,6 +722,7 @@ function renderImageControls(
   block: Extract<Block, { type: 'image' }>,
   callbacks: FormatPanelCallbacks,
   t: T,
+  quality: PrintQuality | null,
 ) {
   return (
     <div className="editor-panel__cluster">
@@ -725,6 +741,17 @@ function renderImageControls(
         />
         <span className="editor-panel__value">{block.widthPct}%</span>
       </div>
+      {quality ? (
+        <p
+          className={['editor-panel__status', quality.low ? 'editor-panel__status--warning' : 'editor-panel__status--muted'].join(' ')}
+          role="status"
+          data-testid="image-quality"
+        >
+          {quality.low
+            ? t('editor.imageQuality.low', { dpi: quality.dpi, width: quality.widthMm, sharp: quality.sharpMm })
+            : t('editor.imageQuality.ok', { dpi: quality.dpi })}
+        </p>
+      ) : null}
       <Select
         id="image-align"
         label={t('editor.align')}
@@ -757,15 +784,49 @@ function renderSignatureControls(
     <div className="editor-panel__cluster">
       <ul className="editor-panel__party-list">
         {block.parties.map((party) => (
-          <li key={party.id}>
-            <span>{party.label || t('editor.signatureCaption')}</span>
-            {block.parties.length > 1 ? (
-              <IconButton
-                label={t('editor.removeParty')}
-                onClick={() => callbacks.onRemoveSignatureParty(party.id)}
-              >
-                <TrashIcon size={14} />
-              </IconButton>
+          <li key={party.id} className="editor-panel__party">
+            <span className="editor-panel__party-head">
+              <span>{party.label ? inlineHtmlToText(party.label) : t('editor.signatureCaption')}</span>
+              {block.parties.length > 1 ? (
+                <IconButton
+                  label={t('editor.removeParty')}
+                  onClick={() => callbacks.onRemoveSignatureParty(party.id)}
+                >
+                  <TrashIcon size={14} />
+                </IconButton>
+              ) : null}
+            </span>
+            {party.signatureImage || party.stampImage || callbacks.onOpenPartyImage ? (
+              <span className="editor-panel__party-marks" data-testid={`party-marks-${party.id}`}>
+                {(['signature', 'stamp'] as const).map((slot) => {
+                  const mark = slot === 'signature' ? party.signatureImage : party.stampImage
+                  if (!mark) return null
+                  return (
+                    <span key={slot} className="editor-panel__party-mark">
+                      <img src={mark.src} alt="" />
+                      {t(slot === 'signature' ? 'editor.party.signature' : 'editor.party.stamp')}
+                      {callbacks.onRemovePartyMark ? (
+                        <IconButton
+                          label={t(slot === 'signature' ? 'editor.party.removeSignature' : 'editor.party.removeStamp')}
+                          onClick={() => callbacks.onRemovePartyMark?.(party.id, slot)}
+                        >
+                          <XIcon size={12} />
+                        </IconButton>
+                      ) : null}
+                    </span>
+                  )
+                })}
+                {callbacks.onOpenPartyImage ? (
+                  <button
+                    type="button"
+                    className="editor-panel__text-btn"
+                    onClick={() => callbacks.onOpenPartyImage?.(party.id)}
+                    data-testid="party-mark-add"
+                  >
+                    {t('editor.party.addMark')}
+                  </button>
+                ) : null}
+              </span>
             ) : null}
           </li>
         ))}

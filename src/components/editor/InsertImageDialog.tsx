@@ -15,17 +15,20 @@ import {
 } from '../../hooks/use-saved-images'
 import { getRepositories } from '../../lib/repositories'
 import type { OrganizationMember, OrganizationProfile } from '../../lib/repositories/types'
+import { DEFAULT_CLEANUP, type CleanupChoice } from '../../lib/media/cleanup'
+import { cleanedImageBlob } from '../../lib/media/cleanup-browser'
 import { blobToDataUrl, ImagePrepareError, preparePrintableImage } from '../../lib/media/prepare'
 import type { SavedImage, SavedImageAccess, SavedImageKind } from '../../lib/saved-images/types'
 import { SAVED_IMAGE_KINDS } from '../../lib/saved-images/types'
 import { Button, Dialog, Input, Select } from '../ui'
+import { StampCleanup } from './StampCleanup'
 import { ImagePlusIcon, PaperclipIcon, ShieldIcon, TrashIcon, UsersIcon } from '../icons'
 
 export interface InsertImageDialogProps {
   open: boolean
   onClose: () => void
-  /** A picture from the device (the editor checks and converts it). */
-  onPickFile: (file: File) => void
+  /** A picture from the device (the editor checks and converts it); `slot` when it goes on a signature line. */
+  onPickFile: (file: File, slot?: 'signature' | 'stamp') => void
   /** Opens the Telegram files (absent: not offered). */
   onOpenTelegram?: () => void
   /** Puts a logo, stamp, signature or other saved image into the document. */
@@ -34,6 +37,12 @@ export interface InsertImageDialogProps {
   documentId?: string
   /** The caller's organization: its letterhead logo is offered first. */
   organization?: OrganizationProfile | null
+  /**
+   * The picture goes on this party's signature line (a signature on it, a
+   * stamp over it) rather than into the text: the device offers both, and
+   * Telegram and the letterhead logo are not offered.
+   */
+  target?: { partyLabel: string }
 }
 
 const KIND_KEY: Record<SavedImageKind, MessageKey> = {
@@ -48,9 +57,11 @@ const KIND_KEY: Record<SavedImageKind, MessageKey> = {
  * the space's saved logos, stamps and signatures. Who may use each saved
  * image is decided on the server; people who may not see it locked.
  */
-export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, onInsertImage, documentId, organization }: InsertImageDialogProps) {
+export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, onInsertImage, documentId, organization, target }: InsertImageDialogProps) {
   const { t } = useI18n()
   const fileRef = useRef<HTMLInputElement>(null)
+  // Which slot of the signature line a picture from the device is for.
+  const slotRef = useRef<'signature' | 'stamp' | undefined>(undefined)
   const saved = useSavedImages(open)
   const take = useTakeSavedImage()
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +71,7 @@ export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, o
   const inOrganization = Boolean(list?.canAddOwnSignature)
   const manager = Boolean(list?.canManage)
   const members = useOrganizationMembers(open && inOrganization && manager)
-  const logoId = organization?.logoMediaId ?? null
+  const logoId = target ? null : (organization?.logoMediaId ?? null)
   const logo = useMediaUrls({ logo: open ? logoId : null })
 
   const insertSaved = async (item: SavedImage) => {
@@ -93,13 +104,45 @@ export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, o
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={t('images.title')} closeLabel={t('common.close')} width="lg">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={target ? t('images.target.title', { party: target.partyLabel }) : t('images.title')}
+      closeLabel={t('common.close')}
+      width="lg"
+    >
       <div className="insert-image">
+        {target ? <p className="insert-image__intro">{t('images.target.intro')}</p> : null}
         <div className="insert-image__sources">
-          <Button variant="secondary" icon={<ImagePlusIcon size={16} />} onClick={() => fileRef.current?.click()} data-testid="insert-image-device">
-            {t('images.fromDevice')}
-          </Button>
-          {onOpenTelegram ? (
+          {target ? (
+            (['signature', 'stamp'] as const).map((slot) => (
+              <Button
+                key={slot}
+                variant="secondary"
+                icon={<ImagePlusIcon size={16} />}
+                onClick={() => {
+                  slotRef.current = slot
+                  fileRef.current?.click()
+                }}
+                data-testid={`insert-image-device-${slot}`}
+              >
+                {t(slot === 'signature' ? 'images.target.deviceSignature' : 'images.target.deviceStamp')}
+              </Button>
+            ))
+          ) : (
+            <Button
+              variant="secondary"
+              icon={<ImagePlusIcon size={16} />}
+              onClick={() => {
+                slotRef.current = undefined
+                fileRef.current?.click()
+              }}
+              data-testid="insert-image-device"
+            >
+              {t('images.fromDevice')}
+            </Button>
+          )}
+          {onOpenTelegram && !target ? (
             <Button
               variant="secondary"
               icon={<PaperclipIcon size={16} />}
@@ -123,7 +166,7 @@ export function InsertImageDialog({ open, onClose, onPickFile, onOpenTelegram, o
               const file = event.target.files?.[0]
               event.target.value = ''
               if (!file) return
-              onPickFile(file)
+              onPickFile(file, slotRef.current)
               onClose()
             }}
           />
@@ -340,6 +383,9 @@ function AddSavedImageForm({
   const [access, setAccess] = useState<SavedImageAccess>('listed')
   const [allowed, setAllowed] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [cleanup, setCleanup] = useState<CleanupChoice>(DEFAULT_CLEANUP)
+  // A photo of a stamp or signature is cleaned up by default; a logo or other picture is left as it is.
+  const cleanupOn = cleanup.enabled ?? (kind === 'stamp' || kind === 'signature')
   // Organization images that owners and admins hand out; a person's own signature is theirs alone.
   const handedOut = inOrganization && manager && !(kind === 'signature' && own)
 
@@ -350,7 +396,18 @@ function AddSavedImageForm({
       return
     }
     try {
-      const image = await blobToDataUrl(await preparePrintableImage(file))
+      let prepared: Blob
+      if (cleanupOn) {
+        const cleaned = await cleanedImageBlob(file, { strength: cleanup.strength, angle: cleanup.angle })
+        if (!cleaned) {
+          setError(t('images.cleanup.nothing'))
+          return
+        }
+        prepared = cleaned
+      } else {
+        prepared = await preparePrintableImage(file)
+      }
+      const image = await blobToDataUrl(prepared)
       await add.mutateAsync({
         kind: manager ? kind : 'signature',
         name: name.trim(),
@@ -384,6 +441,7 @@ function AddSavedImageForm({
           onChange={(event) => setKind(event.target.value as SavedImageKind)}
         />
       ) : null}
+      <StampCleanup file={file} enabled={cleanupOn} value={cleanup} onChange={setCleanup} />
       <Input
         id="saved-image-name"
         label={t('images.nameLabel')}

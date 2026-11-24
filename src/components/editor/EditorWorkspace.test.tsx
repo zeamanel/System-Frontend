@@ -6,6 +6,8 @@ import { ToastProvider } from '../ui'
 import { getRepositories } from '../../lib/repositories'
 import type { DocumentDetailRecord, TemplateDetail } from '../../lib/repositories'
 import { EditorWorkspace } from './EditorWorkspace'
+import { createEmptyDocument, createImage, createParagraph, serializeModel } from '../../lib/editor/model'
+import { pngUrl } from '../../test/images'
 import * as dataClient from '../../lib/data/client'
 
 const repos = getRepositories()
@@ -273,6 +275,30 @@ describe('EditorWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /print/i }))
     fireEvent.click(await screen.findByTestId('print-check-anyway'))
+    await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1))
+  })
+
+  it('asks before printing a picture too small for its size, and prints when told to', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const model = createEmptyDocument('en')
+    const image = { ...createImage(pngUrl(400, 150), 'Shop logo'), widthPct: 50 }
+    const created = await repos.documents.create({
+      title: 'Letter with a small logo',
+      language: 'en',
+      answers: {},
+      content: serializeModel({ ...model, blocks: [createParagraph('Dear Sir, we request a meeting.'), image] }),
+    })
+    const { doc, template } = await loadDocument(created.id)
+    renderWorkspace(doc, template)
+    await screen.findByTestId('editor-title-input')
+
+    fireEvent.click(screen.getByRole('button', { name: /print/i }))
+    // Only a warning, but a picture that prints blurry is a problem on paper: the print dialog stops for it.
+    const dialog = await screen.findByTestId('print-check-dialog')
+    expect(dialog.textContent).toMatch(/"Shop logo" is 400 pixels wide/)
+    expect(dialog.textContent).toMatch(/about 120 dpi/)
+    expect(printSpy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('print-check-anyway'))
     await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1))
   })
 

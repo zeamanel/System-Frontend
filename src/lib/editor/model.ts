@@ -23,6 +23,7 @@ import type {
   PageSetup,
   PageSize,
   ParagraphBlock,
+  PartyMark,
   ParagraphSpacing,
   SideColumnPct,
   SideImage,
@@ -998,6 +999,29 @@ export function updateSignatureParty(
   )
 }
 
+/** Puts a signature or stamp on a party's signature line, or takes it off (null). */
+export function setPartyMark(
+  model: DocumentModel,
+  id: string,
+  partyId: string,
+  slot: 'signature' | 'stamp',
+  mark: PartyMark | null,
+): DocumentModel {
+  const key = slot === 'signature' ? 'signatureImage' : 'stampImage'
+  return updateBlock(model, id, (block) =>
+    block.type === 'signature'
+      ? {
+          ...block,
+          parties: block.parties.map((party) => {
+            if (party.id !== partyId) return party
+            const { [key]: _old, ...rest } = party
+            return mark ? { ...rest, [key]: mark } : rest
+          }),
+        }
+      : block,
+  )
+}
+
 export function addSignatureParty(model: DocumentModel, id: string): DocumentModel {
   return updateBlock(model, id, (block) => {
     if (block.type !== 'signature' || block.parties.length >= 4) return block
@@ -1204,6 +1228,12 @@ function sanitizeSideCell(raw: Record<string, unknown>): {
   }
 }
 
+/** A signature line's picture: only an embedded image is kept (remote addresses are never fetched). */
+function sanitizePartyMark(raw: unknown): PartyMark | undefined {
+  if (!isRecord(raw) || typeof raw.src !== 'string' || !raw.src.startsWith('data:image/') || !isSafeUrl(raw.src)) return undefined
+  return { src: raw.src, alt: String(raw.alt ?? '').slice(0, 200) }
+}
+
 /** Table / signature / image / page-break arms of {@link sanitizeModel}. */
 function sanitizeComplexBlock(raw: Record<string, unknown>): Block[] {
   switch (raw.type) {
@@ -1244,12 +1274,18 @@ function sanitizeComplexBlock(raw: Record<string, unknown>): Block[] {
       const parties = Array.isArray(raw.parties)
         ? raw.parties
             .filter(isRecord)
-            .map((party) => ({
-              id: typeof party.id === 'string' ? party.id : newId('party'),
-              label: sanitizeInlineHtml(String(party.label ?? '')),
-              name: sanitizeInlineHtml(String(party.name ?? '')),
-              date: sanitizeInlineHtml(String(party.date ?? '')),
-            }))
+            .map((party) => {
+              const signatureImage = sanitizePartyMark(party.signatureImage)
+              const stampImage = sanitizePartyMark(party.stampImage)
+              return {
+                id: typeof party.id === 'string' ? party.id : newId('party'),
+                label: sanitizeInlineHtml(String(party.label ?? '')),
+                name: sanitizeInlineHtml(String(party.name ?? '')),
+                date: sanitizeInlineHtml(String(party.date ?? '')),
+                ...(signatureImage ? { signatureImage } : {}),
+                ...(stampImage ? { stampImage } : {}),
+              }
+            })
         : []
       if (parties.length === 0) return []
       return [{ id: String(raw.id), type: 'signature', parties }]
