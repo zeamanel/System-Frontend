@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n'
+import { GoogleOrganizationCard } from '../components/google/GoogleConnectionsCard'
 import { FONT_OPTIONS } from '../lib/editor/fonts'
 import type {
   OrganizationDocumentLook,
@@ -369,6 +370,8 @@ export default function OrganizationPage() {
               </div>
             </CardBody>
           </Card>
+
+          <GoogleOrganizationCard />
 
           <Card>
             <CardTitle info={t('organization.signatoriesHint')}>{t('organization.section.signatories')}</CardTitle>

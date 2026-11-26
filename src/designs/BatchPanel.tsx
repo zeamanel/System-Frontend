@@ -4,6 +4,9 @@ import { Button, Textarea } from '../components/ui'
 import { UploadIcon } from '../components/icons'
 import { MAX_BATCH_ROWS, NUMBERING_OPTION, batchWarnings, countUp, parseList, rowsFromList, rowsToText } from './batch'
 import type { DesignBatch, DesignContent } from './types'
+import { useGoogleConnection } from '../hooks/use-google'
+import { pickGoogleSheet } from '../lib/google/sheets'
+import { googleErrorKey } from '../components/google/messages'
 
 const MAX_FILE_BYTES = 512 * 1024
 
@@ -28,7 +31,10 @@ export interface BatchPanelProps {
 
 /** "Print for a list of people": names pasted from Excel or loaded from a CSV file. */
 export function BatchPanel({ batch, content, pages, onRowsChange, onNumberingChange }: BatchPanelProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const google = useGoogleConnection().data
+  const [sheetError, setSheetError] = useState<string | null>(null)
+  const [sheetBusy, setSheetBusy] = useState(false)
   const [text, setText] = useState(() => rowsToText(content.batch?.rows ?? [], batch))
   const [fileError, setFileError] = useState(false)
   const fileInput = useRef<HTMLInputElement | null>(null)
@@ -55,6 +61,23 @@ export function BatchPanel({ batch, content, pages, onRowsChange, onNumberingCha
       apply(await readText(file))
     } catch {
       setFileError(true)
+    }
+  }
+
+  // A spreadsheet picked in Google Drive, read as if pasted from it (tab-separated rows).
+  const loadSheet = async (): Promise<void> => {
+    setSheetError(null)
+    if (!google.connected) {
+      setSheetError(t('google.error.notConnected'))
+      return
+    }
+    setSheetBusy(true)
+    try {
+      const picked = await pickGoogleSheet({ locale, title: t('google.sheets.pickerTitle') })
+      if (picked.ok) apply(picked.rows.map((row) => row.join('\t')).join('\n'))
+      else if (picked.reason !== 'cancelled') setSheetError(t(googleErrorKey(picked.reason)))
+    } finally {
+      setSheetBusy(false)
     }
   }
 
@@ -86,12 +109,22 @@ export function BatchPanel({ batch, content, pages, onRowsChange, onNumberingCha
         <Button type="button" size="sm" variant="secondary" icon={<UploadIcon size={16} />} onClick={() => fileInput.current?.click()}>
           {t('designs.batch.loadFile')}
         </Button>
+        {google.allowed && google.sheetsConfigured ? (
+          <Button type="button" size="sm" variant="secondary" loading={sheetBusy} onClick={() => void loadSheet()} data-testid="design-batch-google">
+            {t('google.sheets.button')}
+          </Button>
+        ) : null}
         {listed ? (
           <Button type="button" size="sm" variant="ghost" onClick={() => apply('')}>
             {t('designs.batch.clear')}
           </Button>
         ) : null}
       </div>
+      {sheetError ? (
+        <p className="design-workspace__batch-warning" role="alert">
+          {sheetError}
+        </p>
+      ) : null}
       {fileError ? (
         <p className="design-workspace__batch-warning" role="alert">
           {t('designs.batch.fileError')}

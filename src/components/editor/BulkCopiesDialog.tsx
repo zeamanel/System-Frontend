@@ -16,6 +16,9 @@ import { listRecords, markRecordUsed, readRecords } from '../../lib/data/client'
 import { recordsTable } from '../../lib/data/bulk'
 import { collectionLabel, collectionText, fieldLabel, optionLabel } from '../../lib/data/labels'
 import { Badge, Button, Dialog, SearchInput, Select, Textarea } from '../ui'
+import { useGoogleConnection } from '../../hooks/use-google'
+import { pickGoogleSheet } from '../../lib/google/sheets'
+import { googleErrorKey } from '../google/messages'
 
 export interface BulkCopiesDialogProps {
   open: boolean
@@ -46,7 +49,8 @@ type Step =
  * copy; nothing goes to the AI.
  */
 export function BulkCopiesDialog({ open, onClose, model, title, language, templateId }: BulkCopiesDialogProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const google = useGoogleConnection().data
   const queryClient = useQueryClient()
   const [step, setStep] = useState<Step>({ kind: 'source' })
   const [table, setTable] = useState<Table | null>(null)
@@ -97,6 +101,22 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
               ? t('bulk.noRows')
               : (result.message ?? t('bulk.unreadable'))
       setStep({ kind: 'source', error: message })
+    } finally {
+      setReading(false)
+    }
+  }
+
+  // A spreadsheet picked in Google Drive: the same table an Excel file gives.
+  const readGoogle = async (): Promise<void> => {
+    if (!google.connected) {
+      setStep({ kind: 'source', error: t('google.error.notConnected') })
+      return
+    }
+    setReading(true)
+    try {
+      const picked = await pickGoogleSheet({ locale, title: t('google.sheets.pickerTitle') })
+      if (picked.ok) applyTable(picked.table)
+      else if (picked.reason !== 'cancelled') setStep({ kind: 'source', error: t(googleErrorKey(picked.reason)) })
     } finally {
       setReading(false)
     }
@@ -207,9 +227,16 @@ export function BulkCopiesDialog({ open, onClose, model, title, language, templa
                   if (file) void readFile(file)
                 }}
               />
-              <Button variant="primary" loading={reading} onClick={() => fileRef.current?.click()} data-testid="bulk-choose-file">
-                {t('bulk.chooseFile')}
-              </Button>
+              <div className="bulk-copies__sources">
+                <Button variant="primary" loading={reading} onClick={() => fileRef.current?.click()} data-testid="bulk-choose-file">
+                  {t('bulk.chooseFile')}
+                </Button>
+                {google.allowed && google.sheetsConfigured ? (
+                  <Button variant="secondary" disabled={reading} onClick={() => void readGoogle()} data-testid="bulk-google-sheets">
+                    {t('google.sheets.button')}
+                  </Button>
+                ) : null}
+              </div>
               <Textarea
                 label={t('bulk.pasteLabel')}
                 hint={t('bulk.pasteHint')}

@@ -37,6 +37,9 @@ export const queryKeys = {
     all: ['notifications'] as const,
   },
   features: ['features'] as const,
+  google: {
+    connection: ['google', 'connection'] as const,
+  },
   reviews: {
     all: ['reviews'] as const,
     forDocument: (documentId: string) => ['reviews', 'document', documentId] as const,

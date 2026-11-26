@@ -76,6 +76,9 @@ import { A4PagesCanvas } from './A4PagesCanvas'
 import { VersionHistoryDialog } from './VersionHistoryDialog'
 import { StylePickerDialog } from './StylePickerDialog'
 import { InsertImageDialog } from './InsertImageDialog'
+import { useGoogleConnection } from '../../hooks/use-google'
+import { GoogleError, saveToDrive } from '../../lib/google/client'
+import { googleErrorKey } from '../google/messages'
 import { bookPictureDataUrl } from '../../lib/media/ai-picture'
 import { EditorTelegramVaultDrawer } from './EditorTelegramVaultDrawer'
 import type { SavedImageKind } from '../../lib/saved-images/types'
@@ -1549,6 +1552,30 @@ export function EditorWorkspace({
     }
   }, [doc.id, editor, exportMutation, t])
 
+  // ---- Save to my Google Drive: the saved document, as PDF, into the SenedDesk folder ----
+  const google = useGoogleConnection().data
+  const [drivePending, setDrivePending] = useState(false)
+  const handleSaveToDrive = useCallback(async (): Promise<void> => {
+    setExportError(null)
+    if (!google.connected) {
+      setExportError(t('google.error.notConnected'))
+      return
+    }
+    if (!(await editor.flush())) {
+      setExportError(t('editor.exportNeedsSave'))
+      return
+    }
+    setDrivePending(true)
+    try {
+      await saveToDrive(doc.id, 'pdf')
+      toast.push(t('google.drive.saved'), { variant: 'success' })
+    } catch (error) {
+      setExportError(t(googleErrorKey(error instanceof GoogleError ? error.reason : 'failed')))
+    } finally {
+      setDrivePending(false)
+    }
+  }, [doc.id, editor, google.connected, t, toast])
+
   const handleOutlineSelect = useCallback((blockId: string): void => {
     document
       .querySelector<HTMLElement>(`[data-block-id="${blockId}"]`)
@@ -1807,6 +1834,7 @@ export function EditorWorkspace({
         onPrint={() => void handlePrint()}
         onSaveAsTemplate={doc.isTemplate || doc.access === 'view' ? undefined : () => setTemplateName(editor.title)}
         onSendToTelegram={() => void handleSendToTelegram()}
+        onSaveToDrive={google.allowed && doc.access !== 'view' && doc.kind !== 'design' ? () => void handleSaveToDrive() : undefined}
         onSendForReview={doc.isTemplate || doc.access === 'view' || doc.kind === 'design' ? undefined : () => setReviewOpen(true)}
         onDictate={pageLocked || previewMode || doc.access === 'view' ? undefined : handleDictate}
         dictating={dictation.state.phase !== 'idle' && dictationFor === 'page'}
@@ -1822,7 +1850,7 @@ export function EditorWorkspace({
         }
         onExportServerPdf={() => void handleExportServer('pdf')}
         onExportServerDocx={() => void handleExportServer('docx')}
-        exportPending={exportMutation.isPending}
+        exportPending={exportMutation.isPending || drivePending}
         exportError={exportError}
         leftPanelOpen={leftOpen}
         rightPanelOpen={rightOpen}

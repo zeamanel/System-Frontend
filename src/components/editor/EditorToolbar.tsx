@@ -27,6 +27,7 @@ import {
   EditIcon,
   CopyIcon,
   SmartphoneIcon,
+  UploadIcon,
   MicIcon,
   UsersIcon,
   CloudOffIcon,
@@ -64,6 +65,8 @@ export interface EditorToolbarProps {
   onSaveAsTemplate?: () => void
   /** Sends the PDF to the user's Telegram (absent: no menu item). */
   onSendToTelegram?: () => void
+  /** Saves the PDF to the user's Google Drive (absent: no menu item). */
+  onSaveToDrive?: () => void
   /** Sends a read-only copy to the other party to comment and approve (absent: no menu item). */
   onSendForReview?: () => void
   /** Dictate at the caret (absent: no button). */
@@ -130,6 +133,7 @@ export function EditorToolbar({
   onPrint,
   onSaveAsTemplate,
   onSendToTelegram,
+  onSaveToDrive,
   onSendForReview,
   onDictate,
   dictating,
@@ -251,6 +255,7 @@ export function EditorToolbar({
         onPrint,
         onSaveAsTemplate,
         onSendToTelegram,
+        onSaveToDrive,
         onSendForReview,
         onDictate,
         dictating,
@@ -293,6 +298,7 @@ function renderToolbarEnd(props: {
   onPrint: () => void
   onSaveAsTemplate?: () => void
   onSendToTelegram?: () => void
+  onSaveToDrive?: () => void
   onSendForReview?: () => void
   onDictate?: () => void
   dictating?: boolean
@@ -547,6 +553,21 @@ function renderToolbarEnd(props: {
                 <small>{t('editor.exportDocxHint')}</small>
               </span>
             </button>
+            {props.onSaveToDrive ? (
+              <button
+                type="button"
+                className="editor-export-menu__item"
+                onClick={props.onSaveToDrive}
+                disabled={props.exportPending}
+                data-testid="editor-save-drive"
+              >
+                <UploadIcon size={16} />
+                <span>
+                  <strong>{t('google.drive.menu')}</strong>
+                  <small>{t('google.drive.menuHint')}</small>
+                </span>
+              </button>
+            ) : null}
             {props.onSendToTelegram ? (
               <button
                 type="button"

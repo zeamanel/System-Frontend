@@ -27,6 +27,7 @@ import { useAllCustomers, useDeleteAllCustomers } from '../hooks/use-customers'
 import { AiCreditsToday } from '../components/usage/AiCreditsToday'
 import { DocumentLookCard } from '../components/settings/DocumentLookCard'
 import { TelegramLinkCard } from '../components/settings/TelegramLinkCard'
+import { GoogleConnectionsCard } from '../components/google/GoogleConnectionsCard'
 import {
   Badge,
   Button,
@@ -262,6 +263,8 @@ export default function SettingsPage() {
         <DocumentLookCard />
 
         <TelegramLinkCard />
+
+        <GoogleConnectionsCard />
 
         {/* What the plan gives, and what is left today. */}
         <Card className="settings-card" data-testid="settings-plan">
